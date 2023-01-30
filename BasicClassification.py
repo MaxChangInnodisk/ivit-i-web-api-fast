@@ -1,4 +1,4 @@
-import sys, os
+import sys, os, cv2
 import numpy as np 
 sys.path.append( os.getcwd() )
 from ivit_i.app.common import ivitApp
