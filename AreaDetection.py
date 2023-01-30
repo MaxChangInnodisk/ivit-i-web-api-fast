@@ -172,11 +172,11 @@ class AreaDetection(DynamicBoundingBox, ivitApp):
             # Display
             cv2.imshow(CV_WIN, self.draw_area_event(param['img'], in_cv_event=True, draw_points=True))
 
-    def set_area(self, frame=None):
+    def set_area(self, frame):
         """ Setup the area we want to detect via open the opencv window """        
 
         # Check Frame is Available
-        if frame.all()==None:
+        if frame is None:
 
             if self.area_pts == {}: 
                 msg = "Could not capture polygon coordinate and there is not provide frame to draw"

@@ -139,7 +139,7 @@ if __name__ == "__main__":
     # Get Source
     src_path = '/dev/video0' # 640x480
     src_path = './data/car.mp4'   # 1280x720
-    src_path = './data/4-corner-downtown-trim.mp4' # 1920x1080
+    src_path = './data/4-corner-downtown.mp4' # 1920x1080
     cap = cv2.VideoCapture(src_path)
 
     output = None

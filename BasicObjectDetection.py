@@ -99,7 +99,7 @@ if __name__ == "__main__":
     app = BasicObjectDetection(label=model_conf['openvino']['label_path'])
 
     # Get Source
-    cap = cv2.VideoCapture('./data/4-corner-downtown-trim.mp4')
+    cap = cv2.VideoCapture('./data/4-corner-downtown.mp4')
     while(cap.isOpened()):
 
         ret, frame = cap.read()
