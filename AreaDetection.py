@@ -109,8 +109,8 @@ class AreaDetection(DynamicBoundingBox, ivitApp):
         # Check Available Area Points
         self.check_area_pts()
 
-        logging.info('Get current area point index: {}'.format(self.area_pts_idx))
-        logging.info('Get area: {}'.format(self.area_pts))
+        # logging.info('Get current area point index: {}'.format(self.area_pts_idx))
+        # logging.info('Get area: {}'.format(self.area_pts))
 
     def draw_area_event(self, frame, area_color=None, area_opacity=None, in_cv_event=False, draw_points=False, draw_polys=True):
         """ Draw Detecting Area and update center point if need.
