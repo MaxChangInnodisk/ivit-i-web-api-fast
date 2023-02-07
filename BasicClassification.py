@@ -1,6 +1,7 @@
 import sys, os, cv2
 import numpy as np 
 sys.path.append( os.getcwd() )
+print(sys.path)
 from ivit_i.app.common import ivitApp
 
 class BasicClassification(ivitApp):
@@ -11,9 +12,10 @@ class BasicClassification(ivitApp):
         
     def init_params(self):
         self.def_param( name='depend_on', type='list', value=['car'] )
+        self.def_param( name='palette',type='dict' ,value ={'Egyptian cat':[0,0,255]})
         self.def_param( name='color', type='list', value=[0,255,0] )
         self.def_param( name='opacity', type='float', value=0.3 )
-
+    
     def run(self, frame, data, draw=True) -> tuple:
 
         info = []
@@ -41,7 +43,11 @@ class BasicClassification(ivitApp):
             text_area = frame[ymin:ymax, xmin:xmax]
             black_img = np.zeros(text_area.shape, dtype=np.uint8)
             frame[ymin:ymax, xmin:xmax] = cv2.addWeighted(text_area, 1-self.get_param('opacity'), black_img, self.get_param('opacity'), 1.0)
-            
+            # Draw BB for user setting
+            for obj , object_info in self.get_param('palette').items():
+                print("obj {} and label {} ".format(str(obj),str(label)))
+                if str(obj)==str(label):
+                    cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), (object_info), 3, cv2.LINE_AA)
             # Draw Text
             cv2.putText(
                 frame, content, (xmin, ymax), self.FONT,
@@ -65,6 +71,7 @@ if __name__ == "__main__":
             "device": "CPU",
             "thres": 0.98,
             "number_top": 3,
+            "palette":{'cat':[0,0,255]},
         }
     }
 
@@ -75,7 +82,7 @@ if __name__ == "__main__":
     app = BasicClassification(label=model_conf['openvino']['label_path'])
 
     # Get Source
-    data = './data/image-slide.mp4'
+    data = './data/cat.jpg'
     cap = cv2.VideoCapture(data)
     while(cap.isOpened()):
 
