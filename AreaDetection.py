@@ -61,6 +61,7 @@ class AreaDetection(DynamicBoundingBox, ivitApp):
         # Update Parameter
         self.init_info()
         self.init_area()
+        self.last_frame = { }
 
     def init_params(self):
         self.def_param( name=K_DEPEND, type='list', value=['car'] )
@@ -164,14 +165,24 @@ class AreaDetection(DynamicBoundingBox, ivitApp):
             - type: dict
             - example: { 'img': cv_array } 
         """
+        
+        # print("pram type{}".format(type(param)))
         if event == cv2.EVENT_LBUTTONDOWN:
             
             # Add Index in area_points
             self.area_pts[self.area_pts_idx].append( [ x, y ] )
+            self.last_frame.update({len(self.last_frame)+1:param['img'].copy()})
+        
+            cv2.imshow(CV_WIN, self.draw_area_event(param['img'], in_cv_event=True, draw_points=True))
+        if event == cv2.EVENT_RBUTTONDOWN:
+            self.area_pts[self.area_pts_idx].pop()  
+             
+            param['img'] = self.last_frame[len(self.last_frame)]
+            del self.last_frame[len(self.last_frame)]
             
             # Display
             cv2.imshow(CV_WIN, self.draw_area_event(param['img'], in_cv_event=True, draw_points=True))
-
+       
     def set_area(self, frame):
         """ Setup the area we want to detect via open the opencv window """        
 
@@ -200,14 +211,19 @@ class AreaDetection(DynamicBoundingBox, ivitApp):
             while(True):
                 
                 # Draw Old One
+                
                 temp_frame = frame.copy()
                 temp_frame = self.draw_area_event(temp_frame, in_cv_event=True, draw_points=True)
                 
                 # Init: Update Index
-                self.area_pts_idx += 1     
-                self.area_pts[self.area_pts_idx] = list()
+                self.area_pts_idx += 1  
 
+                self.last_frame.clear()
+
+                self.area_pts[self.area_pts_idx] = list()
+                
                 cv2.setMouseCallback( CV_WIN, self.cv_area_handler, {"img": temp_frame} )
+                cv2.imshow(CV_WIN, self.draw_area_event(temp_frame, in_cv_event=True, draw_points=True))
                 cv2.putText(temp_frame, "Click to define detected area, press any key to leave", (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 1, cv2.LINE_AA)
                 cv2.imshow(CV_WIN, temp_frame)
                 key = cv2.waitKey(0)
