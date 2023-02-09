@@ -4,11 +4,11 @@ sys.path.append( os.getcwd() )
 from ivit_i.app.common import ivitApp
 
 try:
-    from DynamicBoundingBox import DynamicBoundingBox
-    from AreaDetection import AreaDetection
+    from BasicObjectDetection import BasicObjectDetection
+    
 except:
-    from apps.DynamicBoundingBox import DynamicBoundingBox
-    from apps.AreaDetection import AreaDetection
+    from apps.BasicObjectDetection import BasicObjectDetection
+    
 
 # Area
 K_DEPEN         = 'depend_on'
@@ -33,33 +33,25 @@ K_LOGIC         = 'logic'
 K_LOGIC_THRES   = 'logic_thres'
 
 
-class Counting(AreaDetection, ivitApp):
+class Counting(BasicObjectDetection, ivitApp):
 
     def __init__(self, params=None, label=None, palette=None, log=True):
-        super().__init__(params, label, palette, log)
-        self.set_type('obj')
-        self.init_area()
+       
+        self.app_type = 'obj'
+        self.params = params
+        self.depend_on ={}
+        self.palette={}
+        self.counter={}
+        self.judge_area=10
+        self.event_title=""
+        # self.init_area()
         self.init_draw_params()
         self.init_logic_param()
 
-    def init_params(self):
-        self.def_param( name=K_DEPEN, type='list', value=[], descr='add label into list if need to filter interest label' )
-        self.def_param( name=K_LOGIC, type="string", value="=", descr="use logic to define situation"),
-        self.def_param( name=K_LOGIC_THRES, type="int", value=3, descr="define logic threshold"),
-
-        self.def_param( name=K_DRAW_BB, type='bool', value=True )
-        self.def_param( name=K_DRAW_ARAE, type='bool', value=True )
-
-        self.def_param( name=K_AREA_COLOR, type='list', value=(0,0,255) )
-        self.def_param( name=K_AREA_OPACITY, type='float', value=0.15 )
-
-        self.def_param( name=K_AREA, type='dict', value={} )
-        self.def_param( name=K_SENS, type='str', value=SENS_LOW )
-
     def init_logic_param(self):
-        self.operator = self.get_logic_event(self.get_param(K_LOGIC))
-        self.thres = self.get_param(K_LOGIC_THRES)
-        self.cur_num = {}
+        self.operator = self.get_logic_event(self.params['application']['areas'][0]['events'][0]['logic_operator'])
+        self.thres = self.params['application']['areas'][0]['events'][0]['logic_value']
+
 
     def get_logic_event(self, operator):
         """ Define the logic event """
@@ -77,57 +69,65 @@ class Counting(AreaDetection, ivitApp):
         }
         return logic_map.get(operator)
 
-    def logic_event(self, value):
-        return self.operator(value)
-
-    def run(self, frame, data, draw=True) -> tuple:
+    def logic_event(self, value,thres):
+        return self.operator(value,thres)
+    
+    def __call__(self, frame, data, draw=True) -> tuple:
         
         # Basic in area detection
         self.frame_idx += 1
+        depand_flag=self.collect_depand_info()
         self.update_draw_param( frame )
+
         frame = self.draw_area_event(frame)
         
         # Clear `self.cur_num`
-        self.cur_num.clear()
-
-        for det in (data['detections']):
-
-            # Check Label is what we want
-            if not self.depend_label(det['label'], self.get_param('depend_on')):
-                continue
-            
+        self.counter.clear()
+        self.event_title=""
+        for id,det in enumerate(data['detections']):
             # Parsing output
             ( label, score, xmin, ymin, xmax, ymax ) \
                  = [ det[key] for key in [ 'label', 'score', 'xmin', 'ymin', 'xmax', 'ymax' ] ]                  
 
-            # Check in area
-            if self.check_obj_area((xmin, xmax, ymin, ymax))==(-1): 
-                continue
+            for i in range(len(depand_flag)):
+                
+                if self.inpolygon(((xmin+xmax)/2),((ymin+ymax)/2),self.area_pts[i]):
+               #check area[i] depand is not None 
+                    if depand_flag[i]:
+                        if label in self.depend_on[i]:  
+                        
+                            # Draw Top N label
+                            if self.counter.__contains__(label):
+                                _=self.counter[label]+1
+                                self.counter.update({label:_})
+                            else:
+                                self.counter.update({label:1})     
+                            
+                            if not draw: continue
+                            # Further Process
 
-            # Update the mount of the current object
-            if self.cur_num.get(label) is None:
-                self.cur_num.update( {label:0} )
-            self.cur_num[label] += 1
-            
-            # Draw Top N label
-            if not draw: continue
-
-            # Draw bounding box
-            cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), self.get_color(label) , self.thick)
-
-            # Draw Text
-            (t_wid, t_hei), t_base = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
-            t_xmin, t_ymin, t_xmax, t_ymax = xmin, ymin-(t_hei+(t_base*2)), xmin+t_wid, ymin
-            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax), self.get_color(label) , -1)
-
-            cv2.putText(
-                frame, label, (xmin, ymin-(t_base)), cv2.FONT_HERSHEY_SIMPLEX,
-                self.font_size, (255,255,255), self.font_thick, cv2.LINE_AA
-            )
-
-
+                            frame = self.custom_function(
+                                frame = frame,
+                                color = self.params['application']['areas'][i]['palette'].get(label, [0,0,0] ),
+                                label = '{} {:.1%}'.format(label, score),
+                                score=score,
+                                left_top = (xmin, ymin),
+                                right_down = (xmax, ymax)
+                            )
+                    else:
+                        frame = self.custom_function(
+                                    frame = frame,
+                                    color = self.params['application']['areas'][i]['palette'].get(label, [0,0,0] ),
+                                    label = '{} {:.1%}'.format(label, score),
+                                    score=score,
+                                    left_top = (xmin, ymin),
+                                    right_down = (xmax, ymax)
+                                )    
+        # print("10 {} {}".format(self.thres,self.logic_event(10,self.thres)))                        
+        if self.logic_event(10,self.thres):
+            self.event_title=self.params['application']['areas'][0]['events'][0]['title']
         # Draw Inforamtion
-        info = ', '.join([ f'{_label}:{_num}' for _label, _num in self.cur_num.items() ])
+        info = self.event_title+" "+' , '.join([ f'{_label}:{_num}' for _label, _num in self.counter.items() ])
         if info.strip() != '':
             (t_wid, t_hei), t_base = cv2.getTextSize(info, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
             t_xmin, t_ymin, t_xmax, t_ymax = 10, 10, 10+t_wid, 10+(t_hei+t_base)
@@ -136,8 +136,8 @@ class Counting(AreaDetection, ivitApp):
                 frame, info, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
                 self.font_size, (255,255,255), self.font_thick, cv2.LINE_AA
             )
-
-        return ( frame, self.cur_num)
+    
+        return ( frame, self.counter)
 
 if __name__ == "__main__":
 
@@ -165,8 +165,29 @@ if __name__ == "__main__":
     
     # Def Application
     app_conf = {
-        'depend_on': [],
-        'draw_area': True,
+        "application": {
+		                "name": "CountingArea",
+		                "areas": [
+                        {
+                                "name": "The intersection of Datong Rd",
+                                "depend_on": [ "car", "truck", "motocycle" ],
+                                "palette": {
+                                "car": [ 255, 0, 0 ],
+                                "truck": [ 0, 0, 255 ]
+                            },
+                                "area_point": [ [0,0], [640, 0] , [480, 640], [0, 480]], 
+                                "events": [
+                                        {
+                                                "title": "The daily traffic is over 2.",
+                                                "logic_operator": ">",
+                                                "logic_value": 2,
+                                        }
+                                ]
+                        }],
+        "draw_result": False,
+        "draw_bbox":True,
+
+}
     }
     app = Counting( 
         params=app_conf, 
@@ -180,7 +201,7 @@ if __name__ == "__main__":
 
     # Set up Area
     ret, frame = cap.read()
-    app.set_area(frame)
+    # app.set_area(frame)
 
     output = None
     while(cap.isOpened()):
@@ -191,7 +212,7 @@ if __name__ == "__main__":
         output = _output if _output is not None else output 
         if (output):
             frame, info = app(frame, output)
-            print(info)
+            # print(info)
         cv2.imshow('Test', frame)
         if cv2.waitKey(1) in [ ord('q'), 27 ]: break
 
