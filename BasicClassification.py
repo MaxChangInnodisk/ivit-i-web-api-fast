@@ -5,61 +5,56 @@ print(sys.path)
 from ivit_i.app.common import ivitApp
 
 class BasicClassification(ivitApp):
-    
-    """
-    1. 繼承 ivitApp
-    2. 必須要有 self.app_type, 跟 get_type() 讓 ivitAppHandler 取得到該 App ，支援的是 cls 還是 obj
-    3. 必須要用 __call__(self, frame, data, draw=True)
-    """
+    """ __init__, __call__ """
 
     def __init__(self, params=None, label=None, palette=None, log=True):
-        """
-        1. 設定 app_type
-        2. 先設定所有 label 的顏色
-        3. 
-
-        """
         self.params = params
         self.app_type = 'cls'
-        
-        # Parse Parameters ( Config )
-        # for idx, area in enumerate(self.params['areas']):
-        #     print('Area: {}'.format(idx))
+        self.depend_on = []
+        self.palette= {}
+        self.depend_on = self.params['application']['areas'][0]['depend_on']
+  
+    def check_depend(self, label):
+        ret = True
+       
+        if len(self.depend_on)>0:
+            ret = (label in self.depend_on)
+        return ret
 
-            # for key, val in area.items():
-                # print('{}: {}'.format(key, val))
-
-    def get_type(self):
-        return self.app_type
-                    
     def __call__(self, frame, data, draw=True) -> tuple:
         
-        output_result={}
-        temp_save_info={}
+        app_output = { "areas":[{"id":0,"name":"default","data":[]}] }
+
         for id,det in enumerate(data["detections"]):
+
             label, score =[ det[key] for key in ["label", "score" ]  ]
-            temp_save_info.update({"label":label,"score":score})
+
+            # Checking Depend
+            if not self.check_depend(label): continue
+
+            # Draw something                
             content     = '{} {:.1%}'.format(label, det['score'])
             ( text_width, text_height), text_base \
                 = cv2.getTextSize(content, self.FONT, self.FONT_SCALE, self.FONT_THICKNESS)
             xmin        = 10
-            ymin        = 10 + id*(text_height+text_base)
+            ymin        = 10 + len(app_output['areas'][0]['data'])*(text_height+text_base)
             xmax        = xmin + text_width
-            ymax        = ymin + text_height
-            depend_on = self.params['areas'][0]['depend_on']
-            if len(depend_on)>0:
-                if label not in depend_on: continue
-            cur_color = self.params['areas'][0]['palette'].get(
-                label, [0,0,0] )
+            ymax        = ymin + text_height  
+            app_output['areas'][0]['data'].append({"label":label,"score":score})
+
+
+            if self.params['application']['areas'][0].__contains__('palette')==False or self.params['application']['areas'][0]['palette']=={}  :
+                cur_color=[0,0,255]         
+            else:   
+                cur_color = self.params['application']['areas'][0]['palette'][label] if self.params['application']['areas'][0]['palette'].__contains__(label) else [0,0,0] 
+            
             
             cv2.putText(
                 frame, content, (xmin, ymax), self.FONT,
-                self.FONT_SCALE, cur_color, self.FONT_THICKNESS, self.FONT_THICK
-            )
-        output_result.update({"results":[temp_save_info]})
+                self.FONT_SCALE, cur_color[0], self.FONT_THICKNESS, self.FONT_THICK
+            )      
 
-            
-        return frame, output_result
+        return frame, app_output
 
 
 
@@ -86,15 +81,19 @@ if __name__ == "__main__":
     
     # Def Application
     app_config = {
-        "name": "BasicClassification",
-        "areas": [
-            {
-                "name": "first_area",
-                "depend_on": [ ],
-                "area_point": [], 
-                "palette":{ 'Egyptian cat':[15,255,255] ,'tabby, tabby cat':[0,0,255]},
-            }
-        ]
+        "application": {
+		"name": "BasicClassification",
+		"areas": [
+				{
+						"name": "default",
+						"depend_on": [ "Egyptian cat","tabby, tabby cat"],
+						"palettes": {
+								"tabby, tabby cat":[255,0,26],
+								"warpalne": [0, 0, 0],
+						}
+				}
+		]
+}
     }
     app = BasicClassification(params=app_config, label=model_conf['openvino']['label_path'])
 
