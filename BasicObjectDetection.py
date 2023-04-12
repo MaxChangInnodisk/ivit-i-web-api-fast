@@ -1,23 +1,26 @@
 import sys, os, cv2
-import numpy as np
 sys.path.append( os.getcwd() )
-from ivit_i.app.common import ivitApp
-import random
-import logging
+from apps.palette import palette
 
-
-class BasicObjectDetection(ivitApp):
+class BasicObjectDetection():    
     """ Basic Object Detection Application
     * Parameters
         1. depend_onarea_opacity
     * Function
         1. depend_label()
     """
-    def __init__(self, params=None, label=None, palette=None, log=True):
+    def __init__(self, params=None, label=None, palette=palette,log=True):
         self.app_type = 'obj'
         self.params = params
-        self.depend_on =self.params['application']['areas'][0]['depend_on']
+        
+        if self.params:
+            self.depend_on =self.params['application']['areas'][0]['depend_on']
+
+        self.depend_on = []
         self.palette={}
+        self.model_label = label
+        self.model_label_list =[]
+        self.init_palette(palette)
         self.init_draw_params()
 
     def init_draw_params(self):
@@ -61,12 +64,15 @@ class BasicObjectDetection(ivitApp):
         self.thick  = BASE_THICK + round( scale )
         self.font_thick = self.thick//2
         self.font_size = BASE_FONT_SIZE + ( scale*FONT_SCALE )
-        self.draw_result = self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else True
-        self.draw_bbox = self.params['application']['draw_bbox'] if self.params['application'].__contains__('draw_bbox') else True
+        if self.params:
+            self.draw_result = self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else True
+            self.draw_bbox = self.params['application']['draw_bbox'] if self.params['application'].__contains__('draw_bbox') else True
+        else :
+            self.draw_result = True
+            self.draw_bbox = True
+
         self.area_color=[0,0,255]
-        self.area_opacity=0.4
-        logging.info('Frame: {} ({}), Get Border Thick: {}, Font Scale: {}, Font Thick: {}'
-            .format(self.frame_size, scale, self.thick, self.font_size, self.font_thick))    
+        self.area_opacity=0.4  
     
     
  
@@ -91,31 +97,44 @@ class BasicObjectDetection(ivitApp):
                 self.font_size, (255,255,255), self.font_thick, cv2.LINE_AA
             )
         return frame
-    
-    
+        
+    def init_palette(self,palette):
+        temp_id=1
+        
+        with open(self.model_label,'r') as f:
+            line = f.read().splitlines()
+            for i in line:
+                self.palette.update({i:palette[str(temp_id)]})
+                self.model_label_list.append(i)
+                temp_id+=1
 
     def get_color(self, label):
-       if not (self.params['application']['areas'][0].__contains__('palette')): return [0,0,0]
-       if not (self.params['application']['areas'][0]['palette'].__contains__(label)): return [0,0,0]
-       return self.params['application']['areas'][0]['palette'][label] 
-    
+        if self.params:
+            if not (self.params['application']['areas'][0].__contains__('palette')): return self.palette[label] 
+            if not (self.params['application']['areas'][0]['palette'].__contains__(label)): return self.palette[label] 
+            return self.params['application']['areas'][0]['palette'][label] 
+        else:
 
-    def __call__(self, frame, data, draw=True) -> tuple:
+            return self.palette[label] 
+       
+
+    def __call__(self, frame, detections, draw=True) -> tuple:
         #collect depend_on for each area from config
         app_output={"areas":[{"id":0,"name":"default","data":[]}]}
 
         self.update_draw_param(frame=frame)
 
-        for id,det in enumerate(data['detections']):
+        # for id,det in enumerate(data['detections']):
+        for detection in detections:
             # Check Label is what we want
             ( label, score, xmin, ymin, xmax, ymax ) \
-                 = [ det[key] for key in [ 'label', 'score', 'xmin', 'ymin', 'xmax', 'ymax' ] ]  
+                 = detection.label, detection.score, detection.xmin, detection.ymin, detection.xmax, detection.ymax  
             # if user have set depend on
             if len(self.depend_on)>0:
                               
                 if label in self.depend_on[0] :
 
-                    app_output['areas'][0]['data'].append({'xmin':xmin,'ymin':ymin,'xmax':xmax,'ymax':ymax,'label':label,'score':score,'id':id})
+                    app_output['areas'][0]['data'].append({'xmin':xmin,'ymin':ymin,'xmax':xmax,'ymax':ymax,'label':label,'score':score,'id':detection.id})
                     frame = self.custom_function(
                         frame = frame,
                         color = self.get_color(label) ,
@@ -125,7 +144,7 @@ class BasicObjectDetection(ivitApp):
                         right_down = (xmax, ymax)
                     )
             else:
-                app_output['areas'][0]['data'].append({'xmin':xmin,'ymin':ymin,'xmax':xmax,'ymax':ymax,'label':label,'score':score,'id':id})
+                app_output['areas'][0]['data'].append({'xmin':xmin,'ymin':ymin,'xmax':xmax,'ymax':ymax,'label':label,'score':score,'id':detection.id})
                 
                 frame = self.custom_function(
                             frame = frame,
@@ -138,63 +157,3 @@ class BasicObjectDetection(ivitApp):
                                         
         return ( frame, app_output)
 
-if __name__ == "__main__":
-
-    import cv2
-    from ivit_i.common.model import get_ivit_model
-
-    # Define iVIT Model
-    model_type = 'obj'
-    model_anchor = [ 10, 13, 16, 30, 33, 23, 30, 61, 62, 45, 59, 119, 116, 90, 156, 198, 373, 326 ]
-    model_conf = { 
-        "tag": model_type,
-        "openvino": {
-            "model_path": "./model/yolo-v3-tf/FP32/yolo-v3-tf.xml",
-            "label_path": "./model/yolo-v3-tf/coco.names",
-            "anchors": model_anchor,
-            "architecture_type": "yolo",
-            "device": "CPU",
-            "thres": 0.9
-        }
-    }
-
-    ivit = get_ivit_model(model_type)
-    ivit.load_model(model_conf)
-    
-    # Def Application
-    app_config={
-        "application": {
-		"name": "BasicObjectDetection",
-		"areas": [
-				{
-						"name": "default",
-						"depend_on": [ ],
-						"palette": {
-							"car": [ 0, 255, 0 ],
-							"truck": [ 0, 255, 0 ]
-						}
-				}
-		],
-        "draw_result":True,
-        "draw_bbox":True
-    }
-}
-
-    app = BasicObjectDetection(params=app_config,label=model_conf['openvino']['label_path'])
-
-    # Get Source
-    cap = cv2.VideoCapture('./data/4-corner-downtown.mp4')
-    while(cap.isOpened()):
-
-        ret, frame = cap.read()
-        if not ret: break
-        output = ivit.inference(frame=frame)
-
-        frame, info = app(frame, output)
-        
-        # print(info)
-        cv2.imshow('Test', frame)
-        if cv2.waitKey(1) in [ ord('q'), 27 ]: break
-
-    cap.release()
-    ivit.release()

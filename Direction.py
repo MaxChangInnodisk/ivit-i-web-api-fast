@@ -6,30 +6,25 @@ import threading
 import math
 from datetime import datetime
 sys.path.append( os.getcwd() )
-from ivit_i.app.common import ivitApp
-#add jay 20230313 for using defalt palette.
-from ivit_i.app.palette import palette
+from apps.palette import palette
+from multiprocessing.pool import ThreadPool
 
 class event_handle(threading.Thread):
-    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict):
+    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int):
         threading.Thread.__init__(self)
-        # self.area_id = area_id
-        # self.app_output = app_output
         self.operator = operator
         self.thres = thres
         self.cooldown_time = cooldown_time
         self.event_title = event_title
         self.event_output={}
-        self.pass_time = 59
+        self.area_id = area_id
+        
+        self.pass_time = self.cooldown_time[self.area_id] +1
         self.event_time=datetime.now()
         self.trigger_time=datetime.now()
         
         self.info =" "
-        # self.total_object_number = total_object_number
-        # self.app_output = app_output
-        # self.frame = frame
-        # self.ori_frame = ori_frame
-        
+     
     def get_logic_event(self, operator):
         """ Define the logic event """
         greater = lambda x,y: x>y
@@ -49,13 +44,12 @@ class event_handle(threading.Thread):
     def logic_event(self, value,thres,area_id):
         return self.operator[area_id](value,thres)
 
-    def __call__(self,frame,area_id,total_object_number,app_output):
+    def __call__(self,frame,ori_frame,area_id,total_object_number,app_output):
         
-        ori_frame = frame.copy()
         self.event_output={}
         self.event_time=datetime.now()
         self.info =""
-        self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))
+        
         # area have operator
         if self.operator.__contains__(area_id) == False:
             return
@@ -63,19 +57,20 @@ class event_handle(threading.Thread):
         # when object in area 
         if total_object_number.__contains__(area_id) == False: 
             return
-        if self.logic_event(total_object_number[area_id],self.thres[area_id],area_id) == False:
-            return
 
+        if not self.logic_event(total_object_number[area_id],self.thres[area_id],area_id):
+            return
+        
         if self.pass_time > self.cooldown_time[area_id]:
             self.eventflag=True
             self.trigger_time=datetime.now()
             self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))
             uid=str(uuid.uuid4())[:9]
             path='./'+str(uid)+'/'
-            # if not os.path.isdir(path):
-            #     os.mkdir(path)
-            # cv2.imwrite(path+str(timesamp)+'.jpg', frame)
-            # cv2.imwrite(path+str(timesamp)+"_org"+'.jpg', ori_frame)
+            if not os.path.isdir(path):
+                os.mkdir(path)
+            cv2.imwrite(path+str(self.trigger_time)+'.jpg', frame)
+            cv2.imwrite(path+str(self.trigger_time)+"_org"+'.jpg', ori_frame)
             self.event_output.update({"uuid":uid,"title":self.event_title[area_id],"areas":app_output["areas"][area_id],"timesamp":self.trigger_time,"screenshot":{"overlay": path+str(self.trigger_time)+'.jpg',
             "original": path+str(self.trigger_time)+"_org"+'.jpg'}}) 
             # Draw Inforamtion
@@ -108,8 +103,20 @@ class app_common_handle(threading.Thread):
         self.object_buffer={}
         # self.line_point=line_point
         self.line_relationship=line_relationship
-        self.show_object=""
+        self.show_object=[]
+        self.show_object_info=""
         self.is_draw=False
+    
+    
+    def update_tracking_distance(self,frame):
+        if frame.shape[0]<1080:
+            self.tracking_distance = 60*(2/(math.pow(frame.shape[0]/1080,2)+math.pow(frame.shape[1]/1920,2))) 
+        else:
+            self.tracking_distance = 60*(2/(math.pow(1080/frame.shape[0],2)+math.pow(1920/frame.shape[1],2)))
+    
+    
+    def update_tracking_distance(self,new_tracking_distance):
+        self.tracking_distance = new_tracking_distance
 
     def init_tracking(self,xmin,xmax,ymin,ymax,area_id): 
         
@@ -245,11 +252,12 @@ class app_common_handle(threading.Thread):
         
         for i , v in coby_track_object_buffer.items():
             
-            if time.time()-v['frame_time']>3:
-                    del self.object_buffer[area_id][i] 
+            
             if buffer_distance > self.cal_distance(v['x'],v['y'],(xmin+xmax)//2,(ymin+ymax)//2):
                 self.object_buffer[area_id][i]['frame_time']=time.time()
-                return  temp_direction  
+                return temp_direction , tracked 
+            if time.time()-v['frame_time']>3:
+                    del self.object_buffer[area_id][i] 
 
         for object_id , object_value in coby_track_object.items():
             
@@ -275,18 +283,18 @@ class app_common_handle(threading.Thread):
             self.total_object[area_id]=self.total_object[area_id]+1
             
             self.track_object[area_id].update({self.total_object[area_id]:{'x':(xmin+xmax)//2,'y':(ymin+ymax)//2,'frame_time':time.time(),'torch_line':{}}})    
-            self.show_object="Area{}: {}".format(str(area_id),str(self.object_id))
-            return temp_direction 
+            self.show_object_info="Area{}: {}".format(str(area_id),str(self.object_id))
+            return temp_direction , tracked
         else:
             
             temp_torch_line=self.track_object[area_id][self.object_id]['torch_line']
             
             self.track_object[area_id].update({self.object_id:{'name':str(),'x':(xmin+xmax)//2,'y':(ymin+ymax)//2,'frame_time':time.time() ,'torch_line':temp_torch_line}}) 
-        self.show_object="Area{}: {}".format(str(area_id),str(self.object_id))
+        self.show_object_info="Area{}: {}".format(str(area_id),str(self.object_id))
         
         
         check_is_cross, temp_cross_line =self.is_point_cross_trigger_line(temp_last_point,[(xmin+xmax)//2,(ymin+ymax)//2],line_point,area_id)
-        if not check_is_cross: return temp_direction 
+        if not check_is_cross: return temp_direction , tracked 
 
         if len(self.track_object[area_id][self.object_id]['torch_line'])==0:
             self.track_object[area_id][self.object_id]['torch_line'].update({1:temp_cross_line})
@@ -307,7 +315,7 @@ class app_common_handle(threading.Thread):
             # print(" Objecdt:{} is {} .".format(temp_id,temp_direction))
         
         
-        return temp_direction 
+        return temp_direction , tracked
   
     def inpolygon(self,px,py,poly):
         is_in = False
@@ -366,14 +374,15 @@ class app_common_handle(threading.Thread):
         # if not self.area_mask[area_id][(xmin+xmax)//2, (ymin+ymax)//2]: return
        
         if self.check_depend_on(area_id):
-            if label in self.depend_on[area_id]:  
 
-                #add 20230309 jay for show direction result.         
-                direction=self.update_object_point(frame,xmin,xmax,ymin,ymax,area_id,line_point)  
+            if label in self.depend_on[area_id]:  
+                
+     
+                direction , new_object_detection =self.update_object_point(frame,xmin,xmax,ymin,ymax,area_id,line_point)  
                   
                 if self.check_direction_result(direction):
                     self.update_object_number_this_frame(area_id)
-
+                    # print(self.total)
                     #according to area and depend on to creat app output. Do once.
                     if len(self.line_relationship[area_id])!=len(self.app_output["areas"][area_id]["data"]):
                         for i in range(len(self.line_relationship[area_id])):
@@ -382,44 +391,57 @@ class app_common_handle(threading.Thread):
 
                     for d in range(len(self.app_output["areas"][area_id]["data"])): 
 
-                        #add 20230309 jay for show direction result.    
                         if self.app_output["areas"][area_id]["data"][d]["label"]==direction :
                             _=self.app_output["areas"][area_id]["data"][d]["num"]+1
                             
                             self.app_output["areas"][area_id]["data"][d].update({"num":_})
                             
-                self.is_draw=True
+                if self.show_object==[]:
+                    self.is_draw=True
+                elif self.object_id in self.show_object:
+                    self.is_draw=False  
+                else :
+                    self.is_draw=True      
                 # print(self.app_output,'\n')    
         else:
-            
-            if len(self.app_output["areas"][area_id]["data"])==0:
-                self.app_output["areas"][area_id]["data"].append({"label":label,"num":1})
-            #add 20230309 jay for show direction result.    
-            direction=self.update_object_point(frame,xmin,xmax,ymin,ymax,area_id,line_point)
+
+            direction , new_object_detection =self.update_object_point(frame,xmin,xmax,ymin,ymax,area_id,line_point)
 
             if self.check_direction_result(direction):
-
+                
                 self.update_object_number_this_frame(area_id) 
+                
+                
+                #according to area and depend on to creat app output. Do once.
+                if len(self.line_relationship[area_id])!=len(self.app_output["areas"][area_id]["data"]):
+                    for i in range(len(self.line_relationship[area_id])):
+                        for key in self.line_relationship[area_id][i].values():
+                            self.app_output["areas"][area_id]["data"].append({"label":key,"num":0})
 
                 for d in range(len(self.app_output["areas"][area_id]["data"])): 
-                    #add 20230309 jay for show direction result.      
+
                     if self.app_output["areas"][area_id]["data"][d]["label"]==direction :
                         _=self.app_output["areas"][area_id]["data"][d]["num"]+1
                         
                         self.app_output["areas"][area_id]["data"][d].update({"num":_})
-                        break
-                    if len(self.app_output["areas"][area_id]["data"])-1==d and self.app_output["areas"][area_id]["data"][d]["label"]!=direction: 
-                        self.app_output["areas"][area_id]["data"].append({"label":label,"num":1})
-            self.is_draw=True
+            if self.show_object==[]:
+                self.is_draw=True
+            elif self.object_id in self.show_object:
+                self.is_draw=False  
+            else :
+                self.is_draw=True  
             # print(self.app_output,'\n')  
 
-class Direction(event_handle,app_common_handle, ivitApp):
-    #mod jay 20230313 for using defalt palette. 
+class Direction(event_handle,app_common_handle):
+
     def __init__(self, params=None, label=None, palette=palette, log=True):
     
+        
+        self.params = params  
+
+        self.check_params()
 
         self.app_type = 'obj'
-        self.params = params
         self.depend_on ={}
         self.palette={}
         self.event_title={}
@@ -445,10 +467,12 @@ class Direction(event_handle,app_common_handle, ivitApp):
         self.normalize_line_point={}
         self.line_relation={}
         self.line_relationship={}
-        
-        #add jay 20230313 for using defalt palette.
+
         self.model_label = label
         self.model_label_list =[]
+
+        self.pool = ThreadPool(os.cpu_count() )
+       
         self.init_palette(palette)
 
         self.collect_depand_info()
@@ -459,8 +483,23 @@ class Direction(event_handle,app_common_handle, ivitApp):
         self.app_common_start()
         self.init_event_object()
         self.event_start()
-    
-    #add jay 20230313 for using defalt palette.
+
+
+    def check_params(self):
+        if not self.params:
+            logging.error('App config is None , plz set app config')
+            sys.exit(0) 
+        if not self.params.__contains__('application') or not self.params['application'] :
+            logging.error('Key application value is None , plz set application in app config')
+            sys.exit(0) 
+        if not (dict==type(self.params['application'])):
+            logging.error('Key application value is not support , plz check application in app config')
+            sys.exit(0) 
+
+
+    def update_tracking_distance(self,new_tracking_distance):
+        self.tracking_distance = new_tracking_distance
+
     def init_palette(self,palette):
         temp_id=1
         with open(self.model_label,'r') as f:
@@ -552,8 +591,7 @@ class Direction(event_handle,app_common_handle, ivitApp):
                 self.font_size, (255,255,255), self.font_thick, cv2.LINE_AA
             )
         return frame
-    
-    #mod jay 20230313 for using defalt palette. 
+
     def get_color(self, label,area_id):
        
        return self.palette[area_id][label] 
@@ -566,7 +604,7 @@ class Direction(event_handle,app_common_handle, ivitApp):
                 self.depend_on.update({i:self.params['application']['areas'][i]['depend_on']})
             else:
                 self.depend_on.update({i:[]})    
-        #add jay 20230313 for using defalt palette. 
+
         temp_palette ={}
         for area , value in self.depend_on.items():
             temp_palette.update({area:{}})
@@ -611,7 +649,8 @@ class Direction(event_handle,app_common_handle, ivitApp):
                     self.cooldown_time.update({i:10})   
                 if self.params['application']['areas'][i]['events'].__contains__('sensitivity'):
                     self.sensitivity.update({i:self.get_sensitivity_event(self.params['application']['areas'][i]['events']['sensitivity'])})
-   
+            else:
+                logging.warning("No set event!")
     def init_line_relation(self):
         for area_id ,val in self.line_relation.items():
             if not self.line_relationship.__contains__(area_id):
@@ -644,17 +683,13 @@ class Direction(event_handle,app_common_handle, ivitApp):
   
     def init_event_object(self):
         for i , v   in self.operator.items():
-            event_obj = event_handle(self.operator,self.thres,self.cooldown_time,self.event_title) 
+            event_obj = event_handle(self.operator,self.thres,self.cooldown_time,self.event_title ,i) 
             self.event_handler.update( { i: event_obj }  )        
     
     def init_scale(self,frame):
         return frame.shape[0]/1920,frame.shape[1]/1080
 
-    def update_tracking_distance(self,frame):
-        if frame.shape[0]<1080:
-            self.tracking_distance = 60*(2/(math.pow(frame.shape[0]/1080,2)+math.pow(frame.shape[1]/1920,2))) 
-        else:
-            self.tracking_distance = 60*(2/(math.pow(1080/frame.shape[0],2)+math.pow(1920/frame.shape[1],2)))
+    
 
     def init_area_mask(self,frame):
        
@@ -698,7 +733,7 @@ class Direction(event_handle,app_common_handle, ivitApp):
             - area_color: control the color of the area
             - area_opacity: control the opacity of the area
         """
-        #add 20230309 jay for control area display.
+
         is_draw_area = self.draw_area
         if not is_draw_area: return frame
         # Get Parameters
@@ -707,7 +742,7 @@ class Direction(event_handle,app_common_handle, ivitApp):
         
         # Parse All Area
         overlay = frame.copy()
-        #add 20230309 jay for draw area outline , it can draw irregular rectangle.
+
         temp_area_next_point = []
 
 
@@ -724,7 +759,7 @@ class Direction(event_handle,app_common_handle, ivitApp):
             minxy,maxxy=(max(area_pts),min(area_pts))
 
             for pts in area_pts:
-                #add 20230309 jay for draw area outline , it can draw irregular rectangle.
+
                 if temp_area_next_point == []:
                     cv2.line(frame,pts,area_pts[-1], (0, 0, 255), 3)
                     
@@ -754,19 +789,12 @@ class Direction(event_handle,app_common_handle, ivitApp):
         return cv2.addWeighted( frame, 1-area_opacity, overlay, area_opacity, 0 )  
 
 
-                
-                    
-
-            
-
-
-        return cv2.addWeighted( frame, 1-area_opacity, overlay, area_opacity, 0 )
     
-    #add 20230309 jay for check user input is correct.
+
     def check_input(self,frame,data):
 
         if frame is None : return False
-        if not data.__contains__('detections') or data['detections'] is None   : return False 
+        if data is None   : return False 
         return True
   
     def draw_tag(self,tracking_tag,xmin, ymin, xmax, ymax,outer_clor,font_color,frame):
@@ -819,46 +847,51 @@ class Direction(event_handle,app_common_handle, ivitApp):
 
         self.change_resulutuon = 0
 
-    def __call__(self, frame, data, draw=True):
-        #add 20230309 jay for check user input is correct.
-        if not self.check_input(frame,data) :
+    def __call__(self, frame, detections, draw=True):
+
+        self.app_thread.update_tracking_distance(self.tracking_distance)
+        
+
+
+        if not self.check_input(frame,detections) :
             logging.info("Input frame or input data format is error !!")
-            return frame
+            sys.exit(0)
+        ori_frame= frame.copy()    
         self.frame_idx += 1
         self.update_draw_param( frame )
         self.convert_point_value(frame)
-        self.update_tracking_distance( frame )
         self.draw_line(frame) 
         self.init_area_mask(frame)
         self.event_output={'event':[]}
 
-        #add 20230309 jay for control area display.
+
         if cv2.waitKey(1) in [ ord('c'), 99 ]: self.draw_area= self.draw_area^1
         frame = self.draw_area_event(frame, self.draw_area)  
         
-        
+        self.app_thread.show_object =[]
 
 
-        for id,det in enumerate(data['detections']):
-            # Parsing output
+        # for id,det in enumerate(data['detections']):
+        for detection in detections:
+            # Check Label is what we want
             ( label, score, xmin, ymin, xmax, ymax ) \
-                 = [ det[key] for key in [ 'label', 'score', 'xmin', 'ymin', 'xmax', 'ymax' ] ]                  
+                 = detection.label, detection.score, detection.xmin, detection.ymin, detection.xmax, detection.ymax                  
             for i in range(len(self.depend_on)):
                 
-                self.app_thread(i,label, score, xmin, ymin, xmax, ymax,self.area_pts,frame,self.line_point)
+                # self.app_thread(i,label, score, xmin, ymin, xmax, ymax,self.area_pts,frame,self.line_point)
+                self.pool.apply_async(self.app_thread,(i,label, score, xmin, ymin, xmax, ymax,self.area_pts,frame,self.line_point))
+                
                 
                 if self.app_thread.is_draw:
 
                     
-                    
                     outer_clor = self.get_color(label,i)
                     font_color = (255,255,255)
-                    self.draw_tag(self.app_thread.show_object, xmin, ymin, xmax, ymax,outer_clor ,font_color,frame)
+                    self.draw_tag(self.app_thread.show_object_info, xmin, ymin, xmax, ymax,outer_clor ,font_color,frame)
                     
-
-                    #add 20230309 jay for show direction result.
                     outer_clor = (0,255,255)
                     font_color = (0,0,0)
+                    
                     self.draw_direction_result(self.app_thread.app_output["areas"][i]["data"],outer_clor,font_color,frame)
                 
                     frame = self.custom_function(
@@ -869,17 +902,15 @@ class Direction(event_handle,app_common_handle, ivitApp):
                             left_top = (xmin, ymin),
                             right_down = (xmax, ymax)
                         ) 
-
-
-
+                    self.app_thread.show_object.append(self.app_thread.object_id) 
 
                 self.app_thread.is_draw=False
 
                 if self.event_handler.__contains__(i)==False:
                     continue
                 
-                self.event_handler[i](frame,i,self.app_thread.total,self.app_thread.app_output)
-
+                # self.event_handler[i](frame,i,self.app_thread.total,self.app_thread.app_output)
+                self.pool.apply_async(self.event_handler[i],(frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output))
 
                 
 
@@ -892,119 +923,3 @@ class Direction(event_handle,app_common_handle, ivitApp):
                     #ivit-i-hailo
         return(frame,self.app_thread.app_output,self.event_output)       
                 
-if __name__ == "__main__":
-
-    import cv2
-    from ivit_i.common.model import get_ivit_model
-
-    # Define iVIT Model
-    model_type = 'obj'
-    model_anchor = [ 10, 13, 16, 30, 33, 23, 30, 61, 62, 45, 59, 119, 116, 90, 156, 198, 373, 326 ]
-    model_conf = { 
-        "tag": model_type,
-        "openvino": {
-            "model_path": "./model/yolo-v3-tf/FP32/yolo-v3-tf.xml",
-            "label_path": "./model/yolo-v3-tf/coco.names",
-            "anchors": model_anchor,
-            "architecture_type": "yolo",
-            "device": "CPU",
-            "thres": 0.9
-        }
-    }
-
-    ivit = get_ivit_model(model_type)
-    ivit.load_model(model_conf)
-    ivit.set_async_mode()
-    
-    # Def Application
-
-
-
-
-    app_conf = {"application":{
-		"name": "Direction",
-		"areas": [
-				{
-						"name": "area",
-						"depend_on": [ "car", "truck", "motocycle" ],
-						"area_point": [ ],
-						"line_point": { 
-								"line_1": [ [0.16666666666, 0.74074074074], [0.57291666666, 0.62962962963] ],
-								"line_2": [ [0.26041666666, 0.83333333333], [0.72916666666, 0.62962962963] ],
-						                },
-						"line_relation": [
-                            {
-								"name": "To Taipei",
-								"start": "line_2",
-								"end": "line_1"
-						    },
-                            {
-								"name": "To Keelung",
-								"start": "line_1",
-								"end": "line_2"
-						    }
-                        
-                        
-                        ],
-                        "events": 
-								{
-										"title": "Detect the traffic flow between Taipei and Keelung ",
-										"logic_operator": ">",
-										"logic_value": 0,
-								},
-                        "sensitivity":'low'
-				}
-                
-
-
-		],
-        "draw_result":False,
-        "draw_bbox":False
-    }
-}   
-
-    app = Direction( 
-        params=app_conf, 
-        label=model_conf['openvino']['label_path']
-    )
-
-    # Get Source
-    src_path = './data/car.mp4'   # 1280x720
-    src_path = './data/4-corner-downtown.mp4' # 1920x1080
-    # src_path = './data/video.mp4'   #  1920x1080
-    cap = cv2.VideoCapture(src_path)
-
-    # Set up Area
-    ret, frame = cap.read()
-    # app.set_area(frame)
-
-    output = None
-    a=0
-    totalt=0
-    play = 1
-    while(cap.isOpened()):
-        if play:
-            ret, frame = cap.read()
-            if not ret: break
-            _output = ivit.inference(frame=frame)
-            output = _output if _output is not None else output 
-            if (output):
-                start = time.time()
-                frame , app_output , event_output = app(frame, output)
-                # print(" app_output {},  event_output {} ".format(app_output,event_output))
-                end = time.time()
-                totalt=totalt+(end-start)
-                a=a+1
-                if a %30==0:
-                    # play=play^1
-                    print(a/totalt)
-                    totalt = 0
-                    a = 0
-            cv2.imshow('Test', frame)
-            
-        if cv2.waitKey(1) in [ ord('q'), 27 ]: play=play^1
-        # key = cv2.waitKey(0)
-        # if key in [ ord('q'), 27 ]: break
-
-    cap.release()
-    ivit.release()

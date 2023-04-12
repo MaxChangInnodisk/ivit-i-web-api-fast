@@ -5,20 +5,20 @@ import os
 import threading
 from datetime import datetime
 sys.path.append( os.getcwd() )
-from ivit_i.app.common import ivitApp
-#add jay 20230313 for using defalt palette.
-from ivit_i.app.palette import palette
+from apps.palette import palette
 import math
+from multiprocessing.pool import ThreadPool
 
 class event_handle(threading.Thread):
-    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict):
+    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int):
         threading.Thread.__init__(self)
         self.operator = operator
         self.thres = thres
         self.cooldown_time = cooldown_time
         self.event_title = event_title
         self.event_output={}
-        self.pass_time = 59
+        self.area_id = area_id
+        self.pass_time = self.cooldown_time[self.area_id]+1
         self.event_time=datetime.now()
         self.trigger_time=datetime
         self.info =" "
@@ -42,9 +42,8 @@ class event_handle(threading.Thread):
     def logic_event(self, value,thres,area_id):
         return self.operator[area_id](value,thres)
 
-    def __call__(self,frame,area_id,total_object_number,app_output):
-        
-        ori_frame = frame.copy()
+    def __call__(self,frame,ori_frame,area_id,total_object_number,app_output):
+
         self.event_output={}
         self.event_time=datetime.now()
         self.info =""
@@ -59,24 +58,23 @@ class event_handle(threading.Thread):
            
         if self.logic_event(total_object_number[area_id],self.thres[area_id],area_id) == False:
             return
-        print(self.pass_time , self.cooldown_time[area_id])
+  
         if self.pass_time > self.cooldown_time[area_id]:
             self.eventflag=True
             self.trigger_time=datetime.now()
             self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))
             uid=str(uuid.uuid4())[:9]
             path='./'+str(uid)+'/'
-            # if not os.path.isdir(path):
-            #     os.mkdir(path)
-            # cv2.imwrite(path+str(timesamp)+'.jpg', frame)
-            # cv2.imwrite(path+str(timesamp)+"_org"+'.jpg', ori_frame)
+            if not os.path.isdir(path):
+                os.mkdir(path)
+            cv2.imwrite(path+str(self.trigger_time)+'.jpg', frame)
+            cv2.imwrite(path+str(self.trigger_time)+"_org"+'.jpg', ori_frame)
             self.event_output.update({"uuid":uid,"title":self.event_title[area_id],"areas":app_output["areas"][area_id],"timesamp":self.trigger_time,"screenshot":{"overlay": path+str(self.trigger_time)+'.jpg',
             "original": path+str(self.trigger_time)+"_org"+'.jpg'}}) 
             # Draw Inforamtion
             
             self.info = "The {} area : ".format(area_id)+self.event_title[area_id]+' , '.join([ 'total:{}  , cool down time:{}/{}'.format(total_object_number[area_id],0,self.cooldown_time[area_id])])
 
-            print(self.event_output,'\n')
         else :
             self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))    
             self.info = "The {} area : ".format(area_id)+self.event_title[area_id]+' , '.join([ 'total:{}  , cool down time:{}/{}'.format(total_object_number[area_id],self.pass_time,self.cooldown_time[area_id])])
@@ -166,8 +164,7 @@ class app_common_handle(threading.Thread):
         else:
             if not self.inpolygon(((xmin+xmax)/2),((ymin+ymax)/2),self.area_pts2[area_id]): 
                 return
-        #mod jay2023   
-        # if self.check_depend(area_id,label):
+
         if self.check_depend_on(area_id):
             if label in self.depend_on[area_id]: 
                 self.update_object_number_this_frame(area_id)   
@@ -188,9 +185,16 @@ class app_common_handle(threading.Thread):
                         self.app_output["areas"][area_id]["data"][d].update({"num":_})
                 # each label have to check to draw
                 self.is_draw=True
-                # print(self.app_output,'\n')    
+
         else:
-            #according to area and user setting to creat app output. Do once.
+            
+            self.update_object_number_this_frame(area_id) 
+            if self.app_output.__contains__("areas")==False:
+                    self.app_output.update({"areas": []})
+            if len(self.app_output["areas"])==area_id:
+                self.app_output["areas"].append({"id":area_id,"name":self.area_name2[area_id],"data":[]})   
+            
+            
             if len(self.app_output["areas"][area_id]["data"])==0:
                 self.app_output["areas"][area_id]["data"].append({"label":label,"num":1})
             for d in range(len(self.app_output["areas"][area_id]["data"])): 
@@ -204,9 +208,9 @@ class app_common_handle(threading.Thread):
                     self.app_output["areas"][area_id]["data"].append({"label":label,"num":1})
             
             self.is_draw=True
-            # print(self.app_output,'\n')  
+
                  
-class Counting(event_handle,app_common_handle, ivitApp):
+class Counting(event_handle,app_common_handle):
     """ IVIT-I Counting application :
             1. init params.
             2. get info from config.
@@ -252,19 +256,19 @@ class Counting(event_handle,app_common_handle, ivitApp):
         self.normalize_area_pts = {}
         self.area_cnt = {}
         
-        #add jay 20230313 for using defalt palette.
+
         self.model_label = label
         self.model_label_list =[]
+
+        self.pool = ThreadPool(os.cpu_count() )
         self.init_palette(palette)
 
         self.init_logic_param()
         self.app_common_start()
         self.init_event_object()
         self.event_start()
-        #add jay 20230313 for using defalt palette.
         self.collect_depand_info()
 
-    #add jay 20230313 for using defalt palette.
     def init_palette(self,palette):
         temp_id=1
         with open(self.model_label,'r') as f:
@@ -296,8 +300,6 @@ class Counting(event_handle,app_common_handle, ivitApp):
         self.thick  = BASE_THICK + round( scale )
         self.font_thick = self.thick//2
         self.font_size = BASE_FONT_SIZE + ( scale*FONT_SCALE )
-        # self.draw_result = self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else True
-        # self.draw_bbox = self.params['application']['draw_bbox'] if self.params['application'].__contains__('draw_bbox') else True
         self.draw_result = self.params['application'].get('draw_result',True)
         self.draw_bbox = self.params['application'].get('draw_bbox',True)
         self.area_color=[0,0,255]
@@ -308,7 +310,6 @@ class Counting(event_handle,app_common_handle, ivitApp):
             if self.params['application']['areas'][i]['area_point']!=[]:
                 self.normalize_area_pts.update({i:self.params['application']['areas'][i]['area_point']})
                 self.area_name.update({i:self.params['application']['areas'][i]['name']})
-                # self.area_color.update({i:[random.randint(0,255),random.randint(0,255),random.randint(0,255)]})
             else:
                 self.normalize_area_pts.update({i:[[0,0],[1,0],[1,1],[0,1]]})
                 self.area_name.update({i:"The defalt area"})
@@ -316,7 +317,6 @@ class Counting(event_handle,app_common_handle, ivitApp):
         
     def collect_depand_info(self):
 
-        # if self.depend_on!={}: return 
         for i in range(len(self.params['application']['areas'])): 
            
             if len(self.params['application']['areas'][i]['depend_on'])>0:
@@ -325,7 +325,6 @@ class Counting(event_handle,app_common_handle, ivitApp):
             else:
                 self.depend_on.update({i:[]})   
 
-        #add jay 20230313 for using defalt palette. 
         temp_palette ={}
         for area , value in self.depend_on.items():
             temp_palette.update({area:{}})
@@ -344,7 +343,6 @@ class Counting(event_handle,app_common_handle, ivitApp):
                 if not (self.params['application']['areas'][area]['palette'].__contains__(value[id])): 
                     temp_palette[area].update({value[id]:self.palette[value[id]]})
                     continue  
-                # if self.palette.__contains__(value[id]):
                 temp_palette[area].update({value[id]:self.params['application']['areas'][area]['palette'][value[id]]})
         
         self.palette = temp_palette
@@ -378,7 +376,7 @@ class Counting(event_handle,app_common_handle, ivitApp):
 
     def init_event_object(self):
         for i , v   in self.operator.items():
-            event_obj = event_handle(self.operator,self.thres,self.cooldown_time,self.event_title) 
+            event_obj = event_handle(self.operator,self.thres,self.cooldown_time,self.event_title,i) 
             self.event_handler.update( { i: event_obj }  )        
         
     def init_area_mask(self,frame):
@@ -391,16 +389,8 @@ class Counting(event_handle,app_common_handle, ivitApp):
             tmp = np.zeros([frame.shape[1],frame.shape[0]],dtype=np.uint8)
             cv2.polylines(tmp , [poly] ,1, 1)
             cv2.fillPoly(tmp,[poly],1)
-            # print(tmp)
-            
-            # cv2.waitKey(0)
             self.area_mask.update({i:tmp})
 
-            # obj = (x,y)
-            # if tmp[x,y]==255:
-                # in area
-            # else:
-                # not in area
 
     def app_common_start(self)    :
         
@@ -418,7 +408,7 @@ class Counting(event_handle,app_common_handle, ivitApp):
             - area_color: control the color of the area
             - area_opacity: control the opacity of the area
         """
-        #add 20230309 jay for control area display.
+
         is_draw_area = self.draw_area
         if not is_draw_area: return frame
         # Get Parameters
@@ -426,7 +416,6 @@ class Counting(event_handle,app_common_handle, ivitApp):
         area_opacity = self.area_opacity if area_opacity is None else area_opacity
 
         overlay = frame.copy()
-        #add 20230309 jay for draw area outline , it can draw irregular rectangle.
         temp_area_next_point = []
 
        
@@ -470,18 +459,17 @@ class Counting(event_handle,app_common_handle, ivitApp):
 
         return cv2.addWeighted( frame, 1-area_opacity, overlay, area_opacity, 0 )  
 
-    #mod jay 20230313 for using defalt palette. 
     def get_color(self, label,area_id):
        
        return self.palette[area_id][label]    
     
-    #add 20230309 jay for check user input is correct.
+
     def check_input(self,frame,data):
 
         if frame is None : return False
-        if not data.__contains__('detections') or data['detections'] is None   : return False 
+        if  data is None   : return False 
         return True                      
-    #add 20230309 end
+
 
     def custom_function(self, frame, color:tuple, label,score, left_top:tuple, right_down:tuple,draw_bbox=True,draw_result=True):
         """ The draw method customize by user 
@@ -506,9 +494,7 @@ class Counting(event_handle,app_common_handle, ivitApp):
         return frame  
 
     def convert_point_value(self,frame):
-        #convert point value.
         if not self.change_resulutuon : return
-
         temp_point=[]
         for area in range(len(self.normalize_area_pts)):
             for point in self.normalize_area_pts[area]:
@@ -518,11 +504,11 @@ class Counting(event_handle,app_common_handle, ivitApp):
             temp_point = []
         self.change_resulutuon = 0
 
-    def __call__(self, frame, data, draw=True):
-        #add 20230309 jay for check user input is correct.
-        if not self.check_input(frame,data) :
+    def __call__(self, frame, detections, draw=True):
+        if not self.check_input(frame,detections) :
             logging.info("Input frame or input data format is error !!")
             return frame
+        ori_frame = frame.copy()
         # Basic in area detection
         self.frame_idx += 1
 
@@ -530,7 +516,6 @@ class Counting(event_handle,app_common_handle, ivitApp):
         self.convert_point_value(frame)
         self.init_area_mask(frame)
 
-        #add 20230309 jay for control area display.
         if cv2.waitKey(1) in [ ord('c'), 99 ]: self.draw_area= self.draw_area^1
         frame = self.draw_area_event(frame, self.draw_area)
 
@@ -538,15 +523,15 @@ class Counting(event_handle,app_common_handle, ivitApp):
         self.app_thread.app_output={}
         self.event_output={'event':[]}
         
-        for id,det in enumerate(data['detections']):
-            # Parsing output
+        for detection in detections:
+            # Check Label is what we want
             ( label, score, xmin, ymin, xmax, ymax ) \
-                 = [ det[key] for key in [ 'label', 'score', 'xmin', 'ymin', 'xmax', 'ymax' ] ]                  
+                 = detection.label, detection.score, detection.xmin, detection.ymin, detection.xmax, detection.ymax                  
+                            
             for i in range(len(self.depend_on)):
 
-                self.app_thread(i,label, score, xmin, ymin, xmax, ymax,frame)
+                self.pool.apply_async(self.app_thread,(i,label, score, xmin, ymin, xmax, ymax,frame))
 
-                # imfomation 20230310 control each label display 
                 if self.app_thread.is_draw:
 
                     frame = self.custom_function(
@@ -562,139 +547,10 @@ class Counting(event_handle,app_common_handle, ivitApp):
 
                 if self.event_handler.__contains__(i)==False:
                     continue
-                self.event_handler[i](frame,i,self.app_thread.total,self.app_thread.app_output)
+
+                self.pool.apply_async(self.event_handler[i],(frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output))
                 if self.event_handler[i].event_output !={}:
                     self.event_output['event'].append(self.event_handler[i].event_output)
-                    #ivit-i-hailo
-        return(frame,self.app_thread.app_output,self.event_output)   
+
+        return (frame,self.app_thread.app_output,self.event_output)   
                            
-if __name__ == "__main__":
-
-    import cv2
-    from ivit_i.common.model import get_ivit_model
-
-    # Define iVIT Model
-    model_type = 'obj'
-    model_anchor = [ 10, 13, 16, 30, 33, 23, 30, 61, 62, 45, 59, 119, 116, 90, 156, 198, 373, 326 ]
-    model_conf = { 
-        "tag": model_type,
-        "openvino": {
-            "model_path": "./model/yolo-v3-tf/FP32/yolo-v3-tf.xml",
-            "label_path": "./model/yolo-v3-tf/coco.names",
-            "anchors": model_anchor,
-            "architecture_type": "yolo",
-            "device": "CPU",
-            "thres": 0.9
-        }
-    }
-
-    ivit = get_ivit_model(model_type)
-    ivit.load_model(model_conf)
-    ivit.set_async_mode()
-    
-    # Def Application
-    app_conf = {"application": {
-		"name": "CountingArea",
-		"areas": [
-				{
-						"name": "The intersection of Datong Rd",
-						"depend_on": [ "car", "truck" ],
-						"palette": {
-							"car": [ 0, 255, 0 ],
-							"truck": [ 0, 255, 0 ]
-						},
-						"area_point": [ [0,0], [640, 0], [480, 640], [0, 480] ], 
-						"events": {
-									"title": "Traffic is very heavy",
-									"logic_operator": ">",
-									"logic_value": 2,
-                                    "cooldown_time":10,
-                                    "sensitivity":"high",
-                                    
-						}
-				},
-				{
-						"name": "second area",
-						"depend_on": [ "bike" ],
-						"area_point": [ [0,0], [640, 0], [480, 640], [0, 480] ], 
-                        "events": {
-									"title": "Traffic is very heavy",
-									"logic_operator": ">",
-									"logic_value": 5,
-                                    "cooldown_time":10,
-                                    "sensitivity":"low"
-						}
-				}
-		],
-        "draw_bbox":True,
-        "draw_result":True
-}
- }  
-    app_conf = {"application": {
-		"name": "TrackingArea",
-		"areas": [
-				{
-						"name": "The intersection of Datong Rd",
-						"depend_on": [ "car", "truck" ],
-                        "palette": {
-							"car": [ 0, 255, 0 ],
-							"truck": [ 0, 255, 0 ]
-						},
-						# "area_point": [ [300,220], [900, 220], [900, 640], [300, 640] ], 
-                        "area_point": [ [0.15625,0.2037037037], [0.46875, 0.2037037037], [0.46875, 0.59259259259], [0.15625, 0.59259259259] ],
-						"events": {
-										"title": "The daily traffic is over 1000",
-										"logic_operator": ">",
-										"logic_value": 5,
-						}
-				}
-		],
-        "draw_result":False,
-        "draw_bbox":False
-}}
-    
-    app = Counting( 
-        params=app_conf, 
-        label=model_conf['openvino']['label_path']
-    )
-    
-    # Get Source
-    src_path = './data/car.mp4'   # 1280x720
-    # src_path = './data/4-corner-downtown.mp4' # 1920x1080
-    cap = cv2.VideoCapture(src_path)
-
-    # Set up Area
-    ret, frame = cap.read()
-    # app.set_area(frame)
-
-    output = None
-    a=0
-    totalt=0
-    while(cap.isOpened()):
-
-        ret, frame = cap.read()
-        if not ret: break
-        _output = ivit.inference(frame=frame)
-        output = _output if _output is not None else output 
-        
-        if (output):
-            start = time.time()
-            frame , app_output , event_output = app(frame, output)
-            print(" app_output : {} , event_output {} ".format(app_output , event_output))
-            # print(info)
-            # print('\n')
-            end = time.time()
-            totalt=totalt+(end-start)
-            a=a+1
-            if a %30==0:
-                
-                
-                print(a/totalt,"*564206456046465046465406504",'\n')
-                a = 0
-                totalt = 0
-               
-        cv2.imshow('Test', frame)
-        if cv2.waitKey(1) in [ ord('q'), 27 ]: break
-
-    cap.release()
-    ivit.release()
