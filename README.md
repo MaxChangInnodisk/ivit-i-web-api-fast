@@ -18,7 +18,7 @@ Support platform can see table below.
 2. [Nvidia](https://github.com/InnoIPA/ivit-i-nvidia)
 3. [Nvidia jetson](https://github.com/InnoIPA/ivit-i-jetson)
 4. [xilinx](https://github.com/InnoIPA/ivit-i-xilinx)
-5. [Hailo](https://github.com/MaxChangInnodisk/ivit-i-hailo)|
+5. [Hailo](https://github.com/MaxChangInnodisk/ivit-i-hailo)
 
 Download apps module to your IVIT-I.
 ```bash
