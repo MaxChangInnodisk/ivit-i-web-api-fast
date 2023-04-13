@@ -28,28 +28,30 @@ Download apps module to your IVIT-I.
  
 
 # BasicClassification
-![](./docs/figure/BasicClassification.png)
+![](./docs/figure/BasicClassification.png)  
+More information about how to use this application [here](./docs/BasicClassification.md).    
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
-# BasicObjectDetection
-![](./docs/figure/BasicObjectDetection.gif)
 
+# BasicObjectDetection
+![](./docs/figure/BasicObjectDetection.gif)  
+More information about how to use this application [here](./docs/BasicObjectDetection.md).    
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
 
 # CountingArea
-![](./docs/figure/CountingArea.gif)
-
+![](./docs/figure/CountingArea.gif)  
+More information about how to use this application [here](./docs/CountingArea.md).  
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
 * User can set detection area.
 * User can count number for specific object which in the detection area.
 # Tracking
-![](./docs/figure//Tracking.gif)
-
+![](./docs/figure//Tracking.gif)  
+More information about how to use this application [here](./docs/Tracking.md).  
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
@@ -57,8 +59,9 @@ Add Functions.
 * User can count number for each object once.
 * User can track mutiple object.
 # Direction
-![](./docs/figure//Direction.gif)
+![](./docs/figure//Direction.gif)  
 
+More information about how to use this application [here](./docs/Direction.md).  
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
