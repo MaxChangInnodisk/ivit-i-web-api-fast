@@ -347,8 +347,8 @@ class app_common_handle(threading.Thread):
                     #app output doesn't have this label , new object !
                     if len(self.app_output["areas"][area_id]["data"])-1==d and self.app_output["areas"][area_id]["data"][d]["label"]!=label: 
                         self.app_output["areas"][area_id]["data"].append({"label":label,"num":1})
-            
 
+            
             self.is_draw=True
                  
 
@@ -374,13 +374,13 @@ class Tracking(event_handle,app_common_handle ):
 
 
         self.track_object={}
-        self.tracking_distance=400
+        self.tracking_distance=60
         self.total_object=0
 
         self.model_label = label
         self.model_label_list =[]
 
-        self.pool = ThreadPool(os.cpu_count() )
+        # self.pool = ThreadPool(os.cpu_count() )
         self.init_palette(palette)
 
         self.collect_depand_info()
@@ -695,7 +695,7 @@ class Tracking(event_handle,app_common_handle ):
         self.draw_area= new_draw_area
     def __call__(self, frame, detections, draw=True):
         self.app_thread.update_tracking_distance(self.tracking_distance)
-        ori_frime = frame.copy()
+        ori_frame = frame.copy()
         if not self.check_input(frame,detections) :
             logging.info("Input frame or input data format is error !!")
             return frame
@@ -723,17 +723,18 @@ class Tracking(event_handle,app_common_handle ):
                     
                 # Delete un-tracked object
 
-                self.pool.apply_async(self.app_thread,(i,label, score, xmin, ymin, xmax, ymax,self.area_pts,frame))
-                # self.app_thread(i,label, score, xmin, ymin, xmax, ymax,self.area_pts,frame)
+                # self.pool.apply_async(self.app_thread,(i,label, score, xmin, ymin, xmax, ymax,self.area_pts,frame))
+                self.app_thread(i,label, score, xmin, ymin, xmax, ymax,self.area_pts,frame)
             
                  # app common result display
                 if (self.app_thread.is_draw): 
-                    if  not (label in self.depend_on[i]): continue
+                    if len(self.depend_on[i])>0:
+                        if  not (label in self.depend_on[i]): continue
                     #draw the tracking tag for each object
                     outer_clor = self.get_color(label,i)
                     font_color = (255,255,255)
                     self.draw_tag(self.app_thread.show_object_info, xmin, ymin, xmax, ymax,outer_clor ,font_color,frame)
-
+                    print(4545665)
                     #draw bbox and result
                     frame = self.custom_function(
                             frame = frame,
@@ -750,8 +751,8 @@ class Tracking(event_handle,app_common_handle ):
                 #if the area don't have set event. 
                 if self.event_handler.__contains__(i)==False: continue
                 
-                self.pool.apply_async(self.event_handler[i],(frame,ori_frime,i,self.app_thread.total,self.app_thread.app_output))
-                # self.event_handler[i](frame,i,self.app_thread.total,self.app_thread.app_output)
+                # self.pool.apply_async(self.event_handler[i],(frame,ori_frime,i,self.app_thread.total,self.app_thread.app_output))
+                self.event_handler[i](frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output)
                 if (self.event_handler[i].pass_time == self.event_handler[i].cooldown_time[i]):
                     self.app_thread.total[i]=0
                 if self.event_handler[i].event_output !={}:

@@ -471,7 +471,7 @@ class Direction(event_handle,app_common_handle):
         self.model_label = label
         self.model_label_list =[]
 
-        self.pool = ThreadPool(os.cpu_count() )
+        # self.pool = ThreadPool(os.cpu_count() )
        
         self.init_palette(palette)
 
@@ -878,8 +878,8 @@ class Direction(event_handle,app_common_handle):
                  = detection.label, detection.score, detection.xmin, detection.ymin, detection.xmax, detection.ymax                  
             for i in range(len(self.depend_on)):
                 
-                # self.app_thread(i,label, score, xmin, ymin, xmax, ymax,self.area_pts,frame,self.line_point)
-                self.pool.apply_async(self.app_thread,(i,label, score, xmin, ymin, xmax, ymax,self.area_pts,frame,self.line_point))
+                self.app_thread(i,label, score, xmin, ymin, xmax, ymax,self.area_pts,frame,self.line_point)
+                # self.pool.apply_async(self.app_thread,(i,label, score, xmin, ymin, xmax, ymax,self.area_pts,frame,self.line_point))
                 
                 
                 if self.app_thread.is_draw:
@@ -909,8 +909,8 @@ class Direction(event_handle,app_common_handle):
                 if self.event_handler.__contains__(i)==False:
                     continue
                 
-                # self.event_handler[i](frame,i,self.app_thread.total,self.app_thread.app_output)
-                self.pool.apply_async(self.event_handler[i],(frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output))
+                self.event_handler[i](frame,i,self.app_thread.total,self.app_thread.app_output)
+                # self.pool.apply_async(self.event_handler[i],(frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output))
 
                 
 

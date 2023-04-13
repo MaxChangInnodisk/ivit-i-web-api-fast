@@ -260,7 +260,7 @@ class Counting(event_handle,app_common_handle):
         self.model_label = label
         self.model_label_list =[]
 
-        self.pool = ThreadPool(os.cpu_count() )
+        # self.pool = ThreadPool(os.cpu_count() )
         self.init_palette(palette)
 
         self.init_logic_param()
@@ -530,8 +530,8 @@ class Counting(event_handle,app_common_handle):
                             
             for i in range(len(self.depend_on)):
 
-                self.pool.apply_async(self.app_thread,(i,label, score, xmin, ymin, xmax, ymax,frame))
-
+                # self.pool.apply_async(self.app_thread,(i,label, score, xmin, ymin, xmax, ymax,frame))
+                self.app_thread(i,label, score, xmin, ymin, xmax, ymax,frame)
                 if self.app_thread.is_draw:
 
                     frame = self.custom_function(
@@ -548,7 +548,8 @@ class Counting(event_handle,app_common_handle):
                 if self.event_handler.__contains__(i)==False:
                     continue
 
-                self.pool.apply_async(self.event_handler[i],(frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output))
+                # self.pool.apply_async(self.event_handler[i],(frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output))
+                self.event_handler[i](frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output)
                 if self.event_handler[i].event_output !={}:
                     self.event_output['event'].append(self.event_handler[i].event_output)
 
