@@ -60,6 +60,17 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 | Type | Description |
 | --- | --- |
 |object|Object's properties : xmin ,ymin ,xmax ,ymax ,score ,id ,label |
+
+* Example:
+    ```bash
+        detection        # (type object)                   
+        detection.label  # (type str)           value : person   
+        detection.score  # (type numpy.float64) value : 0.960135 
+        detection.xmin   # (type int)           value : 1        
+        detection.ymin   # (type int)           value : 78       
+        detection.xmax   # (type int)           value : 438      
+    ```
+
 ## Application output 
 * Application will return frame(already drawn) and organized information.The format of organized information as below.
     ```bash

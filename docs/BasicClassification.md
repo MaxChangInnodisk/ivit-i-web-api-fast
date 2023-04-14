@@ -50,7 +50,17 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
 | Type | Description |
 | --- | --- |
-|tuple|( xmin, ymin, xmax,  ymax,  score,  id, label)|
+|tuple|( id, label, score, xmin, ymin, xmax,  ymax )|
+* Example:
+    ```bash
+        id      # (type int)           value : 0   
+        label   # (type str)           value : cat   
+        score   # (type numpy.float32) value : 0.5921569   
+        xmin    # (type int)           value : 0   
+        ymin    # (type int)           value : 0   
+        xmax    # (type int)           value : 0   
+        ymax    # (type int)           value : 0    
+    ```
 ## Application output 
 * Application will return frame(already drawn) and organized information.The format of organized information as below.
     ```bash
