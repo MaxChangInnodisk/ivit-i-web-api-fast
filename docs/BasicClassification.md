@@ -74,7 +74,7 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
 | Type | Description |
 | --- | --- |
-|tuple|( id, label, score, xmin, ymin, xmax,  ymax )|
+|tuple|( id, label, score )|
 * Example:
     ```bash
         id      # (type int)           value : 0   
