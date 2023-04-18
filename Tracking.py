@@ -9,7 +9,7 @@ from datetime import datetime
 sys.path.append( os.getcwd() )
 from apps.palette import palette
 from multiprocessing.pool import ThreadPool
-
+from ivit_i.app import iAPP_OBJ
 class event_handle(threading.Thread):
     def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int):
         threading.Thread.__init__(self)
@@ -352,7 +352,7 @@ class app_common_handle(threading.Thread):
             self.is_draw=True
                  
 
-class Tracking(event_handle,app_common_handle ):
+class Tracking(iAPP_OBJ,event_handle,app_common_handle ):
     def __init__(self, params=None, label=None, palette=palette, log=True):
         
         self.params = params

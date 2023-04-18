@@ -3,7 +3,8 @@ import numpy as np
 sys.path.append( os.getcwd() )
 print(sys.path)
 from apps.palette import palette
-class BasicClassification():
+from ivit_i.app import iAPP_CLS
+class BasicClassification(iAPP_CLS):
     """ __init__, __call__ """
 
     def __init__(self, params=None, label=None, palette=palette, log=True):
@@ -48,7 +49,7 @@ class BasicClassification():
         
         app_output = { "areas":[{"id":0,"name":"default","data":[]}] }
 
-        for idx, label, score, xmin, ymin, xmax, ymax in detections:
+        for idx, label, score in detections:
            
             # Checking Depend
             if not self.check_depend(label): continue

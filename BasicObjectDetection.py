@@ -1,8 +1,8 @@
 import sys, os, cv2
 sys.path.append( os.getcwd() )
 from apps.palette import palette
-
-class BasicObjectDetection():    
+from ivit_i.app import iAPP_OBJ
+class BasicObjectDetection(iAPP_OBJ):    
     """ Basic Object Detection Application
     * Parameters
         1. depend_onarea_opacity

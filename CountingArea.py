@@ -8,6 +8,7 @@ sys.path.append( os.getcwd() )
 from apps.palette import palette
 import math
 from multiprocessing.pool import ThreadPool
+from ivit_i.app import iAPP_OBJ
 
 class event_handle(threading.Thread):
     def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int):
@@ -210,7 +211,7 @@ class app_common_handle(threading.Thread):
             self.is_draw=True
 
                  
-class Counting(event_handle,app_common_handle):
+class Counting(iAPP_OBJ,event_handle,app_common_handle):
     """ IVIT-I Counting application :
             1. init params.
             2. get info from config.
