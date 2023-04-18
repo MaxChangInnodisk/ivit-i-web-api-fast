@@ -1,11 +1,32 @@
 # IVIT-I Application of basic CountingArea
 ## Usage
 You need to follow the step below to use application:  
-Step 1. [Setting Config](#setting-app-config).  
-Step 2. [Create Instance](#create-instance).  
-Step 3. Follow the [format of input parameter](#format-of-input-parameter) to use application.
+Step 1. [Init ivitAppHandler ](#init-ivitapphandler).  
+Step 2. [Register Application](#register-application).  
+Step 3. [Setting Config](#setting-app-config).  
+Step 4. [Create Instance](#create-instance).  
+Step 5. Follow the [format of input parameter](#format-of-input-parameter)  to use application.
 
-And the description of application output is [here](#application-output).   
+And the description of application output is [here](#application-output).
+
+## Init ivitAppHandler 
+Before starting , you must creat instance for iAPP_HANDLER.  
+    
+
+        # import register from ivit-i app
+        from ivit_i.app import iAPP_HANDLER
+
+        # creat instance for register
+        app_handler = iAPP_HANDLER()
+
+    
+## Register Application
+After you have created instance for iAPP_HANDLER , you can use register in iAPP_HANDLER to register your application.
+
+        #CountingArea -> Your application (instance) name during you use ivit-app.
+        #CustomClsApp -> Your application (class).
+
+        app_handler.register( CountingArea , CountingArea )   
 ## Setting app config 
 Application Setting
 * The description of key from config.(*) represent must be set.  
@@ -58,9 +79,9 @@ Application Setting
 ## Create Instance
 You need to use [app_config](#setting-app-config) and label path to create instance of application.
    ```bash
-    from apps import Counting
-
-    app = Counting( app_config, label_path )
+    
+    app = app_handler.get_app("CountingArea")( config , label_path )
+    
    ``` 
 ## Format of input parameter
 * Input parameters are the result of model predict, and the result must packed like below.
@@ -75,7 +96,8 @@ You need to use [app_config](#setting-app-config) and label path to create insta
         detection.score  # (type numpy.float64) value : 0.960135 
         detection.xmin   # (type int)           value : 1        
         detection.ymin   # (type int)           value : 78       
-        detection.xmax   # (type int)           value : 438      
+        detection.xmax   # (type int)           value : 438  
+        detection.ymax   # (type int)           value : 50     
     ```
 ## Application output 
 * Application will return frame(already drawn) and two information(app_output、event_output).The format of organized information as below.
