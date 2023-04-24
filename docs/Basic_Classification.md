@@ -18,29 +18,36 @@ And the description of application output is [here](#application-output).
 | palette | dict | { } | Custom the color of each label. |
 * Sample
 
-   ```bash
-   {
-    "application": {
-
-                    "areas":[
-                                {
-                                    "name": "default",
-                                    "depend_on":[ 
-                                                    "airplane", 
-                                                    "warplane" 
-                                                ],
-                                    "palette": {
-                                                    "airplane": [255, 255, 255],
-                                                    "warpalne": [0, 0, 0],
-                                                }
-                                }
-                            ]
-                   }
+   ```json
+    {
+        "application": {
+            "areas": [
+                {
+                    "name": "default",
+                    "depend_on": [
+                        "airplane",
+                        "warplane"
+                    ],
+                    "palette": {
+                        "airplane": [
+                            255,
+                            255,
+                            255
+                        ],
+                        "warpalne": [
+                            0,
+                            0,
+                            0
+                        ]
+                    }
+                }
+            ]
+        }
     }
    ``` 
 ## Create Instance
 You need to use [app_config](#setting-app-config) and label path to create instance of application.
-   ```bash
+   ```python
     from apps import Basic_Classification
 
     app = Basic_Classification( app_config, label_path )
@@ -59,18 +66,20 @@ You need to use [app_config](#setting-app-config) and label path to create insta
     ```
 ## Application output 
 * Application will return frame(already drawn) and organized information.The format of organized information as below.
-    ```bash
+    ```json
     {
-        'areas':[
-                    {
-                        'id': 0, 
-                        'name': 'default', 
-                        'data': [
-                                    {'label': 'dog', 'score': 0.24705884}, 
-                                    {'label': 'cat', 'score': 0.7568628}
-                                ]
+        'areas': [
+            {
+                'id': 0, 
+                'name': 'default', 
+                'data': [
+                    {'label': 'dog', 'score': 0.24705884
+                    },
+                    {'label': 'cat', 'score': 0.7568628
                     }
                 ]
+            }
+        ]
     }
     
     ```

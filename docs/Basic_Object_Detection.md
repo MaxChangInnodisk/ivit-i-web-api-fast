@@ -21,36 +21,49 @@ And the description of application output is [here](#application-output).
 |draw_bbox|bool|True|Display boundingbox.|
 * Basic
     ```bash
+    {
         "application": {
-                        "areas": [
-                                    {
-                                        "name": "default",
-                                        "depend_on": [ ],
-                                    }
-                                 ]
-                       }
+            "areas": [
+                {
+                    "name": "default",
+                    "depend_on": [],
+                }
+            ]
+        }
+    }
     ```
 * Custom
 
-   ```bash
-   {
-    "application": {
-                    "areas": [
-                                {
-                                    "name": "default",
-                                    "depend_on": [ "car", "truck" ],
-                                    "palette": {
-                                                "car": [ 0, 255, 0 ],
-                                                "truck": [ 0, 255, 0 ]
-                                               }
-                                }
-                            ],
-                   }
+   ```json
+    {
+        "application": {
+            "areas": [
+                {
+                    "name": "default",
+                    "depend_on": [
+                        "car",
+                        "truck"
+                    ],
+                    "palette": {
+                        "car": [
+                            0,
+                            255,
+                            0
+                        ],
+                        "truck": [
+                            0,
+                            255,
+                            0
+                        ]
+                    }
+                }
+            ]
+        }
     }
    ``` 
 ## Create Instance
 You need to use [app_config](#setting-app-config) and label path to create instance of application.
-   ```bash
+   ```python
     from apps import Basic_Object_Detection 
 
     app = Basic_Object_Detection( app_config , label_path )
@@ -76,25 +89,25 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
 ## Application output 
 * Application will return frame(already drawn) and organized information.The format of organized information as below.
-    ```bash
+    ```json
     {
-    'areas':[
-                {
-                    'id': 0, 
-                    'name': 'default', 
-                    'data': [
-                                {
-                                    'xmin': 31, 
-                                    'ymin': 217, 
-                                    'xmax': 467, 
-                                    'ymax': 466, 
-                                    'label':'car', 
-                                    'score': 0.8984614964862956, 
-                                    'id': 0
-                                }
-                            ]
-                }
-            ]
+        'areas': [
+            {
+                'id': 0, 
+                'name': 'default', 
+                'data': [
+                    {
+                        'xmin': 31, 
+                        'ymin': 217, 
+                        'xmax': 467, 
+                        'ymax': 466, 
+                        'label':'car', 
+                        'score': 0.8984614964862956, 
+                        'id': 0
+                    }
+                ]
+            }
+        ]
     }
     
     ```
