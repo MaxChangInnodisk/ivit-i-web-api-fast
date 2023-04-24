@@ -27,31 +27,31 @@ Download apps module to your IVIT-I.
 
  
 
-# BasicClassification
-![](./docs/figure/BasicClassification.png)  
-More information about how to use this application [here](./docs/BasicClassification.md).    
+# Basic Classification
+![](./docs/figure/Basic_Classification.png)  
+More information about how to use this application [here](./docs/Basic_Classification.md).    
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
 
-# BasicObjectDetection
-![](./docs/figure/BasicObjectDetection.gif)  
-More information about how to use this application [here](./docs/BasicObjectDetection.md).    
+# Basic Object Detection
+![](./docs/figure/Basic_Object_Detection.gif)  
+More information about how to use this application [here](./docs/Basic_Object_Detection.md).    
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
 
 # Detection Zone
-![](./docs/figure/DetectionZone.gif)  
-More information about how to use this application [here](./docs/DetectionZone.md).  
+![](./docs/figure/Detection_Zone.gif)  
+More information about how to use this application [here](./docs/Detection_Zone.md).  
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
 * User can set detection area.
 * User can count number for specific object which in the detection area.
 # Tracking Zone
-![](./docs/figure//TrackingZone.gif)  
-More information about how to use this application [here](./docs/TrackingZone.md).  
+![](./docs/figure//Tracking_Zone.gif)  
+More information about how to use this application [here](./docs/Tracking_Zone.md).  
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
@@ -59,9 +59,9 @@ Add Functions.
 * User can count number for each object once.
 * User can track mutiple object.
 # Movement Zone
-![](./docs/figure//MovementZone.gif)  
+![](./docs/figure//Movement_Zone.gif)  
 
-More information about how to use this application [here](./docs/MovementZone.md).  
+More information about how to use this application [here](./docs/Movement_Zone.md).  
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.

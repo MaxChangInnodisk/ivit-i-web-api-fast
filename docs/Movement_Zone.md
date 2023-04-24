@@ -85,9 +85,9 @@ And the description of application output is [here](#application-output).
 ## Create Instance
 You need to use [app_config](#setting-app-config) and label path to create instance of application.
    ```bash
-    from apps import MovementZone
+    from apps import Movement_Zone
 
-    app = MovementZone( app_config, label_path )
+    app = Movement_Zone( app_config, label_path )
    ``` 
 ## Format of input parameter
 * Input parameters are the result of model predict, and the result must packed like below.

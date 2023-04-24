@@ -60,9 +60,9 @@ Application Setting
 You need to use [app_config](#setting-app-config) and label path to create instance of application.
    ```bash
     
-    from apps import DetectionZone
+    from apps import Detection_Zone
 
-    app = DetectionZone( app_config , label_path )
+    app = Detection_Zone( app_config , label_path )
     
    ``` 
 ## Format of input parameter

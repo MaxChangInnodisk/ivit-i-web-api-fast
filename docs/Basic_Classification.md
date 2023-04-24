@@ -41,9 +41,9 @@ And the description of application output is [here](#application-output).
 ## Create Instance
 You need to use [app_config](#setting-app-config) and label path to create instance of application.
    ```bash
-    from apps import BasicClassification
+    from apps import Basic_Classification
 
-    app = BasicClassification( app_config, label_path )
+    app = Basic_Classification( app_config, label_path )
    ``` 
 ## Format of input parameter
 * Input parameters are the result of model predict, and the result must packed like below.
