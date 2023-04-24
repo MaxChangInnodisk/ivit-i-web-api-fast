@@ -1,4 +1,4 @@
-# IVIT-I Application of basic Tracking
+# IVIT-I Application of Tracking Zone
 ## Usage
 You need to follow the step below to use application:  
 Step 1. [Setting Config](#setting-app-config).  
@@ -64,9 +64,9 @@ And the description of application output is [here](#adjust-trancking-distance).
 ## Create Instance
 You need to use [app_config](#setting-app-config) and label path to create instance of application.
    ```bash
-    from apps import Tracking
+    from apps import Tracking_Zone
 
-    app = Tracking( app_config, label_path )
+    app = Tracking_Zone( app_config, label_path )
    ``` 
 ## Format of input parameter
 * Input parameters are the result of model predict, and the result must packed like below.

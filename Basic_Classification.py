@@ -4,7 +4,7 @@ sys.path.append( os.getcwd() )
 print(sys.path)
 from apps.palette import palette
 from ivit_i.app import iAPP_CLS
-class BasicClassification(iAPP_CLS):
+class Basic_Classification(iAPP_CLS):
     """ __init__, __call__ """
 
     def __init__(self, params=None, label=None, palette=palette, log=True):
@@ -27,8 +27,8 @@ class BasicClassification(iAPP_CLS):
         with open(self.model_label,'r') as f:
             line = f.read().splitlines()
             for i in line:
-                self.palette.update({i:palette[str(temp_id)]})
-                self.model_label_list.append(i)
+                self.palette.update({i.strip():palette[str(temp_id)]})
+                self.model_label_list.append(i.strip())
                 temp_id+=1
 
     def get_color(self, label):

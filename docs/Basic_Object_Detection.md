@@ -51,9 +51,9 @@ And the description of application output is [here](#application-output).
 ## Create Instance
 You need to use [app_config](#setting-app-config) and label path to create instance of application.
    ```bash
-    from apps import BasicObjectDetection 
+    from apps import Basic_Object_Detection 
 
-    app = BasicObjectDetection( app_config , label_path )
+    app = Basic_Object_Detection( app_config , label_path )
    
    ``` 
 ## Format of input parameter

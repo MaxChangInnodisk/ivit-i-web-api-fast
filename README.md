@@ -7,7 +7,7 @@ AI Application Zoo For iVIT-I
 * [BasicClassification](#basicclassification)
 * [BasicObjectDetection](#basicobjectdetection)
 * [CountingArea](#countingarea)
-* [Tracking](#tracking)
+* [Tracking Zone](#tracking-zone)
 * [Direction](#direction)
 
 # Prepare Environment
@@ -27,41 +27,41 @@ Download apps module to your IVIT-I.
 
  
 
-# BasicClassification
-![](./docs/figure/BasicClassification.png)  
-More information about how to use this application [here](./docs/BasicClassification.md).    
+# Basic Classification
+![](./docs/figure/Basic_Classification.png)  
+More information about how to use this application [here](./docs/Basic_Classification.md).    
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
 
-# BasicObjectDetection
-![](./docs/figure/BasicObjectDetection.gif)  
-More information about how to use this application [here](./docs/BasicObjectDetection.md).    
+# Basic Object Detection
+![](./docs/figure/Basic_Object_Detection.gif)  
+More information about how to use this application [here](./docs/Basic_Object_Detection.md).    
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
 
-# CountingArea
-![](./docs/figure/CountingArea.gif)  
-More information about how to use this application [here](./docs/CountingArea.md).  
+# Detection Zone
+![](./docs/figure/Detection_Zone.gif)  
+More information about how to use this application [here](./docs/Detection_Zone.md).  
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
 * User can set detection area.
 * User can count number for specific object which in the detection area.
-# Tracking
-![](./docs/figure//Tracking.gif)  
-More information about how to use this application [here](./docs/Tracking.md).  
+# Tracking Zone
+![](./docs/figure//Tracking_Zone.gif)  
+More information about how to use this application [here](./docs/Tracking_Zone.md).  
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
 * User can set detection area.
 * User can count number for each object once.
 * User can track mutiple object.
-# Direction
-![](./docs/figure//Direction.gif)  
+# Movement Zone
+![](./docs/figure//Movement_Zone.gif)  
 
-More information about how to use this application [here](./docs/Direction.md).  
+More information about how to use this application [here](./docs/Movement_Zone.md).  
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.

@@ -1,4 +1,4 @@
-# IVIT-I Application of basic CountingArea
+# IVIT-I Application of Detection Zone
 ## Usage
 You need to follow the step below to use application:  
 Step 1. [Setting Config](#setting-app-config).  
@@ -60,9 +60,9 @@ Application Setting
 You need to use [app_config](#setting-app-config) and label path to create instance of application.
    ```bash
     
-    from apps import CountingArea
+    from apps import Detection_Zone
 
-    app = CountingArea( app_config , label_path )
+    app = Detection_Zone( app_config , label_path )
     
    ``` 
 ## Format of input parameter

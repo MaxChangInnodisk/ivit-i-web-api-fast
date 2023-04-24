@@ -2,7 +2,7 @@ import sys, os, cv2
 sys.path.append( os.getcwd() )
 from apps.palette import palette
 from ivit_i.app import iAPP_OBJ
-class BasicObjectDetection(iAPP_OBJ):    
+class Basic_Object_Detection(iAPP_OBJ):    
     """ Basic Object Detection Application
     * Parameters
         1. depend_onarea_opacity
@@ -104,8 +104,8 @@ class BasicObjectDetection(iAPP_OBJ):
         with open(self.model_label,'r') as f:
             line = f.read().splitlines()
             for i in line:
-                self.palette.update({i:palette[str(temp_id)]})
-                self.model_label_list.append(i)
+                self.palette.update({i.strip():palette[str(temp_id)]})
+                self.model_label_list.append(i.strip())
                 temp_id+=1
 
     def get_color(self, label):
