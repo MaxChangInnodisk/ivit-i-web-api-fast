@@ -3,8 +3,8 @@
 You need to follow the step below to use application:  
 Step 1. [Setting Config](#setting-app-config).  
 Step 2. [Create Instance](#create-instance).  
-Step 3. Follow the [format of input parameter](#format-of-input-parameter) to use application.
-
+Step 3. Follow the [format of input parameter](#format-of-input-parameter) to use application.  
+Other features : Different situation needs different value of "trancking distance".You can follow [here](#adjust-trancking-distance) to adjust trancking distance.  
 And the description of application output is [here](#application-output).   
 ## Setting app config 
 * The description of key from config.(*) represent must be set.  
@@ -105,6 +105,13 @@ You need to use [app_config](#setting-app-config) and label path to create insta
         detection.xmax   # (type int)           value : 438      
         detection.ymax   # (type int)           value : 50 
     ```
+## Adjust Trancking distance
+*Trancking distance is a paremeter that we use to track object in different frame,but different situation we need to adjust differet value ,we can adjust tracking distance as below. 
+
+        new_tracking_distance = 100 #defalt 60
+        app.update_tracking_distance(new_tracking_distance)
+
+
 ## Application output 
 * Application will return frame(already drawn) and organized information.The format of organized information as below.
     ```bash
