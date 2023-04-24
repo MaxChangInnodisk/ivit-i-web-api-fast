@@ -1,66 +1,29 @@
 import sys, os, cv2, logging, time
 import numpy as np
+import uuid
+import os
+import threading
+from datetime import datetime
 sys.path.append( os.getcwd() )
-from ivit_i.app.common import ivitApp
+from apps.palette import palette
+import math
+from multiprocessing.pool import ThreadPool
+from ivit_i.app import iAPP_OBJ
 
-try:
-    from DynamicBoundingBox import DynamicBoundingBox
-    from AreaDetection import AreaDetection
-except:
-    from apps.DynamicBoundingBox import DynamicBoundingBox
-    from apps.AreaDetection import AreaDetection
-
-# Area
-K_DEPEN         = 'depend_on'
-K_AREA          = "area_points"
-K_SENS          = "sensitivity"
-K_DRAW_BB       = "draw_bbox"
-K_DRAW_ARAE     = "draw_area"
-K_AREA_COLOR    = "area_color"
-K_AREA_OPACITY  = "area_opacity"
-SENS_MED        = "medium"
-SENS_HIGH       = "high"
-SENS_LOW        = "low"
-SENS_MAP = {
-    SENS_LOW: [1, False],
-    SENS_MED: [2, False],
-    SENS_HIGH: [3, True]
-}
-
-
-# Counting
-K_LOGIC         = 'logic'
-K_LOGIC_THRES   = 'logic_thres'
-
-
-class Counting(AreaDetection, ivitApp):
-
-    def __init__(self, params=None, label=None, palette=None, log=True):
-        super().__init__(params, label, palette, log)
-        self.set_type('obj')
-        self.init_area()
-        self.init_draw_params()
-        self.init_logic_param()
-
-    def init_params(self):
-        self.def_param( name=K_DEPEN, type='list', value=[], descr='add label into list if need to filter interest label' )
-        self.def_param( name=K_LOGIC, type="string", value="=", descr="use logic to define situation"),
-        self.def_param( name=K_LOGIC_THRES, type="int", value=3, descr="define logic threshold"),
-
-        self.def_param( name=K_DRAW_BB, type='bool', value=True )
-        self.def_param( name=K_DRAW_ARAE, type='bool', value=True )
-
-        self.def_param( name=K_AREA_COLOR, type='list', value=(0,0,255) )
-        self.def_param( name=K_AREA_OPACITY, type='float', value=0.15 )
-
-        self.def_param( name=K_AREA, type='dict', value={} )
-        self.def_param( name=K_SENS, type='str', value=SENS_LOW )
-
-    def init_logic_param(self):
-        self.operator = self.get_logic_event(self.get_param(K_LOGIC))
-        self.thres = self.get_param(K_LOGIC_THRES)
-        self.cur_num = {}
-
+class event_handle(threading.Thread):
+    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int):
+        threading.Thread.__init__(self)
+        self.operator = operator
+        self.thres = thres
+        self.cooldown_time = cooldown_time
+        self.event_title = event_title
+        self.event_output={}
+        self.area_id = area_id
+        self.pass_time = self.cooldown_time[self.area_id]+1
+        self.event_time=datetime.now()
+        self.trigger_time=datetime
+        self.info =" "
+  
     def get_logic_event(self, operator):
         """ Define the logic event """
         greater = lambda x,y: x>y
@@ -77,123 +40,519 @@ class Counting(AreaDetection, ivitApp):
         }
         return logic_map.get(operator)
 
-    def logic_event(self, value):
-        return self.operator(value)
+    def logic_event(self, value,thres,area_id):
+        return self.operator[area_id](value,thres)
 
-    def run(self, frame, data, draw=True) -> tuple:
+    def __call__(self,frame,ori_frame,area_id,total_object_number,app_output):
+
+        self.event_output={}
+        self.event_time=datetime.now()
+        self.info =""
+        # area have operator
+        if self.operator.__contains__(area_id) == False:
+            return
+        # when object in area 
         
-        # Basic in area detection
-        self.frame_idx += 1
-        self.update_draw_param( frame )
-        frame = self.draw_area_event(frame)
+        if total_object_number.__contains__(area_id) == False: 
+            
+            return
+           
+        if self.logic_event(total_object_number[area_id],self.thres[area_id],area_id) == False:
+            return
+  
+        if self.pass_time > self.cooldown_time[area_id]:
+            self.eventflag=True
+            self.trigger_time=datetime.now()
+            self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))
+            uid=str(uuid.uuid4())[:9]
+            path='./'+str(uid)+'/'
+            if not os.path.isdir(path):
+                os.mkdir(path)
+            cv2.imwrite(path+str(self.trigger_time)+'.jpg', frame)
+            cv2.imwrite(path+str(self.trigger_time)+"_org"+'.jpg', ori_frame)
+            self.event_output.update({"uuid":uid,"title":self.event_title[area_id],"areas":app_output["areas"][area_id],"timesamp":self.trigger_time,"screenshot":{"overlay": path+str(self.trigger_time)+'.jpg',
+            "original": path+str(self.trigger_time)+"_org"+'.jpg'}}) 
+            # Draw Inforamtion
+            
+            self.info = "The {} area : ".format(area_id)+self.event_title[area_id]+' , '.join([ 'total:{}  , cool down time:{}/{}'.format(total_object_number[area_id],0,self.cooldown_time[area_id])])
+
+        else :
+            self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))    
+            self.info = "The {} area : ".format(area_id)+self.event_title[area_id]+' , '.join([ 'total:{}  , cool down time:{}/{}'.format(total_object_number[area_id],self.pass_time,self.cooldown_time[area_id])])
+
+class app_common_handle(threading.Thread):
+    """ IVIT-I Counting application common pocess :
+            1. .
+            2. get info from config.
+            3. draw Area and label.
+    """
+    def __init__(self ,params:dict,area_mask:dict,depend_on:dict,total:dict,app_output:dict,area_pts:dict,area_name:dict,sensitivity:dict):
+        threading.Thread.__init__(self)
+        self.params=params
+        self.area_mask=area_mask
+        self.depend_on=depend_on
+        self.total={}
+        self.app_output={}
+        self.area_pts2=area_pts
+        self.area_name2=area_name
+        self.sensitivity=sensitivity
+        self.is_draw=False
         
-        # Clear `self.cur_num`
-        self.cur_num.clear()
+    def inpolygon_mask(self,left_up:list,right_down:list,area_id,frame):
+        l_r = left_up
+        m_up = [int((right_down[0]+left_up[0])/2),left_up[1]]
+        r_up = [right_down[0],left_up[1]]
+        r_m = [right_down[0],int((right_down[1]+left_up[1])/2)]
+        m_d = [int((right_down[0]+left_up[0])/2),right_down[1]]
+        l_d = [ left_up[0],right_down[1]]
+        l_m = [left_up[0],int((right_down[1]+left_up[1])/2)]
+        r_d = right_down
+        bb_point={1:l_r,2:m_up,3:r_up,4:r_m,5:m_d,6:l_d,7:l_m,8:r_d}
 
-        for det in (data['detections']):
-
-            # Check Label is what we want
-            if not self.depend_label(det['label'], self.get_param('depend_on')):
-                continue
+        num = 0
+        x , y = 0,0
+        for i , v in bb_point.items():
             
-            # Parsing output
-            ( label, score, xmin, ymin, xmax, ymax ) \
-                 = [ det[key] for key in [ 'label', 'score', 'xmin', 'ymin', 'xmax', 'ymax' ] ]                  
+            if v[0]>= self.area_mask[area_id].shape[0]:
+                x =self.area_mask[area_id].shape[0]-1
+            else:
+                x = v[0]  
+            if v[1]>= self.area_mask[area_id].shape[1]:
+                y = self.area_mask[area_id].shape[1]-1
+            else:
+                y = v[1]    
+                  
+            if self.area_mask[area_id][x][y]==1:
+                num=num+1
+        return num
 
-            # Check in area
-            if self.check_obj_area((xmin, xmax, ymin, ymax))==(-1): 
-                continue
+    def inpolygon(self,px,py,poly):
+        is_in = False
+        for i , corner in enumerate(poly):
+            next_i = i +1 if i +1 < len(poly) else 0
+            x1 ,y1 = corner
+            x2 , y2=poly[next_i]
+            if (x1 == px and y1 ==py) or (x2==px and y2 ==py):
+                is_in = False
+                break
+            if min(y1,y2) <py <= max(y1 ,y2):
+                x =x1+(py-y1)*(x2-x1)/(y2-y1)
+                if x ==px:
+                    is_in = False
+                    break
+                elif x > px:
+                    is_in = not is_in
+        return is_in 
+    
+    def update_object_number_this_frame(self,area_id):
+        if  self.total.__contains__(area_id):
+            _total=self.total[area_id]+1    
+            self.total.update({area_id:_total})
+        else:
+            self.total.update({area_id:1}) 
 
-            # Update the mount of the current object
-            if self.cur_num.get(label) is None:
-                self.cur_num.update( {label:0} )
-            self.cur_num[label] += 1
+    def check_depend_on(self,area_id):
+        if len(self.depend_on[area_id])!=0:
+            return True
+        return False
+
+
+    def __call__(self,area_id:int,label:str, score:float, xmin:int, ymin:int, xmax:int, ymax:int,frame):
+        
+        if self.sensitivity.__contains__(area_id):
+            if self.inpolygon_mask([xmin, ymin],[xmax,ymax],area_id,frame)<self.sensitivity[area_id]:
+                return
+        else:
+            if not self.inpolygon(((xmin+xmax)/2),((ymin+ymax)/2),self.area_pts2[area_id]): 
+                return
+
+        if self.check_depend_on(area_id):
+            if label in self.depend_on[area_id]: 
+                self.update_object_number_this_frame(area_id)   
+
+                #according to area and user setting to creat app output. Do once.    
+                if self.app_output.__contains__("areas")==False:
+                    self.app_output.update({"areas": []})
+                if len(self.app_output["areas"])==area_id:
+                    self.app_output["areas"].append({"id":area_id,"name":self.area_name2[area_id],"data":[]})   
+                if len(self.depend_on[area_id])!=len(self.app_output["areas"][area_id]["data"]):
+                    for key in self.depend_on[area_id]:
+                        self.app_output["areas"][area_id]["data"].append({"label":key,"num":0})
+
+
+                for d in range(len(self.app_output["areas"][area_id]["data"])):    
+                    if self.app_output["areas"][area_id]["data"][d]["label"]==label:
+                        _=self.app_output["areas"][area_id]["data"][d]["num"]+1
+                        self.app_output["areas"][area_id]["data"][d].update({"num":_})
+                # each label have to check to draw
+                self.is_draw=True
+
+        else:
             
-            # Draw Top N label
-            if not draw: continue
+            self.update_object_number_this_frame(area_id) 
+            if self.app_output.__contains__("areas")==False:
+                    self.app_output.update({"areas": []})
+            if len(self.app_output["areas"])==area_id:
+                self.app_output["areas"].append({"id":area_id,"name":self.area_name2[area_id],"data":[]})   
+            
+            
+            if len(self.app_output["areas"][area_id]["data"])==0:
+                self.app_output["areas"][area_id]["data"].append({"label":label,"num":1})
+            for d in range(len(self.app_output["areas"][area_id]["data"])): 
+                    
+                if self.app_output["areas"][area_id]["data"][d]["label"]==label:
+                    _=self.app_output["areas"][area_id]["data"][d]["num"]+1
+                    self.app_output["areas"][area_id]["data"][d].update({"num":_})
+                    break
+                #app output doesn't have this label , new object !
+                if len(self.app_output["areas"][area_id]["data"])-1==d and self.app_output["areas"][area_id]["data"][d]["label"]!=label: 
+                    self.app_output["areas"][area_id]["data"].append({"label":label,"num":1})
+            
+            self.is_draw=True
 
-            # Draw bounding box
-            cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), self.get_color(label) , self.thick)
+                 
+class CountingArea(iAPP_OBJ,event_handle,app_common_handle):
+    """ IVIT-I Counting application :
+            1. init params.
+            2. get info from config.
+            3. draw Area and label.
+    """
+    def __init__(self, params=None, label=None, palette=palette, log=True):
+        """ 
+            Init params.
+        """   
+        self.app_type = 'obj'
+        self.params = params
+        self.depend_on ={}
+        self.palette = {}
+        self.judge_area=10
+        self.event_title={}
+        self.operator={}
+        self.thres={}
+        self.app_output={}
+        self.total={}
+        self.cooldown_time={}
+        self.sensitivity ={}
+        self.event_handler = {}
+        self.event_output ={}
+        self.area_mask={}
 
-            # Draw Text
-            (t_wid, t_hei), t_base = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
-            t_xmin, t_ymin, t_xmax, t_ymax = xmin, ymin-(t_hei+(t_base*2)), xmin+t_wid, ymin
-            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax), self.get_color(label) , -1)
 
-            cv2.putText(
-                frame, label, (xmin, ymin-(t_base)), cv2.FONT_HERSHEY_SIMPLEX,
-                self.font_size, (255,255,255), self.font_thick, cv2.LINE_AA
-            )
+        #for draw result and boundingbox
+        self.frame_idx = 0
+        self.frame_size = None
+        self.font_size  = None
+        self.font_thick = None
+        self.thick      = None
+        self.draw_result =True
+        
+        #for draw area
+        self.area_name={}
+        self.draw_bbox =True
+        self.draw_area= 1
+        self.area_opacity=None
+        self.area_color=None
+        self.area_pts = {}
+        self.change_resulutuon = 1
+        self.normalize_area_pts = {}
+        self.area_cnt = {}
+        
+
+        self.model_label = label
+        self.model_label_list =[]
+
+        # self.pool = ThreadPool(os.cpu_count() )
+        self.init_palette(palette)
+
+        self.init_logic_param()
+        self.app_common_start()
+        self.init_event_object()
+        self.event_start()
+        self.collect_depand_info()
+
+    def init_palette(self,palette):
+        temp_id=1
+        with open(self.model_label,'r') as f:
+            line = f.read().splitlines()
+            for i in line:
+                self.palette.update({i:palette[str(temp_id)]})
+                self.model_label_list.append(i)
+                temp_id+=1
+                
+    def update_draw_param(self, frame):
+        """ Update the parameters of the drawing tool, which only happend at first time. """
+        
+        # if frame_size not None means it was already init 
+        if( self.frame_idx > 1): return None
+
+        # Parameters
+        FRAME_SCALE     = 0.0005    # Custom Value which Related with Resolution
+        BASE_THICK      = 1         # Setup Basic Thick Value
+        BASE_FONT_SIZE  = 0.5   # Setup Basic Font Size Value
+        FONT_SCALE      = 0.2   # Custom Value which Related with the size of the font.
+
+        # Get Frame Size
+        self.frame_size = frame.shape[:2]
+        
+        # Calculate the common scale
+        scale = FRAME_SCALE * sum(self.frame_size)
+        
+        # Get dynamic thick and dynamic size 
+        self.thick  = BASE_THICK + round( scale )
+        self.font_thick = self.thick//2
+        self.font_size = BASE_FONT_SIZE + ( scale*FONT_SCALE )
+        self.draw_result = self.params['application'].get('draw_result',True)
+        self.draw_bbox = self.params['application'].get('draw_bbox',True)
+        self.area_color=[0,0,255]
+        self.area_opacity=0.2
+        logging.info('Frame: {} ({}), Get Border Thick: {}, Font Scale: {}, Font Thick: {}'
+            .format(self.frame_size, scale, self.thick, self.font_size, self.font_thick))    
+        for i in range(len(self.params['application']['areas'])):
+            if self.params['application']['areas'][i]['area_point']!=[]:
+                self.normalize_area_pts.update({i:self.params['application']['areas'][i]['area_point']})
+                self.area_name.update({i:self.params['application']['areas'][i]['name']})
+            else:
+                self.normalize_area_pts.update({i:[[0,0],[1,0],[1,1],[0,1]]})
+                self.area_name.update({i:"The defalt area"})
+        
+        
+    def collect_depand_info(self):
+
+        for i in range(len(self.params['application']['areas'])): 
+           
+            if len(self.params['application']['areas'][i]['depend_on'])>0:
+                        
+                self.depend_on.update({i:self.params['application']['areas'][i]['depend_on']})
+            else:
+                self.depend_on.update({i:[]})   
+
+        temp_palette ={}
+        for area , value in self.depend_on.items():
+            temp_palette.update({area:{}})
+            if not self.depend_on.__contains__(area): 
+                temp_palette.update({area:self.palette})
+                continue
+            if self.depend_on[area]==[]:
+                temp_palette.update({area:self.palette})
+                continue
+                
+            for id in range(len(value)):
+                if not (value[id] in self.model_label_list): continue
+                if not (self.params['application']['areas'][area].__contains__('palette')): 
+                    temp_palette[area].update({value[id]:self.palette[value[id]]})
+                    continue
+                if not (self.params['application']['areas'][area]['palette'].__contains__(value[id])): 
+                    temp_palette[area].update({value[id]:self.palette[value[id]]})
+                    continue  
+                temp_palette[area].update({value[id]:self.params['application']['areas'][area]['palette'][value[id]]})
+        
+        self.palette = temp_palette
+
+    def init_logic_param(self):
+        
+        for i in range(len(self.params['application']['areas'])):
+            if self.params['application']['areas'][i].__contains__('events'):
+                self.operator.update({i:self.get_logic_event(self.params['application']['areas'][i]['events']['logic_operator'])})
+                self.thres.update({i: self.params['application']['areas'][i]['events']['logic_value']})
+                self.event_title.update({i:self.params['application']['areas'][i]['events']['title']})
+                if self.params['application']['areas'][i]['events'].__contains__('cooldown_time'):
+                    self.cooldown_time.update({i:self.params['application']['areas'][i]['events']['cooldown_time']})
+                else :
+                    self.cooldown_time.update({i:10})   
+                if self.params['application']['areas'][i]['events'].__contains__('sensitivity'):
+                    self.sensitivity.update({i:self.get_sensitivity_event(self.params['application']['areas'][i]['events']['sensitivity'])})
+    
+    def get_sensitivity_event(self,sensitivity_str):
+        # sensitivity_map={
+        #     "low":0.3,
+        #     "medium" : 0.5,
+        #     "high":0.7,
+        # }
+        sensitivity_map={
+            "low":1,
+            "medium" : 3,
+            "high":5,
+        }
+        return sensitivity_map.get(sensitivity_str)
+
+    def init_event_object(self):
+        for i , v   in self.operator.items():
+            event_obj = event_handle(self.operator,self.thres,self.cooldown_time,self.event_title,i) 
+            self.event_handler.update( { i: event_obj }  )        
+        
+    def init_area_mask(self,frame):
+        if self.area_mask != {}:
+            return
+
+        for i in range(len(self.area_pts)):
+            
+            poly = np.array(self.area_pts[i], dtype= np.int32)
+            tmp = np.zeros([frame.shape[1],frame.shape[0]],dtype=np.uint8)
+            cv2.polylines(tmp , [poly] ,1, 1)
+            cv2.fillPoly(tmp,[poly],1)
+            self.area_mask.update({i:tmp})
 
 
-        # Draw Inforamtion
-        info = ', '.join([ f'{_label}:{_num}' for _label, _num in self.cur_num.items() ])
-        if info.strip() != '':
-            (t_wid, t_hei), t_base = cv2.getTextSize(info, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
-            t_xmin, t_ymin, t_xmax, t_ymax = 10, 10, 10+t_wid, 10+(t_hei+t_base)
+    def app_common_start(self)    :
+        
+        self.app_thread=app_common_handle(self.params, self.area_mask, self.depend_on, self.total, self.app_output, self.area_pts, self.area_name, self.sensitivity)
+        self.app_thread.start()    
+
+    def event_start(self):
+        for i in range(len(self.event_handler)):
+            self.event_handler[i].start()  
+
+    def draw_area_event(self, frame, is_draw_area, area_color=None, area_opacity=None, draw_points=True, draw_polys=True):
+        """ Draw Detecting Area and update center point if need.
+        - args
+            - frame: input frame
+            - area_color: control the color of the area
+            - area_opacity: control the opacity of the area
+        """
+
+        is_draw_area = self.draw_area
+        if not is_draw_area: return frame
+        # Get Parameters
+        area_color = self.area_color if area_color is None else area_color
+        area_opacity = self.area_opacity if area_opacity is None else area_opacity
+
+        overlay = frame.copy()
+        temp_area_next_point = []
+
+       
+
+        for area_idx, area_pts in self.area_pts.items():
+            
+            if area_pts==[]: continue
+
+            
+            # Draw circle if need
+            if draw_points: 
+                
+                [ cv2.circle(frame, tuple(pts), 3, area_color, -1) for pts in area_pts ]
+                
+            #Draw area name
+            minxy,maxxy=(max(area_pts),min(area_pts))
+            for pts in area_pts:
+                if temp_area_next_point == []:
+                    cv2.line(frame,pts,area_pts[-1], (0, 0, 255), 3)
+                    
+                else:
+                    
+                    cv2.line(frame, temp_area_next_point, pts, (0, 0, 255), 3)
+                temp_area_next_point= pts
+                    
+                if (tuple(pts)[0]+tuple(pts)[1])<(minxy[0]+minxy[1]): 
+                    minxy= pts
+            area_name =self.area_name[area_idx]     
+            (t_wid, t_hei), t_base = cv2.getTextSize(area_name, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
+            t_xmin, t_ymin, t_xmax, t_ymax = minxy[0], minxy[1], minxy[0]+t_wid, minxy[1]+(t_hei+t_base)
+            
             cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,255) , -1)
             cv2.putText(
-                frame, info, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
+                frame, area_name, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
+                self.font_size, (0,0,0), self.font_thick, cv2.LINE_AA
+            )
+            cv2.fillPoly(overlay, pts=[ np.array(area_pts) ], color=area_color)
+
+            
+
+
+        return cv2.addWeighted( frame, 1-area_opacity, overlay, area_opacity, 0 )  
+
+    def get_color(self, label,area_id):
+       
+       return self.palette[area_id][label]    
+    
+
+    def check_input(self,frame,data):
+
+        if frame is None : return False
+        if  data is None   : return False 
+        return True                      
+
+
+    def custom_function(self, frame, color:tuple, label,score, left_top:tuple, right_down:tuple,draw_bbox=True,draw_result=True):
+        """ The draw method customize by user 
+        """
+        (xmin, ymin), (xmax, ymax) = left_top, right_down
+        info = '{} {:.1%}'.format(label, score)
+        # Draw bounding box
+        draw_bbox = self.draw_bbox if self.draw_bbox is not None else draw_bbox
+        if draw_bbox:
+            cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color , self.thick)
+
+        draw_result = self.draw_result if self.draw_result is not None else draw_result
+        # Draw Text
+        if draw_result:
+            (t_wid, t_hei), t_base = cv2.getTextSize(info, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
+            t_xmin, t_ymin, t_xmax, t_ymax = xmin, ymin-(t_hei+(t_base*2)), xmin+t_wid, ymin
+            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax), color , -1)
+            cv2.putText(
+                frame, info, (xmin, ymin-(t_base)), cv2.FONT_HERSHEY_SIMPLEX,
                 self.font_size, (255,255,255), self.font_thick, cv2.LINE_AA
             )
+        return frame  
 
-        return ( frame, self.cur_num)
+    def convert_point_value(self,frame):
+        if not self.change_resulutuon : return
+        temp_point=[]
+        for area in range(len(self.normalize_area_pts)):
+            for point in self.normalize_area_pts[area]:
+                if point[0]>1: return
+                temp_point.append([math.ceil(point[0]*frame.shape[1]),math.ceil(point[1]*frame.shape[0])])
+            self.area_pts.update({area:temp_point})
+            temp_point = []
+        self.change_resulutuon = 0
 
-if __name__ == "__main__":
+    def __call__(self, frame, detections, draw=True):
+        if not self.check_input(frame,detections) :
+            logging.info("Input frame or input data format is error !!")
+            return frame
+        ori_frame = frame.copy()
+        # Basic in area detection
+        self.frame_idx += 1
 
-    import cv2
-    from ivit_i.common.model import get_ivit_model
+        self.update_draw_param( frame )
+        self.convert_point_value(frame)
+        self.init_area_mask(frame)
 
-    # Define iVIT Model
-    model_type = 'obj'
-    model_anchor = [ 10, 13, 16, 30, 33, 23, 30, 61, 62, 45, 59, 119, 116, 90, 156, 198, 373, 326 ]
-    model_conf = { 
-        "tag": model_type,
-        "openvino": {
-            "model_path": "./model/yolo-v3-tf/FP32/yolo-v3-tf.xml",
-            "label_path": "./model/yolo-v3-tf/coco.names",
-            "anchors": model_anchor,
-            "architecture_type": "yolo",
-            "device": "CPU",
-            "thres": 0.9
-        }
-    }
+        if cv2.waitKey(1) in [ ord('c'), 99 ]: self.draw_area= self.draw_area^1
+        frame = self.draw_area_event(frame, self.draw_area)
 
-    ivit = get_ivit_model(model_type)
-    ivit.load_model(model_conf)
-    ivit.set_async_mode()
-    
-    # Def Application
-    app_conf = {
-        'depend_on': [],
-        'draw_area': True,
-    }
-    app = Counting( 
-        params=app_conf, 
-        label=model_conf['openvino']['label_path']
-    )
+        self.app_thread.total={}
+        self.app_thread.app_output={}
+        self.event_output={'event':[]}
+        
+        for detection in detections:
+            # Check Label is what we want
+            ( label, score, xmin, ymin, xmax, ymax ) \
+                 = detection.label, detection.score, detection.xmin, detection.ymin, detection.xmax, detection.ymax                  
+                            
+            for i in range(len(self.depend_on)):
 
-    # Get Source
-    src_path = './data/car.mp4'   # 1280x720
-    src_path = './data/4-corner-downtown.mp4' # 1920x1080
-    cap = cv2.VideoCapture(src_path)
+                # self.pool.apply_async(self.app_thread,(i,label, score, xmin, ymin, xmax, ymax,frame))
+                self.app_thread(i,label, score, xmin, ymin, xmax, ymax,frame)
+                if self.app_thread.is_draw:
 
-    # Set up Area
-    ret, frame = cap.read()
-    app.set_area(frame)
+                    frame = self.custom_function(
+                            frame = frame,
+                            color = self.get_color(label,i)  ,
+                            label = label,
+                            score=score,
+                            left_top = (xmin, ymin),
+                            right_down = (xmax, ymax)
+                        ) 
+                self.app_thread.is_draw=False
+                
 
-    output = None
-    while(cap.isOpened()):
+                if self.event_handler.__contains__(i)==False:
+                    continue
 
-        ret, frame = cap.read()
-        if not ret: break
-        _output = ivit.inference(frame=frame)
-        output = _output if _output is not None else output 
-        if (output):
-            frame, info = app(frame, output)
-            print(info)
-        cv2.imshow('Test', frame)
-        if cv2.waitKey(1) in [ ord('q'), 27 ]: break
+                # self.pool.apply_async(self.event_handler[i],(frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output))
+                self.event_handler[i](frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output)
+                if self.event_handler[i].event_output !={}:
+                    self.event_output['event'].append(self.event_handler[i].event_output)
 
-    cap.release()
-    ivit.release()
+        return (frame,self.app_thread.app_output,self.event_output)   
+                           
