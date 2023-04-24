@@ -7,7 +7,7 @@ AI Application Zoo For iVIT-I
 * [BasicClassification](#basicclassification)
 * [BasicObjectDetection](#basicobjectdetection)
 * [CountingArea](#countingarea)
-* [Tracking](#tracking)
+* [Tracking Zone](#tracking-zone)
 * [Direction](#direction)
 
 # Prepare Environment
@@ -41,27 +41,27 @@ Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
 
-# CountingArea
-![](./docs/figure/CountingArea.gif)  
-More information about how to use this application [here](./docs/CountingArea.md).  
+# Detection Zone
+![](./docs/figure/DetectionZone.gif)  
+More information about how to use this application [here](./docs/DetectionZone.md).  
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
 * User can set detection area.
 * User can count number for specific object which in the detection area.
-# Tracking
-![](./docs/figure//Tracking.gif)  
-More information about how to use this application [here](./docs/Tracking.md).  
+# Tracking Zone
+![](./docs/figure//TrackingZone.gif)  
+More information about how to use this application [here](./docs/TrackingZone.md).  
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
 * User can set detection area.
 * User can count number for each object once.
 * User can track mutiple object.
-# Direction
-![](./docs/figure//Direction.gif)  
+# Movement Zone
+![](./docs/figure//MovementZone.gif)  
 
-More information about how to use this application [here](./docs/Direction.md).  
+More information about how to use this application [here](./docs/MovementZone.md).  
 Add Functions.
 * User can display objects they want to see. 
 * User can set color for specific object.
