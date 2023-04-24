@@ -211,7 +211,7 @@ class app_common_handle(threading.Thread):
             self.is_draw=True
 
                  
-class DetectionZone(iAPP_OBJ,event_handle,app_common_handle):
+class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
     """ IVIT-I Counting application :
             1. init params.
             2. get info from config.
@@ -275,8 +275,8 @@ class DetectionZone(iAPP_OBJ,event_handle,app_common_handle):
         with open(self.model_label,'r') as f:
             line = f.read().splitlines()
             for i in line:
-                self.palette.update({i:palette[str(temp_id)]})
-                self.model_label_list.append(i)
+                self.palette.update({i.strip():palette[str(temp_id)]})
+                self.model_label_list.append(i.strip())
                 temp_id+=1
                 
     def update_draw_param(self, frame):

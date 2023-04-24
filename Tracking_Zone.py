@@ -352,7 +352,7 @@ class app_common_handle(threading.Thread):
             self.is_draw=True
                  
 
-class TrackingZone(iAPP_OBJ,event_handle,app_common_handle ):
+class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
     def __init__(self, params=None, label=None, palette=palette, log=True):
         
         self.params = params
@@ -415,8 +415,8 @@ class TrackingZone(iAPP_OBJ,event_handle,app_common_handle ):
         with open(self.model_label,'r') as f:
             line = f.read().splitlines()
             for i in line:
-                self.palette.update({i:palette[str(temp_id)]})
-                self.model_label_list.append(i)
+                self.palette.update({i.strip():palette[str(temp_id)]})
+                self.model_label_list.append(i.strip())
                 temp_id+=1
 
     def init_draw_params(self):
@@ -734,7 +734,6 @@ class TrackingZone(iAPP_OBJ,event_handle,app_common_handle ):
                     outer_clor = self.get_color(label,i)
                     font_color = (255,255,255)
                     self.draw_tag(self.app_thread.show_object_info, xmin, ymin, xmax, ymax,outer_clor ,font_color,frame)
-                    print(4545665)
                     #draw bbox and result
                     frame = self.custom_function(
                             frame = frame,
