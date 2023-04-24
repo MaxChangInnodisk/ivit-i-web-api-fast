@@ -1,7 +1,6 @@
 import sys, os, cv2
 import numpy as np 
 sys.path.append( os.getcwd() )
-print(sys.path)
 from apps.palette import palette
 from ivit_i.app import iAPP_CLS
 class Basic_Classification(iAPP_CLS):
