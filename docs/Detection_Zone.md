@@ -105,7 +105,7 @@ You need to use [app_config](#setting-app-config) and label path to create insta
     ```
 ## Application output 
 * Application will return frame(already drawn) and two information(app_output、event_output).The format of organized information as below.
-    ```json
+    ```python
     #common output
     app_output = {
                     'areas': [

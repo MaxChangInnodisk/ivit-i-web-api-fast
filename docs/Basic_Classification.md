@@ -66,7 +66,7 @@ You need to use [app_config](#setting-app-config) and label path to create insta
     ```
 ## Application output 
 * Application will return frame(already drawn) and organized information.The format of organized information as below.
-    ```json
+    ```bash
     {
         'areas': [
             {

@@ -89,25 +89,25 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
 ## Application output 
 * Application will return frame(already drawn) and organized information.The format of organized information as below.
-    ```json
-    {
-        'areas': [
-            {
-                'id': 0, 
-                'name': 'default', 
-                'data': [
-                    {
-                        'xmin': 31, 
-                        'ymin': 217, 
-                        'xmax': 467, 
-                        'ymax': 466, 
-                        'label':'car', 
-                        'score': 0.8984614964862956, 
-                        'id': 0
-                    }
-                ]
-            }
-        ]
-    }
+    ```bash
+        {
+            'areas': [
+                {
+                    'id': 0, 
+                    'name': 'default', 
+                    'data': [
+                        {
+                            'xmin': 31, 
+                            'ymin': 217, 
+                            'xmax': 467, 
+                            'ymax': 466, 
+                            'label':'car', 
+                            'score': 0.8984614964862956, 
+                            'id': 0
+                        }
+                    ]
+                }
+            ]
+        }
     
     ```
