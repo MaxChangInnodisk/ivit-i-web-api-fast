@@ -352,7 +352,7 @@ class app_common_handle(threading.Thread):
             self.is_draw=True
                  
 
-class Tracking(iAPP_OBJ,event_handle,app_common_handle ):
+class TrackingZone(iAPP_OBJ,event_handle,app_common_handle ):
     def __init__(self, params=None, label=None, palette=palette, log=True):
         
         self.params = params
