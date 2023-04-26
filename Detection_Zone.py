@@ -454,7 +454,7 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
                 self.font_size, (0,0,0), self.font_thick, cv2.LINE_AA
             )
             cv2.fillPoly(overlay, pts=[ np.array(area_pts) ], color=area_color)
-
+            temp_area_next_point = []
             
 
 

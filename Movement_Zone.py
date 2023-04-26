@@ -785,7 +785,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
 
             #draw area 
             cv2.fillPoly(overlay, pts=[ np.array(area_pts) ], color=area_color)
-
+            temp_area_next_point = []
 
         return cv2.addWeighted( frame, 1-area_opacity, overlay, area_opacity, 0 )  
 
