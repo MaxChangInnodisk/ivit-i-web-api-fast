@@ -25,40 +25,62 @@ Application Setting
 |draw_bbox|bool|True|Display boundingbox.|
 
 * Basic
-    ```bash
-        "application": {
-                        "areas": [
-                                    {
-                                        "name": "default",
-                                        "depend_on": [ ],
-                                        "area_point": [ ]
-                                    }
-                                ]
-                        }
+    ```json
+        {
+            "application": {
+                "areas": [
+                    {
+                        "name": "default",
+                        "depend_on": [],
+                        "area_point": []
+                    }
+                ]
+            }
+        }
     ```
 * Set up application and event
 
-   ```bash
+   ```json
     {
         "application": {
-                        "areas": [
-                                    {
-                                        "name": "The intersection of Datong Rd",
-                                        "depend_on": [ "car", "truck" ],
-                                        "area_point": [[0.156,0.203],[0.468, 0.203],[0.468, 0.592],[0.156, 0.592] ], 
-                                        "events": {
-                                                    "title": "Traffic is very heavy",
-                                                    "logic_operator": ">",
-                                                    "logic_value": 100,
-                                                  }
-                                    }
-                                ]
-                    } 
+            "areas": [
+                {
+                    "name": "The intersection of Datong Rd",
+                    "depend_on": [
+                        "car",
+                        "truck"
+                    ],
+                    "area_point": [
+                        [
+                            0.156,
+                            0.203
+                        ],
+                        [
+                            0.468,
+                            0.203
+                        ],
+                        [
+                            0.468,
+                            0.592
+                        ],
+                        [
+                            0.156,
+                            0.592
+                        ]
+                    ],
+                    "events": {
+                        "title": "Traffic is very heavy",
+                        "logic_operator": ">",
+                        "logic_value": 100,
+                    }
+                }
+            ]
+        }
     }
    ``` 
 ## Create Instance
 You need to use [app_config](#setting-app-config) and label path to create instance of application.
-   ```bash
+   ```python
     
     from apps import Detection_Zone
 
@@ -83,41 +105,50 @@ You need to use [app_config](#setting-app-config) and label path to create insta
     ```
 ## Application output 
 * Application will return frame(already drawn) and two information(app_output、event_output).The format of organized information as below.
-    ```bash
+    ```python
     #common output
     app_output = {
-                    'areas':[
-                                {
-                                    'id': 0, 
-                                    'name': 'The defalt area', 
-                                    'data': [
-                                                {
-                                                    'label': 'person', 'num': 2
-                                                }
-                                            ]
-                                }
-                            ]
-                 }
+                    'areas': [
+                            {
+                    'id': 0, 
+                    'name': 'The defalt area', 
+                    'data': [
+                                    {
+                    'label': 'person', 
+                    'num': 2
+                                    }
+                                ]
+                            }
+                        ]
+                }
     #triggering event
     event_output =  {
                         'event': [
-                                    {
-                                        'uuid': 'bb4e7b1f-', 
-                                        'title': 'The daily traffic is over 1000', 
-                                        'areas': {
-                                                    'id': 0, 
-                                                    'name': 'The defalt area', 
-                                                    'data': [
-                                                                {'label': 'person', 'num': 2}, 
-                                                                {'label': 'tvmonitor', 'num': 1}
-                                                            ]
-                                                 }, 
-                                        'timesamp': datetime.datetime(2023, 4, 13, 9, 52, 4, 703097), 
-                                        'screenshot': {
-                                                        'overlay': './bb4e7b1f-/2023-04-13 09:52:04.703097.jpg', 'original': './bb4e7b1f-/2023-04-13 09:52:04.703097_org.jpg'
-                                                      }
+                                {
+                        'uuid': 'bb4e7b1f-', 
+                        'title': 'The daily traffic is over 1000', 
+                        'areas': {
+                        'id': 0, 
+                        'name': 'The defalt area', 
+                        'data': [
+                                            {'label': 'person', 'num': 2
+                                            },
+                                            {'label': 'tvmonitor', 'num': 1
+                                            }
+                                        ]
+                                    }, 
+                        'timesamp': datetime.datetime(2023,
+                                    4,
+                                    13,
+                                    9,
+                                    52,
+                                    4,
+                                    703097), 
+                        'screenshot': {
+                        'overlay': './bb4e7b1f-/2023-04-13 09: 52: 04.703097.jpg', 'original': './bb4e7b1f-/2023-04-13 09: 52: 04.703097_org.jpg'
                                     }
-                                ]
-                    } 
+                                }
+                            ]
+                    }
     
     ```

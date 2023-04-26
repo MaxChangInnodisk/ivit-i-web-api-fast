@@ -22,48 +22,75 @@ And the description of application output is [here](#adjust-trancking-distance).
 |draw_bbox|bool|True|Display boundingbox.|
 
 * Basic
-    ```bash
-
-    "application": {
-                    "areas": [
-                                {
-                                    "name": "default",
-                                    "depend_on": [ ],
-                                    "area_point": [ ]
-                                }
-                            ]
+    ```json
+        {
+            "application": {
+                "areas": [
+                    {
+                        "name": "default",
+                        "depend_on": [],
+                        "area_point": []
                     }
+                ]
+            }
+        }
 
     ```
 * Set up application and event
 
-   ```bash
-   {
-    "application": {
-                    "areas": [
-                                {
-                                    "name": "Datong Rd",
-                                    "depend_on": [ 'car', 'truck'],
-                                    "palette":{
-                                                    "car": [ 0, 255, 0 ],
-                                                    "truck": [ 0, 255, 0 ]
-                                                },
-                                    "area_point": [ [0.156,0.203],[0.468, 0.203],[0.468, 0.592],[0.156, 0.592] ], 
-                                    "events": {
-                                                "title": "The daily traffic is over 2",
-                                                "logic_operator": ">",
-                                                "logic_value": 2,
-                                              }
-                                },
+   ```json
+        {
+            "application": {
+                "areas": [
+                    {
+                        "name": "Datong Rd",
+                        "depend_on": [ "car", "truck"
+                        ],
+                        "palette": {
+                            "car": [
+                                0,
+                                255,
+                                0
                             ],
-                    "draw_result":False,
-                    "draw_bbox":False
-                    }
-    }
+                            "truck": [
+                                0,
+                                255,
+                                0
+                            ]
+                        },
+                        "area_point": [
+                            [
+                                0.156,
+                                0.203
+                            ],
+                            [
+                                0.468,
+                                0.203
+                            ],
+                            [
+                                0.468,
+                                0.592
+                            ],
+                            [
+                                0.156,
+                                0.592
+                            ]
+                        ],
+                        "events": {
+                            "title": "The daily traffic is over 2",
+                            "logic_operator": ">",
+                            "logic_value": 2,
+                        }
+                    },
+                ],
+                "draw_result":False,
+                "draw_bbox":False
+            }
+        }
    ``` 
 ## Create Instance
 You need to use [app_config](#setting-app-config) and label path to create instance of application.
-   ```bash
+   ```python
     from apps import Tracking_Zone
 
     app = Tracking_Zone( app_config, label_path )
@@ -92,41 +119,51 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
 ## Application output 
 * Application will return frame(already drawn) and two information(app_output、event_output).The format of organized information as below.
-    ```bash
+    ```python
     #common output
     app_output = {
                     'areas': [
-                                {
-                                    'id': 0, 
-                                    'name': 'The defalt area', 
-                                    'data': [
-                                                {'label': 'person', 'num': 1}, 
-                                                {'label': 'cell phone', 'num': 0}
-                                            ]
-                                }
-                             ]
-                 }
+                            {
+                    'id': 0, 
+                    'name': 'The defalt area', 
+                    'data': [
+                                    {'label': 'person', 'num': 1
+                                    },
+                                    {'label': 'cell phone', 'num': 0
+                                    }
+                                ]
+                            }
+                        ]
+                }
     
     #triggering event
     event_output = {
                     'event': [
-                                {
-                                    'uuid': '288b0944-', 
-                                    'title': '1111', 
-                                    'areas': {
-                                                'id': 0, 
-                                                'name': 'The defalt area', 
-                                                'data': [
-                                                            {'label': 'person', 'num': 1}, 
-                                                            {'label': 'cell phone', 'num': 0}
-                                                        ]
-                                              }, 
-                                    'timesamp': datetime.datetime(2023, 4, 13, 10, 6, 11, 317019), 
-                                    'screenshot': {
-                                                    'overlay': './288b0944-/2023-04-13 10:06:11.317019.jpg', 
-                                                    'original': './288b0944-/2023-04-13 10:06:11.317019_org.jpg'
-                                                  }
+                            {
+                    'uuid': '288b0944-', 
+                    'title': '1111', 
+                    'areas': {
+                    'id': 0, 
+                    'name': 'The defalt area', 
+                    'data': [
+                                        {'label': 'person', 'num': 1
+                                        },
+                                        {'label': 'cell phone', 'num': 0
+                                        }
+                                    ]
+                                }, 
+                    'timesamp': datetime.datetime(2023,
+                                4,
+                                13,
+                                10,
+                                6,
+                                11,
+                                317019), 
+                    'screenshot': {
+                    'overlay': './288b0944-/2023-04-13 10: 06: 11.317019.jpg', 
+                    'original': './288b0944-/2023-04-13 10: 06: 11.317019_org.jpg'
                                 }
-                              ]
-                   } 
+                            }
+                        ]
+                    }
     ```

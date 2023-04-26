@@ -23,68 +23,129 @@ And the description of application output is [here](#application-output).
 |draw_result|bool|True|Display information of detection.|
 |draw_bbox|bool|True|Display boundingbox.|
 * Basic
-    ```bash
-        "application":{
-                        "areas": [
-                                    {
-                                        "name": "area",
-                                        "depend_on": [ "car", "truck", "motocycle" ],
-                                        "area_point": [ [0.156,0.203],[0.468, 0.203],[0.468, 0.592],[0.156, 0.592]],
-                                        "line_point": { 
-                                                        "line_1": [ [0.16666666666, 0.74074074074], [0.57291666666, 0.62962962963] ],
-                                                        "line_2": [ [0.26041666666, 0.83333333333], [0.72916666666, 0.62962962963]],
-                                                      },
-                                        "line_relation": [
-                                                            {
-                                                                "name": "Wrong Direction",
-                                                                "start": "line_2",
-                                                                "end": "line_1"
-                                                            }
-                                                        ],
-                                    }
+    ```json
+        {
+            "application": {
+                "areas": [
+                    {
+                        "name": "area",
+                        "depend_on": [
+                            "car",
+                            "truck",
+                            "motocycle"
+                        ],
+                        "area_point": [
+                            [
+                                0.156,
+                                0.203
+                            ],
+                            [
+                                0.468,
+                                0.203
+                            ],
+                            [
+                                0.468,
+                                0.592
+                            ],
+                            [
+                                0.156,
+                                0.592
+                            ]
+                        ],
+                        "line_point": {
+                            "line_1": [
+                                [
+                                    0.16666666666,
+                                    0.74074074074
+                                ],
+                                [
+                                    0.57291666666,
+                                    0.62962962963
                                 ]
+                            ],
+                            "line_2": [
+                                [
+                                    0.26041666666,
+                                    0.83333333333
+                                ],
+                                [
+                                    0.72916666666,
+                                    0.62962962963
+                                ]
+                            ],
+                        },
+                        "line_relation": [
+                            {
+                                "name": "Wrong Direction",
+                                "start": "line_2",
+                                "end": "line_1"
+                            }
+                        ],
                     }
+                ]
+            }
+        }
 
     ```
 * Traffic Flow
 
-   ```bash
-   app_config = {
-                    "application":{
-                                    "areas": [
-                                                {
-                                                    "name": "area",
-                                                    "depend_on": [ ],
-                                                    "area_point": [ ],
-                                                    "line_point": { 
-                                                                    "line_1": [ [0.16666666666, 0.74074074074], [0.57291666666, 0.62962962963] ],
-                                                                    "line_2": [ [0.26041666666, 0.83333333333], [0.72916666666, 0.62962962963] ],
-                                                                    },
-                                                    "line_relation": [
-                                                                        {
-                                                                            "name": "To Taipei","start": "line_2","end": "line_1"
-                                                                        },
-                                                                        {
-                                                                            "name": "To Keelung","start": "line_1","end": "line_2"
-                                                                        }
-                                                                    ],
-                                                    "events": 
-                                                            {
-                                                                "title": "Detect the traffic flow between Taipei and Keelung ",
-                                                                "logic_operator": ">",
-                                                                "logic_value": 2,
-                                                            },
-                                                }
-                                        
-                                            ],
-                                    "draw_result":False,
-                                    "draw_bbox":False
-                                  }
-                }  
+   ```json
+        {
+            "application": {
+                "areas": [
+                    {
+                        "name": "area",
+                        "depend_on": [],
+                        "area_point": [],
+                        "line_point": {
+                            "line_1": [
+                                [
+                                    0.16666666666,
+                                    0.74074074074
+                                ],
+                                [
+                                    0.57291666666,
+                                    0.62962962963
+                                ]
+                            ],
+                            "line_2": [
+                                [
+                                    0.26041666666,
+                                    0.83333333333
+                                ],
+                                [
+                                    0.72916666666,
+                                    0.62962962963
+                                ]
+                            ],
+                        },
+                        "line_relation": [
+                            {
+                                "name": "To Taipei",
+                                "start": "line_2",
+                                "end": "line_1"
+                            },
+                            {
+                                "name": "To Keelung",
+                                "start": "line_1",
+                                "end": "line_2"
+                            }
+                        ],
+                        "events": {
+                            "title": "Detect the traffic flow between Taipei and Keelung ",
+                            "logic_operator": ">",
+                            "logic_value": 2,
+                        },
+                    }
+                ],
+                "draw_result":False,
+                "draw_bbox":False
+            }
+        }
    ``` 
 ## Create Instance
 You need to use [app_config](#setting-app-config) and label path to create instance of application.
-   ```bash
+   ```python
     from apps import Movement_Zone
 
     app = Movement_Zone( app_config, label_path )
@@ -114,41 +175,51 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
 ## Application output 
 * Application will return frame(already drawn) and organized information.The format of organized information as below.
-    ```bash
+    ```python
     #common output
     app_output = {
                     'areas': [
-                                {
-                                    'id': 0, 
-                                    'name': 'The defalt area', 
-                                    'data': [
-                                                {'label': 'To Taipei', 'num': 1}, 
-                                                {'label': 'To Keelung', 'num': 2}
-                                            ]
-                                }
-                             ]
-                 }
+                            {
+                    'id': 0, 
+                    'name': 'The defalt area', 
+                    'data': [
+                                    {'label': 'To Taipei', 'num': 1
+                                    },
+                                    {'label': 'To Keelung', 'num': 2
+                                    }
+                                ]
+                            }
+                        ]
+                }
     
     #triggering event 
     event output= {
                     'event': [
-                                {
-                                    'uuid': 'd292a313-', 
-                                    'title': 'Detect the traffic flow between Taipei and Keelung ', 
-                                    'areas': {
-                                                'id': 0, 
-                                                'name': 'The defalt area', 
-                                                'data': [
-                                                            {'label': 'To Taipei', 'num': 1}, 
-                                                            {'label': 'To Keelung', 'num': 2}
-                                                        ]
-                                                }, 
-                                    'timesamp': datetime.datetime(2023, 4, 13, 10, 21, 59, 131903), 
-                                    'screenshot': {
-                                                    'overlay': './d292a313-/2023-04-13 10:21:59.131903.jpg', 'original': './d292a313-/2023-04-13 10:21:59.131903_org.jpg'
-                                                    }
+                            {
+                    'uuid': 'd292a313-', 
+                    'title': 'Detect the traffic flow between Taipei and Keelung ', 
+                    'areas': {
+                    'id': 0, 
+                    'name': 'The defalt area', 
+                    'data': [
+                                        {'label': 'To Taipei', 'num': 1
+                                        },
+                                        {'label': 'To Keelung', 'num': 2
+                                        }
+                                    ]
+                                }, 
+                    'timesamp': datetime.datetime(2023,
+                                4,
+                                13,
+                                10,
+                                21,
+                                59,
+                                131903), 
+                    'screenshot': {
+                    'overlay': './d292a313-/2023-04-13 10: 21: 59.131903.jpg', 'original': './d292a313-/2023-04-13 10: 21: 59.131903_org.jpg'
                                 }
-                             ]
-                 }
+                            }
+                        ]
+                    }
     
     ```

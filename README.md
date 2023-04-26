@@ -4,11 +4,11 @@ AI Application Zoo For iVIT-I
 * [Prepare Environment](#prepare-environment)
 # Application
 
-* [BasicClassification](#basicclassification)
-* [BasicObjectDetection](#basicobjectdetection)
-* [CountingArea](#countingarea)
+* [Basic Classification](#basic-classification)
+* [Basic Object Detection](#basic-object-detection)
+* [Detection Zone](#detection-zone)
 * [Tracking Zone](#tracking-zone)
-* [Direction](#direction)
+* [Movement Zone](#movement-zone)
 
 # Prepare Environment
 Please based on your device to clone repository of IVIT-I. 

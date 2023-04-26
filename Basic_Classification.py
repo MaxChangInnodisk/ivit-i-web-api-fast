@@ -48,7 +48,7 @@ class Basic_Classification(iAPP_CLS):
         
         app_output = { "areas":[{"id":0,"name":"default","data":[]}] }
 
-        for idx, label, score, xmin, ymin, xmax, ymax in detections:
+        for idx, label, score in detections:
            
             # Checking Depend
             if not self.check_depend(label): continue
