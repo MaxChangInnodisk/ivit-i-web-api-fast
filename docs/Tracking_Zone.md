@@ -21,7 +21,7 @@ And the description of application output is [here](#adjust-trancking-distance).
 |draw_result|bool|True|Display information of detection.|
 |draw_bbox|bool|True|Display boundingbox.|
 
-* Basic
+* Basic sample
     ```json
         {
             "application": {
@@ -29,19 +29,18 @@ And the description of application output is [here](#adjust-trancking-distance).
                     {
                         "name": "default",
                         "depend_on": [],
-                        "area_point": []
                     }
                 ]
             }
         }
 
     ```
-* Set up application and event
+* Advanced Sample (Set up application and event)
 
    ```json
         {
             "application": {
-                "palette": {
+                        "palette": {
                             "car": [
                                 0,
                                 255,
@@ -56,7 +55,7 @@ And the description of application output is [here](#adjust-trancking-distance).
                 "areas": [
                     {
                         "name": "Datong Rd",
-                        "depend_on": [ "car", "truck"
+                        "depend_on": [ 'car', 'truck'
                         ],
                         "area_point": [
                             [
@@ -79,7 +78,7 @@ And the description of application output is [here](#adjust-trancking-distance).
                         "events": {
                             "title": "The daily traffic is over 2",
                             "logic_operator": ">",
-                            "logic_value": 2,
+                            "logic_value": 100,
                         }
                     },
                 ],

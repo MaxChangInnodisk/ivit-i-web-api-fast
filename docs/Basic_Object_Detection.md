@@ -19,7 +19,7 @@ And the description of application output is [here](#application-output).
 | palette | dict | { } | Custom the color of each label. |
 |draw_result|bool|True|Display information of detection.|
 |draw_bbox|bool|True|Display boundingbox.|
-* Basic
+* Basic Sample
     ```bash
     {
         "application": {
@@ -32,33 +32,29 @@ And the description of application output is [here](#application-output).
         }
     }
     ```
-* Custom
+* Advanced Sample
 
    ```json
     {
         "application": {
             "palette": {
-                        "car": [
-                            0,
-                            255,
-                            0
-                        ],
-                        "truck": [
-                            0,
-                            255,
-                            0
-                        ]
-                    },
+                "car": [
+                    0,
+                    255,
+                    0
+                ]
+            },
             "areas": [
                 {
                     "name": "default",
-                    "depend_on": [
-                        "car",
-                        "truck"
-                    ],
-                    
+                    "depend_on": [],
+                    "truck": [
+                        0,
+                        255,
+                        0
+                    ]
                 }
-            ]
+            ],
         }
     }
    ``` 

@@ -24,7 +24,7 @@ Application Setting
 |draw_result|bool|True|Display information of detection.|
 |draw_bbox|bool|True|Display boundingbox.|
 
-* Basic
+* Basic Sample
     ```json
         {
             "application": {
@@ -32,21 +32,25 @@ Application Setting
                     {
                         "name": "default",
                         "depend_on": [],
-                        "area_point": []
                     }
                 ]
             }
         }
     ```
-* Set up application and event
+* Advanced Sample (Set up application and event)
 
    ```json
     {
         "application": {
-            "palette": {
+						"palette": {
                         "car": [
-                            255,
                             0,
+                            255,
+                            0
+                        ],
+                        "truck": [
+                            0,
+                            255,
                             0
                         ]
                     },
@@ -80,7 +84,7 @@ Application Setting
                         "logic_operator": ">",
                         "logic_value": 100,
                     }
-                }
+                },
             ]
         }
     }

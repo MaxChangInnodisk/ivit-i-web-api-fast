@@ -16,31 +16,42 @@ And the description of application output is [here](#application-output).
 |name|str|default|Area name.**(Basic Classidication no need to set.)**|
 | depend_on (*) | list | [ ] | The application depend on which label. |
 | palette | dict | { } | Custom the color of each label. |
-* Sample
-
-   ```json
-    {
+* Basic Sample
+   ```bash
+     {
         "application": {
-            "palette": {
-                        "airplane": [
-                            255,
-                            255,
-                            255
-                        ],
-                        "warpalne": [
-                            0,
-                            0,
-                            0
-                        ]
-                    },
             "areas": [
                 {
                     "name": "default",
-                    "depend_on": [
-                        "airplane",
-                        "warplane"
-                    ],
-                    
+                    "depend_on": [ ]
+                }
+            ]
+        }
+    }
+
+   ```
+* Advanced Sample
+
+   ```bash
+    {
+        "application": {
+            "palette": {
+                "Egyptian cat": [
+                    0,
+                    0,
+                    0
+                ],
+                "tabby, tabby cat": [
+                    255,
+                    0,
+                    0
+                ]
+            },
+            "areas": [
+                {
+                    "name": "default",
+                    "depend_on": ['Egyptian cat','tabby, tabby cat'
+                    ]
                 }
             ]
         }
