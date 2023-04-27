@@ -41,12 +41,7 @@ And the description of application output is [here](#adjust-trancking-distance).
    ```json
         {
             "application": {
-                "areas": [
-                    {
-                        "name": "Datong Rd",
-                        "depend_on": [ "car", "truck"
-                        ],
-                        "palette": {
+                "palette": {
                             "car": [
                                 0,
                                 255,
@@ -58,6 +53,11 @@ And the description of application output is [here](#adjust-trancking-distance).
                                 0
                             ]
                         },
+                "areas": [
+                    {
+                        "name": "Datong Rd",
+                        "depend_on": [ "car", "truck"
+                        ],
                         "area_point": [
                             [
                                 0.156,

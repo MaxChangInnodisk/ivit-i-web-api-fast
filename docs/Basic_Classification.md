@@ -21,14 +21,7 @@ And the description of application output is [here](#application-output).
    ```json
     {
         "application": {
-            "areas": [
-                {
-                    "name": "default",
-                    "depend_on": [
-                        "airplane",
-                        "warplane"
-                    ],
-                    "palette": {
+            "palette": {
                         "airplane": [
                             255,
                             255,
@@ -39,7 +32,15 @@ And the description of application output is [here](#application-output).
                             0,
                             0
                         ]
-                    }
+                    },
+            "areas": [
+                {
+                    "name": "default",
+                    "depend_on": [
+                        "airplane",
+                        "warplane"
+                    ],
+                    
                 }
             ]
         }

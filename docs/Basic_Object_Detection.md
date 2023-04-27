@@ -37,14 +37,7 @@ And the description of application output is [here](#application-output).
    ```json
     {
         "application": {
-            "areas": [
-                {
-                    "name": "default",
-                    "depend_on": [
-                        "car",
-                        "truck"
-                    ],
-                    "palette": {
+            "palette": {
                         "car": [
                             0,
                             255,
@@ -55,7 +48,15 @@ And the description of application output is [here](#application-output).
                             255,
                             0
                         ]
-                    }
+                    },
+            "areas": [
+                {
+                    "name": "default",
+                    "depend_on": [
+                        "car",
+                        "truck"
+                    ],
+                    
                 }
             ]
         }

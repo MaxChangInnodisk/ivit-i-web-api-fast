@@ -43,6 +43,13 @@ Application Setting
    ```json
     {
         "application": {
+            "palette": {
+                        "car": [
+                            255,
+                            0,
+                            0
+                        ]
+                    },
             "areas": [
                 {
                     "name": "The intersection of Datong Rd",

@@ -26,6 +26,13 @@ And the description of application output is [here](#application-output).
     ```json
         {
             "application": {
+                "palette": {
+                        "car": [
+                            255,
+                            0,
+                            0
+                        ]
+                    },
                 "areas": [
                     {
                         "name": "area",
