@@ -274,24 +274,23 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.collect_depand_info()
 
     def init_palette(self,palette):
-        temp_id=1
+
         color = None
         with open(self.model_label,'r') as f:
-            line = f.read().splitlines()
-            for i in line:
+            lines = f.read().splitlines()
+            for idx, line in enumerate(lines):
+                idx+=1
                 if self.params['application'].__contains__('palette'):
                     
-                    if self.params['application']['palette'].__contains__(i.strip()):
-                        color = self.params['application']['palette'][i.strip()]
+                    if self.params['application']['palette'].__contains__(line.strip()):
+                        color = self.params['application']['palette'][line.strip()]
                     else:
-                        color = palette[str(temp_id)]
+                        color = palette[str(idx)]
                 else :         
-                    color = palette[str(temp_id)]
+                    color = palette[str(idx)]
                 
-                self.palette.update({i.strip():color})
-                self.model_label_list.append(i.strip())
-                
-                temp_id+=1
+                self.palette.update({line.strip():color})
+                self.model_label_list.append(line.strip())
                 
     def update_draw_param(self, frame):
         """ Update the parameters of the drawing tool, which only happend at first time. """
