@@ -166,21 +166,24 @@ class app_common_handle(threading.Thread):
         else:
             if not self.inpolygon(((xmin+xmax)/2),((ymin+ymax)/2),self.area_pts2[area_id]): 
                 return
-
+        
         if self.check_depend_on(area_id):
             if label in self.depend_on[area_id]: 
                 self.update_object_number_this_frame(area_id)   
 
                 #according to area and user setting to creat app output. Do once.    
-                if self.app_output.__contains__("areas")==False:
+                if not self.app_output.__contains__("areas"):
                     self.app_output.update({"areas": []})
-                if len(self.app_output["areas"])==area_id:
-                    self.app_output["areas"].append({"id":area_id,"name":self.area_name2[area_id],"data":[]})   
+                    for i in range(len(self.depend_on)):
+                        self.app_output["areas"].append({"id":i,"name":self.area_name2[i],"data":[]})  
+                       
+                
                 if len(self.depend_on[area_id])!=len(self.app_output["areas"][area_id]["data"]):
+                    
                     for key in self.depend_on[area_id]:
                         self.app_output["areas"][area_id]["data"].append({"label":key,"num":0})
 
-
+               
                 for d in range(len(self.app_output["areas"][area_id]["data"])):    
                     if self.app_output["areas"][area_id]["data"][d]["label"]==label:
                         _=self.app_output["areas"][area_id]["data"][d]["num"]+1
@@ -274,23 +277,24 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.collect_depand_info()
 
     def init_palette(self,palette):
-
+        temp_id=1
         color = None
         with open(self.model_label,'r') as f:
-            lines = f.read().splitlines()
-            for idx, line in enumerate(lines):
-                idx+=1
+            line = f.read().splitlines()
+            for i in line:
                 if self.params['application'].__contains__('palette'):
                     
-                    if self.params['application']['palette'].__contains__(line.strip()):
-                        color = self.params['application']['palette'][line.strip()]
+                    if self.params['application']['palette'].__contains__(i.strip()):
+                        color = self.params['application']['palette'][i.strip()]
                     else:
-                        color = palette[str(idx)]
+                        color = palette[str(temp_id)]
                 else :         
-                    color = palette[str(idx)]
+                    color = palette[str(temp_id)]
                 
-                self.palette.update({line.strip():color})
-                self.model_label_list.append(line.strip())
+                self.palette.update({i.strip():color})
+                self.model_label_list.append(i.strip())
+                
+                temp_id+=1
                 
     def update_draw_param(self, frame):
         """ Update the parameters of the drawing tool, which only happend at first time. """
@@ -558,7 +562,7 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
                  = detection.label, detection.score, detection.xmin, detection.ymin, detection.xmax, detection.ymax                  
                             
             for i in range(len(self.depend_on)):
-
+               
                 # self.pool.apply_async(self.app_thread,(i,label, score, xmin, ymin, xmax, ymax,frame))
                 self.app_thread(i,label, score, xmin, ymin, xmax, ymax,frame)
                 if self.app_thread.is_draw:
