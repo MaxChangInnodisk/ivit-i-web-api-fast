@@ -12,7 +12,7 @@ And the description of application output is [here](#application-output).
 | Name | Type | Default | Description |
 | --- | --- | --- | --- |
 |application(*)|dict|{  }|Encapsulating all information of configuration.|
-|areas|list|[  ]|Seting the location of detection area. |
+|areas(*)|list|[  ]|Seting the location of detection area. |
 |name|str|default|Area name.|
 | depend_on (*) | list | [ ] | The application depend on which label. |
 | palette | dict | { } | Custom the color of each label. |
