@@ -30,11 +30,17 @@ class Basic_Classification(iAPP_CLS):
             line = f.read().splitlines()
             for i in line:
                 if self.params['application'].__contains__('palette'):
+                    
                     if self.params['application']['palette'].__contains__(i.strip()):
                         color = self.params['application']['palette'][i.strip()]
-                color = palette[str(temp_id)]
+                    else:
+                        color = palette[str(temp_id)]
+                else :         
+                    color = palette[str(temp_id)]
+                
                 self.palette.update({i.strip():color})
                 self.model_label_list.append(i.strip())
+                
                 temp_id+=1
 
         

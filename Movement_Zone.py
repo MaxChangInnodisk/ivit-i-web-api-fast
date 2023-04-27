@@ -509,11 +509,17 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
             line = f.read().splitlines()
             for i in line:
                 if self.params['application'].__contains__('palette'):
+                    
                     if self.params['application']['palette'].__contains__(i.strip()):
                         color = self.params['application']['palette'][i.strip()]
-                color = palette[str(temp_id)]
+                    else:
+                        color = palette[str(temp_id)]
+                else :         
+                    color = palette[str(temp_id)]
+                
                 self.palette.update({i.strip():color})
                 self.model_label_list.append(i.strip())
+                
                 temp_id+=1
 
     def init_draw_params(self):
@@ -567,10 +573,14 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.area_color=[0,0,255]
         self.area_opacity=0.2
         for i in range(len(self.params['application']['areas'])):
-            if self.params['application']['areas'][i]['area_point']!=[]:
-                self.normalize_area_pts.update({i:self.params['application']['areas'][i]['area_point']})
-                self.area_name.update({i:self.params['application']['areas'][i]['name']})
-                # self.area_color.update({i:[random.randint(0,255),random.randint(0,255),random.randint(0,255)]})
+            if self.params['application']['areas'][i].__contains__('area_point'):
+                if self.params['application']['areas'][i]['area_point']!=[]:
+                    self.normalize_area_pts.update({i:self.params['application']['areas'][i]['area_point']})
+                    self.area_name.update({i:self.params['application']['areas'][i]['name']})
+                    # self.area_color.update({i:[random.randint(0,255),random.randint(0,255),random.randint(0,255)]})
+                else:
+                    self.normalize_area_pts.update({i:[[0,0],[1,0],[1,1],[0,1]]})
+                    self.area_name.update({i:"The defalt area"})
             else:
                 self.normalize_area_pts.update({i:[[0,0],[1,0],[1,1],[0,1]]})
                 self.area_name.update({i:"The defalt area"})
@@ -927,7 +937,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
                 if self.event_handler.__contains__(i)==False:
                     continue
                 
-                self.event_handler[i](frame,i,self.app_thread.total,self.app_thread.app_output)
+                self.event_handler[i](frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output)
                 # self.pool.apply_async(self.event_handler[i],(frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output))
 
                 

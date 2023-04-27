@@ -108,11 +108,17 @@ class Basic_Object_Detection(iAPP_OBJ):
             line = f.read().splitlines()
             for i in line:
                 if self.params['application'].__contains__('palette'):
+                    
                     if self.params['application']['palette'].__contains__(i.strip()):
                         color = self.params['application']['palette'][i.strip()]
-                color = palette[str(temp_id)]
+                    else:
+                        color = palette[str(temp_id)]
+                else :         
+                    color = palette[str(temp_id)]
+                
                 self.palette.update({i.strip():color})
                 self.model_label_list.append(i.strip())
+                
                 temp_id+=1
 
     def set_color(self,label:str,color:tuple):
