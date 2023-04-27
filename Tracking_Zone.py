@@ -7,6 +7,7 @@ import math
 import random
 from datetime import datetime
 sys.path.append( os.getcwd() )
+from ivit_i.utils.logger import ivit_logger
 from apps.palette import palette
 from multiprocessing.pool import ThreadPool
 from ivit_i.app import iAPP_OBJ
@@ -381,6 +382,7 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
         self.model_label_list =[]
 
         # self.pool = ThreadPool(os.cpu_count() )
+        self.logger = ivit_logger()
         self.init_palette(palette)
 
         self.collect_depand_info()
@@ -411,13 +413,18 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
 
     def init_palette(self,palette):
         temp_id=1
-        
+        color = None
         with open(self.model_label,'r') as f:
             line = f.read().splitlines()
             for i in line:
-                self.palette.update({i.strip():palette[str(temp_id)]})
+                if self.params['application'].__contains__('palette'):
+                    if self.params['application']['palette'].__contains__(i.strip()):
+                        color = self.params['application']['palette'][i.strip()]
+                color = palette[str(temp_id)]
+                self.palette.update({i.strip():color})
                 self.model_label_list.append(i.strip())
                 temp_id+=1
+
 
     def init_draw_params(self):
         """ Initialize Draw Parameters """
@@ -488,28 +495,28 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
             else:
                 self.depend_on.update({i:[]})    
         
-        temp_palette ={}
-        for area , value in self.depend_on.items():
-            temp_palette.update({area:{}})
-            if not self.depend_on.__contains__(area): 
-                temp_palette.update({area:self.palette})
-                continue
-            if self.depend_on[area]==[]:
-                temp_palette.update({area:self.palette})
-                continue
+        # temp_palette ={}
+        # for area , value in self.depend_on.items():
+        #     temp_palette.update({area:{}})
+        #     if not self.depend_on.__contains__(area): 
+        #         temp_palette.update({area:self.palette})
+        #         continue
+        #     if self.depend_on[area]==[]:
+        #         temp_palette.update({area:self.palette})
+        #         continue
                 
-            for id in range(len(value)):
-                if not (value[id] in self.model_label_list): continue
-                if not (self.params['application']['areas'][area].__contains__('palette')): 
-                    temp_palette[area].update({value[id]:self.palette[value[id]]})
-                    continue
-                if not (self.params['application']['areas'][area]['palette'].__contains__(value[id])): 
-                    temp_palette[area].update({value[id]:self.palette[value[id]]})
-                    continue  
-                # if self.palette.__contains__(value[id]):
-                temp_palette[area].update({value[id]:self.params['application']['areas'][area]['palette'][value[id]]})
+        #     for id in range(len(value)):
+        #         if not (value[id] in self.model_label_list): continue
+        #         if not (self.params['application']['areas'][area].__contains__('palette')): 
+        #             temp_palette[area].update({value[id]:self.palette[value[id]]})
+        #             continue
+        #         if not (self.params['application']['areas'][area]['palette'].__contains__(value[id])): 
+        #             temp_palette[area].update({value[id]:self.palette[value[id]]})
+        #             continue  
+        #         # if self.palette.__contains__(value[id]):
+        #         temp_palette[area].update({value[id]:self.params['application']['areas'][area]['palette'][value[id]]})
         
-        self.palette = temp_palette
+        # self.palette = temp_palette
         
     def init_logic_param(self):
         
@@ -652,10 +659,21 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
                 self.font_size, (255,255,255), self.font_thick, cv2.LINE_AA
             )
         return frame    
+    
+    def set_color(self,label:str,color:tuple):
+        """
+        set color :
 
-    def get_color(self, label,area_id):
+        sample of paremeter : 
+            label = "dog"
+            color = (0,0,255)
+        """
+        self.palette.update({label:color})
+        self.logger.info("Label: {} , change color to {}.".format(label,color))
+
+    def get_color(self, label):
        
-       return self.palette[area_id][label]      
+       return self.palette[label]      
 
     def check_input(self,frame,data):
 
@@ -731,13 +749,13 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
                     if len(self.depend_on[i])>0:
                         if  not (label in self.depend_on[i]): continue
                     #draw the tracking tag for each object
-                    outer_clor = self.get_color(label,i)
+                    outer_clor = self.get_color(label)
                     font_color = (255,255,255)
                     self.draw_tag(self.app_thread.show_object_info, xmin, ymin, xmax, ymax,outer_clor ,font_color,frame)
                     #draw bbox and result
                     frame = self.custom_function(
                             frame = frame,
-                            color = self.get_color(label,i),
+                            color = self.get_color(label),
                             label = label,
                             score=score,
                             left_top = (xmin, ymin),

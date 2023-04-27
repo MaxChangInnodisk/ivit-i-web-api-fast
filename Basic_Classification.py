@@ -1,7 +1,8 @@
 import sys, os, cv2
 import numpy as np 
+import logging
 sys.path.append( os.getcwd() )
-print(sys.path)
+from ivit_i.utils.logger import ivit_logger
 from apps.palette import palette
 from ivit_i.app import iAPP_CLS
 class Basic_Classification(iAPP_CLS):
@@ -20,23 +21,37 @@ class Basic_Classification(iAPP_CLS):
         self.FONT_SCALE      = 1
         self.FONT_THICK      = cv2.LINE_AA
         self.FONT_THICKNESS  = 1
+        self.logger = ivit_logger()
 
     def init_palette(self,palette):
         temp_id=1
-        
+        color = None
         with open(self.model_label,'r') as f:
             line = f.read().splitlines()
             for i in line:
-                self.palette.update({i.strip():palette[str(temp_id)]})
+                if self.params['application'].__contains__('palette'):
+                    if self.params['application']['palette'].__contains__(i.strip()):
+                        color = self.params['application']['palette'][i.strip()]
+                color = palette[str(temp_id)]
+                self.palette.update({i.strip():color})
                 self.model_label_list.append(i.strip())
                 temp_id+=1
 
+        
+        
+    def set_color(self,label:str,color:tuple):
+        """
+        set color :
+
+        sample of paremeter : 
+            label = "dog"
+            color = (0,0,255)
+        """
+        self.palette.update({label:color})
+        self.logger.info("Label: {} , change color to {}.".format(label,color))
+        
     def get_color(self, label):
-        if self.params['application']['areas'][0].__contains__('palette')==False or self.params['application']['areas'][0]['palette']=={}  :
-            return self.palette[label]        
-        else:   
-            cur_color = self.params['application']['areas'][0]['palette'][label] if self.params['application']['areas'][0]['palette'].__contains__(label) else self.palette[label] 
-            return cur_color
+        return self.palette[label]        
         
     def check_depend(self, label):
         ret = True
@@ -64,9 +79,9 @@ class Basic_Classification(iAPP_CLS):
             ymax        = ymin + text_height  
             app_output['areas'][0]['data'].append({"label":label,"score":score})
 
-
             cur_color = self.get_color(label)
             
+
             cv2.putText(
                 frame, content, (xmin, ymax), self.FONT,
                 self.FONT_SCALE, cur_color, self.FONT_THICKNESS, self.FONT_THICK

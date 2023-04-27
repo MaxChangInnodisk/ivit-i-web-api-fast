@@ -1,6 +1,7 @@
 import sys, os, cv2
 sys.path.append( os.getcwd() )
 from apps.palette import palette
+from ivit_i.utils.logger import ivit_logger
 from ivit_i.app import iAPP_OBJ
 class Basic_Object_Detection(iAPP_OBJ):    
     """ Basic Object Detection Application
@@ -20,6 +21,8 @@ class Basic_Object_Detection(iAPP_OBJ):
         self.palette={}
         self.model_label = label
         self.model_label_list =[]
+        self.logger = ivit_logger()
+        
         self.init_palette(palette)
         self.init_draw_params()
 
@@ -100,22 +103,32 @@ class Basic_Object_Detection(iAPP_OBJ):
         
     def init_palette(self,palette):
         temp_id=1
-        
+        color = None
         with open(self.model_label,'r') as f:
             line = f.read().splitlines()
             for i in line:
-                self.palette.update({i.strip():palette[str(temp_id)]})
+                if self.params['application'].__contains__('palette'):
+                    if self.params['application']['palette'].__contains__(i.strip()):
+                        color = self.params['application']['palette'][i.strip()]
+                color = palette[str(temp_id)]
+                self.palette.update({i.strip():color})
                 self.model_label_list.append(i.strip())
                 temp_id+=1
 
-    def get_color(self, label):
-        if self.params:
-            if not (self.params['application']['areas'][0].__contains__('palette')): return self.palette[label] 
-            if not (self.params['application']['areas'][0]['palette'].__contains__(label)): return self.palette[label] 
-            return self.params['application']['areas'][0]['palette'][label] 
-        else:
+    def set_color(self,label:str,color:tuple):
+        """
+        set color :
 
-            return self.palette[label] 
+        sample of paremeter : 
+            label = "dog"
+            color = (0,0,255)
+        """
+        self.palette.update({label:color})
+        self.logger.info("Label: {} , change color to {}.".format(label,color))
+
+    def get_color(self, label):
+
+        return self.palette[label] 
        
 
     def __call__(self, frame, detections, draw=True) -> tuple:
