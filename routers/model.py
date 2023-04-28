@@ -1,0 +1,78 @@
+# Copyright (c) 2023 Innodisk Corporation
+# 
+# This software is released under the MIT License.
+# https://opensource.org/licenses/MIT
+
+# Basic
+import json
+import logging as log
+from fastapi import APIRouter,File, Form, UploadFile
+from fastapi.responses import Response
+from typing import Optional
+from pydantic import BaseModel
+
+from ..common import SERV_CONF
+
+from ..handlers.mesg_handler import http_msg
+from ..handlers.db_handler import select_data, insert_data, delete_data
+
+from ..handlers import model_handler
+
+# Router
+model_router = APIRouter()
+
+
+# Format
+class ModelFormat(BaseModel):
+    uid: str
+
+
+# API
+@model_router.get("/model", tags=["model"])
+async def get_model_list():
+
+    try:
+        ret = model_handler.get_model_info()        
+        return http_msg( content = ret, status_code = 200 )
+
+    except Exception as e:
+        return http_msg( content=e, status_code = 500 )
+
+@model_router.get("/model/{uuid}", tags=["model"])
+async def get_target_model_information(uuid:Optional[str]):
+
+    try:
+        ret = model_handler.get_model_info(uid=uuid)        
+        return http_msg( content = ret, status_code = 200 )
+
+    except Exception as e:
+        return http_msg( content=e, status_code = 500 )
+
+@model_router.delete("/model", tags=["model"])
+def delete_model(data: ModelFormat):
+
+    try:
+        model_handler.delete_model(data.uid)
+        return http_msg( content = 'Success', status_code = 200 )
+
+    except Exception as e:
+        return http_msg( content=e, status_code = 500 )
+    
+
+@model_router.post("/model", tags=["model"])
+def add_model(
+    file: Optional[UploadFile] = File(None),
+    url: Optional[str]= Form(None),
+):
+    
+    try:
+        data = model_handler.add_model(file=file, url=url)
+            
+        return http_msg( 
+            content = data, 
+            status_code = 200 )
+
+    except Exception as e:
+        return http_msg( content=e, status_code = 500 )
+    
+
