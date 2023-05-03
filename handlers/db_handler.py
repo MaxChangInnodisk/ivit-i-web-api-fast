@@ -96,7 +96,7 @@ def update_data(table:str, data:dict, condition:Union[str, None]=None, db_path:s
     # If got the condition
     if condition:
         command = f"{command} {condition}"
-
+    
     # Write into database
     conn = sqlite3.connect(db_path)
     ivit_db = conn.cursor()
@@ -172,6 +172,7 @@ def init_tables(db_path:str):
                     "model_setting TEXT,"
                     "status TEXT,"
                     "device TEXT,"
+                    "error TEXT,"
                     "annotation TEXT,"
                     "FOREIGN KEY(source_uid) REFERENCES source(uid) ON DELETE CASCADE,"
                     "FOREIGN KEY(model_uid) REFERENCES model(uid) ON DELETE CASCADE"
@@ -253,7 +254,8 @@ def parse_task_data(data: dict):
         "model_uid": data[3],
         "model_setting": load_db_json(data[4]),
         "status": data[5],
-        "device": data[6] 
+        "device": data[6],
+        "error": data[7]
     }
 
 
