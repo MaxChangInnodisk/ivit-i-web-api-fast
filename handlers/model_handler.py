@@ -8,20 +8,21 @@
 2. add information into database
 """
 
-import sys, os, time, json, re, shutil, zipfile, wget
+import sys, os, time, json, re, shutil, zipfile, abc, wget
 import asyncio, threading
 import requests
 
 import logging as log
 from fastapi import File
 from ..common import SERV_CONF, MODEL_CONF, WS_CONF
-from ..utils import gen_uuid, load_db_json
+from ..utils import gen_uid, load_db_json
 
 from .db_handler import select_data, insert_data, update_data, delete_data
 from .mesg_handler import handle_exception, simple_exception
 
+# Model Deployer
 
-class AddModelHelper(object):
+class ModelDeployerWrapper(abc.ABC):
     """ Model Helper 
     1. Download ZIP
     2. Extract ZIP
@@ -35,89 +36,166 @@ class AddModelHelper(object):
     S_CONV = "Converting"       # Converting ({N}%)
     S_FINISH = "Success"
 
-    def __init__(self, uid:str=None, file:File=None, url:str=None, ws_mode:bool=True, mqtt_mode:bool=False) -> None:
+    def __init__(self) -> None:
+        """
+        uid:
+        platfrom:
+        status:
+        benchmark:
+        """
+        super().__init__()
         
-        # DoubleCheck
-        assert not (file is None) or not(url is None), "Make sure the file or url is available." 
-
         # Basic Parameters
-        self.uid = uid if uid else gen_uuid()
-        self.file = file
-        self.url = url
-        self.platform = SERV_CONF["PLATFORM"]        
+        self.uid = gen_uid()
+        self.platform = SERV_CONF.get("PLATFORM")
+        assert not (self.platform is None), "Make sure \
+            SERV_CONF is already update by init_config() function\
+            Which will update key and value from ivit-i.json" 
+        
+        # Status Parameters
         self.status = self.S_INIT
+
+        # File Parameters
         self.file_name = ""
         self.file_path = ""
-        self.file_folder = ""
-
-        # Update SERV_CONF information
-        if SERV_CONF.get('MODEL') is None:
-            SERV_CONF.update({'MODEL': {}})
-        if SERV_CONF['MODEL'].get(self.uid) is None:
-            SERV_CONF['MODEL'].update({
-                self.uid: { 
-                    "status": self.status,
-                    "name": self.file_folder
-                }
-            })
-
-        # Switcher
-        self.ws_mode = ws_mode
-        self.mqtt_mode = mqtt_mode
-
-        # Status PlaceHolder
-        self.status = ""
+        self.model_name = self.file_folder = ""
 
         # Benchmark
-        self.t_download = None
-        self.t_parse = None
-        self.t_convert = None
-        self.t_init = None
-        
-        # Update Download Parameters
-        self.tmp_proc_rate = 0  # avoid keeping send the same proc_rate
-        self.push_rate = 10
-        self.push_buf = None
+        self.performance = {
+            "download": None,
+            "parse": None,
+            "convert": None,
+        }
 
-        # Create Thread
-        self.t = threading.Thread(target=self.deploy_event, daemon=True)
+        # Initialize
+        self._update_uid_into_share_env()
 
-    def start(self):
-        self.t.start()
+        # Thread Placeholder and Create Thread
+        self.deploy_thread = None
+        self._create_thread()
 
-    def update_status(self, status:str, message: dict={}, send_data:bool=True):
-        self.status = status
-        SERV_CONF['MODEL'][self.uid].update({
-            'status': status,
-            'message': message
-        })
+    def _update_uid_into_share_env(self):
+        """ Updae Environment Object """
+        if SERV_CONF.get("PROC") is None:
+            SERV_CONF.update({"PROC": {}})
+        if SERV_CONF["PROC"].get(self.uid) is None:
+            SERV_CONF["PROC"].update({
+                self.uid: { 
+                    "status": self.status,
+                    "name": self.model_name
+                }
+            })
+    
+    def push_mesg(self):
+        """ Push message up to front end, 
+        default is websocket.
+        You can modify by yourself 
+        """
 
-        if send_data:
-            self.send_ws()
-
-    def send_ws(self):
         if WS_CONF.get("WS") is None:
+            print(SERV_CONF["PROC"])
             return
         
-        asyncio.run( WS_CONF["WS"].send_json({"MODEL": SERV_CONF['MODEL']}) )
+        asyncio.run( WS_CONF["WS"].send_json({"PROC": SERV_CONF["PROC"]}) )
 
+    def update_status(self, status:str, message: str="", push_mesg:bool=True):
+        """ Update Status and push message to front end """
+
+        self.status = status
+        
+        SERV_CONF["PROC"][self.uid].update({
+            "status": status,
+            "message": message,
+            "performace": self.performance
+        })
+
+        if push_mesg:
+            self.push_mesg()
+
+    def download_event(self):
+        pass
+
+    def convert_event(self):
+        """ Convert Model Event """
+        # Update SERV_CONF
+        self.update_status(self.S_CONV)
+
+        t_convert_start = time.time()
+
+        # Check Platform
+        if not ( self.platform in [ 'nvidia', 'intel' ]):
+            return
+        
+        # Do Convert
+
+        self.t_convert = time.time() - t_convert_start
+
+    def parse_event(self):
+        """ Parse ZIP File """
+
+        # Extract
+        with zipfile.ZipFile(self.file_path, 'r') as zip_ref:
+            zip_ref.extractall(self.file_folder)
+        
+        # Remove Zip File
+        os.remove(self.file_path)
+
+    def finished_event(self):
+        """ Finish Event """
+        
+        model_info = parse_model_folder(model_dir=self.file_folder)
+        model_data = add_model_into_db(models_information={
+            model_info['name']:model_info
+        })
+        SERV_CONF["PROC"][self.uid].update({
+            "data":model_data })
+              
     def deploy_event(self):
         try:
+            t_down = time.time()
+            self.update_status(self.S_DOWN)
             self.download_event()
+            self.performance['download'] = time.time() - t_down
+
+            t_parse = time.time()
+            self.update_status(self.S_PARS)
             self.parse_event()
+            self.performance['parse'] = time.time() - t_parse
+
+            t_convert = time.time()
+            self.update_status(self.S_CONV)
             self.convert_event()
+            self.performance['convert'] = time.time() - t_convert
+
             self.finished_event()
+            self.update_status(self.S_FINISH)  
+
         except Exception as e:
             log.exception(e)
             self.update_status(status=self.S_FAIL, message=handle_exception(e))
 
-    def __download_fastapi_file(self):
-        """ Download file via FastAPI """
+    def _create_thread(self):
+        """ Create a thread which will run self.deploy_event at once """
+        self.deploy_thread = threading.Thread(target=self.deploy_event, daemon=True)
+        log.warning('Created deploy thread')
 
-        self.file_name = self.file.filename            
+    def start_deploy(self):
+        self.deploy_thread.start()
+
+
+class ZIP_DEPLOYER(ModelDeployerWrapper):
+    """ Deployer for ZIP Model """
+    def __init__(self, file:File) -> None:
+        super().__init__()
+        
+        self.file = file
+        self.file_name = self.file.filename                   
         self.file_path = os.path.join( 
             SERV_CONF["MODEL_DIR"], self.file_name )
         self.file_folder = os.path.splitext(self.file_path)[0]
+
+    def download_event(self):
+        """ Download file via FastAPI """
 
         with open(self.file_name, "wb") as buffer:
             shutil.copyfileobj(self.file.file, buffer)
@@ -126,9 +204,22 @@ class AddModelHelper(object):
         if not os.path.exists(self.file_path):
             raise FileNotFoundError('Save ZIP File Failed')
 
-        SERV_CONF["MODEL"][self.uid]["name"] = os.path.basename(self.file_folder)
+        SERV_CONF["PROC"][self.uid]["name"] = os.path.basename(self.file_folder)
 
-    def __download_progress_event(self, current, total, width=80):
+
+class URL_DEPLOYER(ModelDeployerWrapper):
+    """ Deployer for URL Model """
+    def __init__(self, url:str) -> None:
+        super().__init__()
+
+        self.url = url
+        
+        # Update Download Parameters
+        self.tmp_proc_rate = 0  # avoid keeping send the same proc_rate
+        self.push_rate = 10
+        self.push_buf = None
+
+    def _download_progress_event(self, current, total, width=80):
         proc_rate = int(current / total * 100)
         proc_mesg = f"{self.S_DOWN} ( {proc_rate}% )"
 
@@ -136,77 +227,20 @@ class AddModelHelper(object):
             self.tmp_proc_rate = proc_rate
             self.update_status(status=proc_mesg)
 
-    def __download_url_file(self):
+    def download_event(self):
         """ Download file via URL from iVIT-T """
-        self.file_name = wget.download( self.url, bar=self.__download_progress_event)
+        self.update_status(self.S_DOWN)
+        
+        self.file_name = wget.download( self.url, bar=self._download_progress_event)
         self.file_path = os.path.join( SERV_CONF["MODEL_DIR"], self.file_name)
         shutil.move( self.file_name, self.file_path )
         self.file_folder =  os.path.splitext( self.file_path )[0]
-        SERV_CONF["MODEL"][self.uid]["name"] = os.path.basename(self.file_folder)
-
-    def download_event(self):
-        """ Download from URL """
-        self.update_status(self.S_DOWN)
-        t_down_start = time.time()
-        if self.file:
-            self.__download_fastapi_file()
-        else:
-            self.__download_url_file()
-        self.t_download = time.time() - t_down_start
-
-    def parse_event(self):
-        """ Parse ZIP File """
-        self.update_status(self.S_PARS)
-        t_parse_start = time.time()
-
-        # Extract
-        with zipfile.ZipFile(self.file_path, 'r') as zip_ref:
-            zip_ref.extractall(self.file_folder)
-        os.remove(self.file_path)
-
-        # URL Mode should rename folder
-        if self.file is None and self.url:
-            log.warning('Rename Folder ...')
-            
-            self.file_folder
-
-        self.t_parse = time.time() - t_parse_start
-    
-    def convert_event(self):
-        """ Convert Model """
-        t_convert_start = time.time()
-
-        # Check Platform
-        if not ( self.platform in [ 'nvidia', 'intel' ]):
-            return
         
-        # Do Convert
-        
-        # Update SERV_CONF
-        self.update_status(self.S_CONV)
-        self.t_convert = time.time() - t_convert_start
-    
-    def finished_event(self):
-        """ Initialize Model """
-        t_init_start = time.time()
-        init_db_model()
-        model_info = parse_model_folder(model_dir=self.file_folder)
-        add_model_into_db(models_information={
-            model_info['name']:model_info
-        })
-        # Update SERV_CONF
-        self.update_status(self.S_FINISH)
-        self.t_init = time.time()-t_init_start
+        SERV_CONF["PROC"][self.uid]["name"] = os.path.basename(self.file_folder)
 
-    def get_benchmark(self):
-        """ Provide process time of each event """
-        return {
-            "download_time": self.t_download,
-            "parse_time": self.t_parse,
-            "convert_time": self.t_convert,
-            "init_time": self.t_init
-        }
 
+
+# Helper Function
 
 def parse_model_data(data: dict):
     return {
@@ -224,14 +258,15 @@ def parse_model_data(data: dict):
     }
 
 
-# Helper Function
 def get_model_info(uid: str=None):
     """ Get Model Information from database """
     if uid == None:    
         data = select_data(table='model', data="*")
     else:
+        uid = str(uid.strip())
         data = select_data(table='model', data="*", condition=f"WHERE uid='{uid}'")
     
+    print(uid, data)
     ret = [ parse_model_data(model) for model in data ]
     return ret
 
@@ -332,7 +367,7 @@ def parse_model_folder(model_dir):
             ret['meta_data'].append(fpath)
 
     if "" in [ ret['json_path'] or ret['model_path'] ]:
-        log.error("[{}] Can't find JSON Configuration".format(model_dir))
+        log.error("[{}] Can not find JSON Configuration".format(model_dir))
 
     return ret
 
@@ -385,16 +420,13 @@ def init_db_model(model_dir:str=SERV_CONF["MODEL_DIR"], add_db:bool=True) -> dic
 
 def add_model_into_db(models_information:dict, db_path:str=SERV_CONF["DB_PATH"]):
     """ Add Model Information Into Database """
-    
     for model_name, model_info in models_information.items():
-        model_uid = gen_uuid(model_name)
+        model_uid = gen_uid(model_name)
         with open(model_info['label_path'], 'r') as f:
             classes = [ re.sub('[\'"]', '', line.strip()) for line in f.readlines() ]
             classes = re.sub('["]', '\'', json.dumps(classes))
-            
-        insert_data(
-            table='model',
-            data={
+        
+        model_db_data = {
                 "uid": model_uid,
                 "name": model_info['name'],
                 "type": model_info['type'],
@@ -405,29 +437,31 @@ def add_model_into_db(models_information:dict, db_path:str=SERV_CONF["DB_PATH"])
                 "input_size": json.dumps(model_info['input_size']),
                 "preprocess": model_info['preprocess'],
                 "meta_data": re.sub('["]', '\'', json.dumps(model_info)),
-            },
+        }
+
+        insert_data(
+            table='model',
+            data=model_db_data,
             replace=True)
     
+    return model_db_data
 
 def add_model(file:File, url:str):
     """ Add AI Model With AddModelHelper """
     
-    model_helper = AddModelHelper(
-        file=file,
-        url=url,
-        ws_mode=True,
-        mqtt_mode=False
-    )
-    model_helper.start()
+    if (url == "") or (url is None):
+        deployer = ZIP_DEPLOYER(file=file)
+    else:
+        deployer = URL_DEPLOYER(url=url)
 
-    while(True):
-            print(f"{model_helper.status:20}", end='\r')
-            if model_helper.status == model_helper.S_PARS:
-                break
+    deployer.start_deploy()
+
+    while(deployer.status != deployer.S_PARS):
+        print(f"{deployer.status:20}", end='\r')
 
     return {
-        "uid": model_helper.uid,
-        "status": model_helper.status
+        "uid": deployer.uid,
+        "status": deployer.status
     }
 
 
