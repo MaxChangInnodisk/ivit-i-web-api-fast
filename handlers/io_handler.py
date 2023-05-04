@@ -7,7 +7,7 @@ import time, os, shutil, cv2, copy
 import logging as log
 
 from ..common import RT_CONF, SERV_CONF
-from ..utils import gen_uuid
+from ..utils import gen_uid
 
 from .db_handler import (
     select_data, 
@@ -47,7 +47,9 @@ def create_source(source_uid:str):
     # Source Information
     source = select_data(
         table='source', data="*",
-        condition=f"WHERE uid='{source_uid}'" )[0]
+        condition=f"WHERE uid='{source_uid}'" )
+    assert len(source) >= 1, "Could not find source"
+    source = source[0]
     src_info = parse_source_data(source)
 
     # Update Key    
@@ -55,6 +57,7 @@ def create_source(source_uid:str):
         RT_CONF.update( { K_SRC: {} })
 
     # Check Source
+    timeout = 0
     while(True):
 
         status = get_src_status(source_uid)
@@ -66,22 +69,22 @@ def create_source(source_uid:str):
                 break
             return src
     
-        elif status == 'error':
-            mesg = 'Source is not available'
-            raise RuntimeError(mesg)
-        
-        elif status == "stop":
+        elif status in ["stop", "error"]:
             update_src_status(source_uid, 'loading')
             break
         else:
             print('Waiting Source Object ...')
+            timeout += 1
             time.sleep(1)
+        
+        if timeout >=10:
+            raise RuntimeError('Initialize Source Object Timeout')
 
     # Initialize Source         
     src_object = SourceV2(
         input=src_info['input'], 
         resolution=src_info.get('resolution'), 
-        fps=src_info.get('fps'))
+        fps=src_info.get('fps') )
 
     # Update into RT_CONF
     RT_CONF[K_SRC].update( { source_uid: src_object } )
@@ -113,7 +116,7 @@ def add_source(files=None, input: str=None, option: dict=None) -> dict:
         if len(files)>1:
 
             log.info('Add Multiple File')
-            folder_name = "dataset-{}".format(gen_uuid(files[0].filename))
+            folder_name = "dataset-{}".format(gen_uid(files[0].filename))
 
             folder_path = os.path.join( SERV_CONF["DATA_DIR"], folder_name)
             if not os.path.exists(folder_path):
@@ -138,7 +141,7 @@ def add_source(files=None, input: str=None, option: dict=None) -> dict:
 
     resolution = option.get('resolution')
     fps = option.get('fps')
-    uid = gen_uuid(name)
+    uid = gen_uid(name)
     
     src = SourceV2(
         input=input, 
