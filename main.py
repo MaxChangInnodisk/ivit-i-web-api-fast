@@ -44,7 +44,7 @@ app = FastAPI( root_path = SERV_CONF['ROOT'] )
 
 # Resigter Router
 for router in routers:
-    app.include_router( router )
+    app.include_router( router, prefix='/v1' )
 
 # Middleware
 app.add_middleware(
@@ -54,6 +54,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Middle Ware
+@app.middleware("http")
+async def print_finish(request, call_next):
+    response = await call_next(request)
+    icap_handler.send_basic_attr()
+    return response
 
 @app.on_event("startup")
 def startup_event():
@@ -117,6 +125,7 @@ async def websocket_endpoint_task(websocket: WebSocket):
 
         # Clear Data
         init_uid(key)
+
 
 if __name__ == "__main__":
 
