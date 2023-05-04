@@ -15,7 +15,7 @@ K_CODE  = "status_code"
 K_DATA  = "data"
 K_TYPE  = "type"
 
-def json_exception(content):
+def json_exception(content) -> dict:
     """ Return a iVIT Exception with JSON format """
     
     err_type, err_detail = simple_exception(content)
@@ -24,7 +24,7 @@ def json_exception(content):
     #     err_type = "RuntimeError"
     
     return { 
-        K_MESG: json.dumps(err_detail),
+        K_MESG: err_detail if isinstance(err_detail, str) else json.dumps(err_detail),
         K_TYPE: err_type 
     }
 
