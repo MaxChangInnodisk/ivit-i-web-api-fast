@@ -5,14 +5,14 @@
 
 import uuid, json, re
 
-def gen_uuid3(name):
+def gen_uid3(name):
     return str(uuid.uuid3(uuid.NAMESPACE_DNS, name))[:8]
 
-def gen_uuid4():
+def gen_uid4():
     return str(uuid.uuid4())[:8]
 
-def gen_uuid(name:str=None):
-    return gen_uuid3(name) if name else gen_uuid4() 
+def gen_uid(name:str=None):
+    return gen_uid3(name) if name else gen_uid4() 
 
 def load_json(path:str):
     with open(path, 'r') as f:
