@@ -11,13 +11,14 @@ from fastapi.responses import Response
 from typing import Optional, Dict, List
 from pydantic import BaseModel
 
+from ..common import SERV_CONF
 from ..handlers import task_handler
-from ..handlers.mesg_handler import http_msg
+from ..handlers.mesg_handler import http_msg, json_exception
 from ..handlers.db_handler import update_data
 
 # --------------------------------------------------------------------
 # Router
-task_router = APIRouter()
+task_router = APIRouter(tags=["task"])
 
 # --------------------------------------------------------------------
 # Helper for task_action
@@ -35,13 +36,15 @@ class TaskActionData(BaseModel):
     cv_display: Optional[bool]
     area: Optional[list]
 
+
 class TaskAction(BaseModel):
     uid: str
     action: str
     data: Optional[TaskActionData]
 
+
 class AddTaskFormat(BaseModel):
-	name: str
+	task_name: str
 	source_uid: str
 	model_uid: str
 	device: str
@@ -49,9 +52,10 @@ class AddTaskFormat(BaseModel):
 	app_name: str
 	app_setting: dict
 
+
 class EditTaskFormat(BaseModel):
-	uid: str
-	name: str
+	task_uid: str
+	task_name: str
 	source_uid: str
 	model_uid: str
 	device: str
@@ -61,29 +65,30 @@ class EditTaskFormat(BaseModel):
 
 
 class DelTaskFormat(BaseModel):
-    uid: str
+    uids: List[str]
+
 
 # --------------------------------------------------------------------
 # API
-@task_router.get("/task", tags=["task"])
+@task_router.get("/tasks")
 async def get_task_list():
     """ Get All AI Task """
     ret = task_handler.get_task_info()
     return http_msg( content = ret, status_code = 200 )
 
 
-@task_router.get("/task/exec", tags=["task"])
-async def execute_task_usage():
+@task_router.get("/tasks/exec")
+def execute_task_usage():
     return http_msg( content=list(ACTION.keys()), status_code=200)
 
 
-@task_router.get("/task/{uuid}", tags=["task"])
-async def get_target_task_information(uuid: str):
-    ret = task_handler.get_task_info(uid=uuid)
+@task_router.get("/tasks/{uid}")
+async def get_target_task_information(uid: str):
+    ret = task_handler.get_task_info(uid=uid)
     return http_msg( content = ret, status_code = 200 )
 
 
-@task_router.post("/task/exec", tags=["task"])
+@task_router.post("/tasks/exec")
 async def execute_task(exec_data: TaskAction):
     
     # Parse Request
@@ -105,12 +110,17 @@ async def execute_task(exec_data: TaskAction):
         return http_msg( content = mesg, status_code = 200 )
 
     except Exception as e:
-        update_data(table='task', data={'status':'error'}, condition=f"WHERE uid='{uid}'")
+        update_data(
+            table='task', 
+            data={
+                'status':'error',
+                'error': json.dumps(json_exception(e))}, 
+            condition=f"WHERE uid='{uid}'")
         
         return http_msg( content=e, status_code=500)
 
 
-@task_router.post("/task", tags=["task"])
+@task_router.post("/tasks")
 def add_task(add_data: AddTaskFormat):
 
     try:
@@ -120,18 +130,27 @@ def add_task(add_data: AddTaskFormat):
         return http_msg(content=e, status_code=500)
 
 
-@task_router.delete("/task", tags=["task"])
+@task_router.delete("/tasks")
 def delete_task(del_data: DelTaskFormat):
 
     try:
-        task_handler.del_ai_task(del_data.uid)
-        return http_msg("Success")
+        ret_data = {
+            'success': [],
+            'failure': []
+        }
+        for uid in del_data.uids:
+            try:
+                task_handler.del_ai_task(uid)
+                ret_data["success"].append(uid)
+            except:
+                ret_data["failure"].append(uid)
+        return http_msg(ret_data)
     
     except Exception as e:
         return http_msg(content=e, status_code=500)
 
 
-@task_router.put("/task", tags=["task"])
+@task_router.put("/tasks")
 def edit_task(edit_data: EditTaskFormat):
     try:
         ret = task_handler.edit_ai_task(edit_data=edit_data)
