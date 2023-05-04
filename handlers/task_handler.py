@@ -9,10 +9,11 @@ import asyncio
 
 # Custom
 from ..common import SERV_CONF, RT_CONF, WS_CONF
-from ..utils import gen_uuid, json_to_str
+from ..utils import gen_uid, json_to_str
 
 from .ai_handler import get_ivit_api
 from .io_handler import create_displayer, create_source, update_src_status
+from . import task_handler
 from .app_handler import create_app
 from .mesg_handler import json_exception
 from .db_handler import (
@@ -40,7 +41,8 @@ def get_task_info(uid:str=None):
 
         # Task Information
         info = parse_task_data(task)
-        task_uid = info['uid']
+        task_uid = app_uid = info['uid']
+        task_name = info['name']
         source_uid = info['source_uid']
         model_uid = info['model_uid']
         
@@ -48,23 +50,32 @@ def get_task_info(uid:str=None):
         try:
             source_name = select_data(table='source', data=["name"], condition=f"WHERE uid='{source_uid}'")[0][0]
         except Exception as e:
-            
             log.exception(e)
+
         try:
-            model_name = select_data(table='model', data=["name"], condition=f"WHERE uid='{model_uid}'")[0][0]
+            model_name, model_type = select_data(table='model', data=["name", "type"], condition=f"WHERE uid='{model_uid}'")[0]
+            
         except Exception as e:
             log.exception(e)
+
         try:
-            app_name = select_data(table='app', data=["name"], condition=f"WHERE uid='{task_uid}'")[0][0] 
+            app_uid, app_name = select_data(table='app', data=["uid", "name"], condition=f"WHERE uid='{task_uid}'")[0]
         except Exception as e:
             log.exception(e)
         
         info.update({
+            'task_uid': task_uid,
+            'task_name': task_name,
             'source_name': source_name,
             'model_name': model_name,
-            'app_uid': info['uid'],
-            'app_name': app_name
+            'model_type': model_type,
+            'app_uid': app_uid,
+            'app_name': app_name,
+            'error': info['error']
         })
+        
+        for key in [ 'uid', 'name' ]:
+            info.pop(key, None)
         
         ret.append(info)
 
@@ -75,9 +86,12 @@ def get_task_status(uid):
     return select_data(table='task', data=['status'], condition=f"WHERE uid='{uid}'")[0][0]
 
 
-def update_task_status(uid, status):
-    update_data(table='task', data={'status':status}, condition=f"WHERE uid='{uid}'")
-
+def update_task_status(uid, status, err_mesg:dict = {}):
+    write_data = {
+        'status':status,
+        'error': err_mesg
+    }
+    update_data(table='task', data=write_data, condition=f"WHERE uid='{uid}'")
 
 
 def verify_task_exist(uid):
@@ -86,16 +100,16 @@ def verify_task_exist(uid):
     
     # Not found AI Task
     if task == []:
-        raise RuntimeError("Could't find AI Task ({})".format(uid))
+        raise RuntimeError("Could not find AI Task ({})".format(uid))
 
     return task[0]
 
 
 def verify_duplicate_task(task_name):
     # Check exist AI Task
-    for name in select_data(table='task', data=['name']):
+    for uid, name in select_data(table='task', data=['uid','name']):
         if task_name in name:
-            raise NameError('AI Task is already exist')
+            raise NameError('AI Task is already exist ( {}: {} )'.format(uid, name))
 
 
 def verify_thres(threshold:float):
@@ -157,7 +171,8 @@ def run_ai_task(uid:str, data:dict=None):
     except Exception as e:
         log.exception(e)
         update_data(table='source', data={'status':'error'}, condition=f"WHERE uid='{source_uid}'")
-        raise RuntimeError('Initialize Source Failed !')
+        raise e
+
 
     try:
         cv_flag = getattr(data, 'cv_display', None) 
@@ -255,10 +270,10 @@ def add_ai_task(add_data):
     """
     
     # Generate Task UUID and Application UUID    
-    task_uid = app_uid = gen_uuid()
+    task_uid = app_uid = gen_uid()
 
     # CHECK: task exist
-    verify_duplicate_task(add_data.name)
+    verify_duplicate_task(add_data.task_name)
 
     # CHECK: threshold value is available
     verify_thres(threshold=add_data.model_setting['confidence_threshold'])
@@ -268,7 +283,7 @@ def add_ai_task(add_data):
         table="task",
         data={
             "uid": task_uid,
-            "name": add_data.name,
+            "name": add_data.task_name,
             "source_uid": add_data.source_uid,
             "model_uid": add_data.model_uid,
             "model_setting": json_to_str(add_data.model_setting),
@@ -301,13 +316,13 @@ def edit_ai_task(edit_data):
     
     """
     # Get Task UUID and Application UUID    
-    task_uid = app_uid = edit_data.uid
+    task_uid = app_uid = edit_data.task_uid
 
     # CHECK: AI task is exist or not
     verify_task_exist(task_uid)
 
     # CHECK: task exist
-    verify_duplicate_task(edit_data.name)
+    verify_duplicate_task(edit_data.task_name)
 
     # CHECK: threshold value is available
     verify_thres(threshold=edit_data.model_setting['confidence_threshold'])
@@ -317,7 +332,7 @@ def edit_ai_task(edit_data):
         table="task",
         data={
             "uid": task_uid,
-            "name": edit_data.name,
+            "name": edit_data.task_name,
             "source_uid": edit_data.source_uid,
             "model_uid": edit_data.model_uid,
             "model_setting": json_to_str(edit_data.model_setting),
@@ -380,6 +395,8 @@ class InferenceLoop:
         
         self.draw = None
         self.results = None
+
+        self.icap_alive = 'ICAP' in SERV_CONF and not (SERV_CONF['ICAP'] is None)
         
         log.warning('Create a InferenceLoop')
 
@@ -397,6 +414,12 @@ class InferenceLoop:
             while(not self.stop_thread):
                 
                 # Limit Speed to fit FPS
+                if not self.src.is_ready:
+                    raise self.src.errors[-1] \
+                        if len(self.src.errors) > 0 \
+                            else RuntimeError('Unexpected Source Error ...')
+                        
+
                 if 1/(time.time()-t_wait_fps) > self.src.get_fps():
                     time.sleep(0.033); continue
 
@@ -416,7 +439,7 @@ class InferenceLoop:
                                 except: pass
                 RT_CONF[self.uid]['DATA'] = {}
 
-                # Get data
+                # Get data        
                 ret, frame = self.src.read()
                 frame_idx += 1
 
@@ -427,7 +450,7 @@ class InferenceLoop:
                 prev_data = cur_data if cur_data else prev_data
 
                 # Check Previous Data    
-                print(cur_data)
+                print('get data:', cur_data)
 
                 if not prev_data: continue
 
@@ -441,16 +464,30 @@ class InferenceLoop:
                 # Send Data
                 WS_CONF.update({ self.uid: self.results })
 
+            update_task_status(self.uid, 'stop')
+
+            log.warning('Stop InferenceLoop')
+
         except Exception as e:
+            log.error('InferenceLoop Error!!!')
             log.exception(e)
+            json_exp = json_exception(e)
             if "WS" in WS_CONF:
-                asyncio.run( WS_CONF["WS"].send_json({"ERROR": json_exception(e)}) )
-            update_task_status(self.uid, 'error')
+                asyncio.run( WS_CONF["WS"].send_json({"ERROR": json_exp}) )
+            update_task_status(
+                uid=self.uid, status='error', err_mesg=json_exp)
 
         finally:
+
             self.model.release()
+            
             if self.dpr:
                 self.dpr.release()
+            
+            if self.icap_alive:
+                SERV_CONF['ICAP'].send_attr(data=task_handler.get_task_info())
+            print('finish')
+
         log.warning('InferenceLoop ({}) is Stop'.format(self.uid))
 
     def get_results(self):
