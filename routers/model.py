@@ -8,7 +8,7 @@ import json
 import logging as log
 from fastapi import APIRouter,File, Form, UploadFile
 from fastapi.responses import Response
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel
 
 from ..common import SERV_CONF
@@ -19,16 +19,16 @@ from ..handlers.db_handler import select_data, insert_data, delete_data
 from ..handlers import model_handler
 
 # Router
-model_router = APIRouter()
+model_router = APIRouter( tags=["model"] )
 
 
 # Format
-class ModelFormat(BaseModel):
-    uid: str
+class DelModelFormat(BaseModel):
+    uids: List[str]
 
 
 # API
-@model_router.get("/model", tags=["model"])
+@model_router.get("/models")
 async def get_model_list():
 
     try:
@@ -37,29 +37,35 @@ async def get_model_list():
 
     except Exception as e:
         return http_msg( content=e, status_code = 500 )
-
-@model_router.get("/model/{uuid}", tags=["model"])
-async def get_target_model_information(uuid:Optional[str]):
+    
+@model_router.get("/models/{uid}")
+async def get_target_model_information(uid:Optional[str]):
 
     try:
-        ret = model_handler.get_model_info(uid=uuid)        
+        ret = model_handler.get_model_info(uid=uid)        
         return http_msg( content = ret, status_code = 200 )
 
     except Exception as e:
         return http_msg( content=e, status_code = 500 )
 
-@model_router.delete("/model", tags=["model"])
-def delete_model(data: ModelFormat):
+@model_router.delete("/models")
+def delete_model(data: DelModelFormat):
 
     try:
-        model_handler.delete_model(data.uid)
-        return http_msg( content = 'Success', status_code = 200 )
+        ret_data = { "success": [], "failure": []}
+        for uid in data.uids:
+            try:
+                model_handler.delete_model(uid)
+                ret_data["success"].append(uid)
+            except:
+                ret_data["failure"].append(uid)
+        return http_msg( content = ret_data, status_code = 200 )
 
     except Exception as e:
         return http_msg( content=e, status_code = 500 )
     
 
-@model_router.post("/model", tags=["model"])
+@model_router.post("/models")
 def add_model(
     file: Optional[UploadFile] = File(None),
     url: Optional[str]= Form(None),

@@ -12,12 +12,12 @@ from ..common import SERV_CONF
 from ..handlers.mesg_handler import http_msg
 
 # Router
-device_router = APIRouter()
+device_router = APIRouter(tags=["device"])
 
-@device_router.get("/platform", tags=["device"])
+@device_router.get("/platform")
 async def get_platform():
     return http_msg( content=SERV_CONF["PLATFORM"], status_code=200) 
 
-@device_router.get("/device", tags=["device"])
+@device_router.get("/devices")
 async def get_device():
     return http_msg( content=SERV_CONF["IDEV"].get_all_device(), status_code=200)
