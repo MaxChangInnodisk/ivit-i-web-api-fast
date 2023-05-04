@@ -12,6 +12,7 @@ from .app import app_router
 from .device import device_router
 from .icap import icap_router
 from .process import proc_router
+from .system import sys_router
 
 routers = [
     task_router,
@@ -20,5 +21,6 @@ routers = [
     app_router,
     device_router,
     icap_router,
-    proc_router
+    proc_router,
+    sys_router
 ]
