@@ -7,7 +7,7 @@ import gdown, sqlite3, os, sys, time, json
 import logging as log
 
 from ..common import SERV_CONF
-from ..utils import gen_uuid, json_to_str
+from ..utils import gen_uid, json_to_str
 from ..handlers import db_handler
 
 def download_file(file_path, file_url):
@@ -27,22 +27,6 @@ def download_model(file_name, file_url):
 def download_data(file_name, file_url):
     file_path = os.path.join(SERV_CONF["DATA_DIR"], file_name)
     download_file(file_path, file_url)
-
-# def download_data(type:str, data_name, data_url):
-    
-#     data_dir = SERV_CONF["MODEL_DIR" if type == 'model' else "DATA_DIR" ]
-#     # log.debug("Download from Google Drive ...")
-#     data_path = os.path.join( data_dir, data_name )
-    
-#     check_data = data_path
-#     if os.path.splitext(data_name)[1] == '.zip':
-#         check_data = os.path.splitext(data_path)[0]
-
-#     if os.path.exists(check_data):
-#         # log.debug('Download Data is already exist ! ');
-#         return
-    
-#     gdown.download(url=data_url, output=data_path, quiet=False, fuzzy=True)
 
 def intel_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
     """ Add intel sample information into database 
@@ -64,7 +48,7 @@ def intel_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
     # Define Parameters
     task_name = "classification-sample"
     task_status = 'stop'
-    task_uid = gen_uuid()
+    task_uid = gen_uid()
 
     device = 'CPU'
 
@@ -72,9 +56,9 @@ def intel_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
     source_name = data_name
     source_type = "IMAGE"
     source_input = os.path.join( SERV_CONF["DATA_DIR"], source_name)
-    source_uid = gen_uuid(source_name)
+    source_uid = gen_uid(source_name)
 
-    model_uid = gen_uuid(model_name)
+    model_uid = gen_uid(model_name)
     model_setting = {
         "confidence_threshold": 0.1,
         "topk": 3
@@ -159,7 +143,7 @@ def intel_sample_obj( db_path:str=SERV_CONF["DB_PATH"] ):
     # Define Parameters
     task_name = "object-detection-sample"
     task_status = 'stop'
-    task_uid = gen_uuid()
+    task_uid = gen_uid()
 
     device = 'CPU'
 
@@ -167,9 +151,9 @@ def intel_sample_obj( db_path:str=SERV_CONF["DB_PATH"] ):
     source_name = data_name
     source_type = "IMAGE"
     source_input = os.path.join( SERV_CONF["DATA_DIR"], source_name)
-    source_uid = gen_uuid(source_name)
+    source_uid = gen_uid(source_name)
 
-    model_uid = gen_uuid(model_name)
+    model_uid = gen_uid(model_name)
     model_setting = {
         "confidence_threshold": 0.5
     }
