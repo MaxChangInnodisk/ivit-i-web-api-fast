@@ -69,7 +69,7 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
 | Type | Description |
 | --- | --- |
-|tuple|( id, label, score )|
+|list|[ ( id, label, score ) , ( id2, label2, score2 ) , ... ]|
 * Example:
     ```bash
         id      # (type int)           value : 0   
