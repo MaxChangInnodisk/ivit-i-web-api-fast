@@ -20,9 +20,10 @@ from ..handlers.db_handler import select_data, insert_data
 
 
 # Router
-app_router = APIRouter()
+app_router = APIRouter( tags=["app"] )
 
 # Helper Function
+
 def get_app_info(uid: str=None):
     """ Get app Information from database """
     if uid == None:    
@@ -34,7 +35,8 @@ def get_app_info(uid: str=None):
     return ret
         
 # API
-@app_router.get("/app", tags=["app"])
+
+@app_router.get("/apps")
 async def get_using_applicatino_list():
 
     try:
@@ -45,7 +47,7 @@ async def get_using_applicatino_list():
         return http_msg( content=e, status_code=500 )
 
 
-@app_router.get("/app/support", tags=["app"])
+@app_router.get("/apps/support")
 async def get_supported_application():
 
     try:
@@ -62,7 +64,7 @@ async def get_supported_application():
         return http_msg( content=e, status_code=500)
     
 
-@app_router.get("/app/{uid}", tags=["app"])
+@app_router.get("/apps/{uid}")
 async def get_target_application_information(uid:Optional[str]=None):
 
     try:
