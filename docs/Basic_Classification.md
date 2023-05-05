@@ -67,15 +67,17 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 ## Format of input parameter
 * Input parameters are the result of model predict, and the result must packed like below.
 
-| Type | Description |
-| --- | --- |
-|list|[ ( id, label, score ) , ( id2, label2, score2 ) , ... ]|
-* Example:
-    ```bash
-        id      # (type int)           value : 0   
-        label   # (type str)           value : cat   
-        score   # (type numpy.float32) value : 0.5921569    
-    ```
+| Name |Type | Description |
+|--- |--- | --- |
+| Input|list|[ turple ( id:int , label:str, score:float ) , ... ]|
+
+* Item Description  
+    |Name|Example|Description|
+    |---|---| --- |
+    |id|0|The sort index of the labels|
+    |label|cat|The name of the predict label|
+    |score|0.59221|The confidence of the prediction|
+
 ## Application output 
 * Application will return frame(already drawn) and organized information.The format of organized information as below.
     ```bash

@@ -166,7 +166,7 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
 | Type | Description |
 | --- | --- |
-|object|Object's properties : xmin ,ymin ,xmax ,ymax ,score ,id ,label |
+|list|[ detection1 ,detection2 ,detection3 ,...]|
 * Example:
     ```bash
         detection        # (type object)                   
