@@ -43,8 +43,9 @@ from .routers import routers
 app = FastAPI( root_path = SERV_CONF['ROOT'] )
 
 # Resigter Router
+API_VERSION = '/v1'
 for router in routers:
-    app.include_router( router, prefix='/v1' )
+    app.include_router( router, prefix=API_VERSION )
 
 # Middleware
 app.add_middleware(
@@ -76,7 +77,7 @@ def shutdown_event():
     log.warning('Stop service ...')
 
 
-@app.websocket("/ws")
+@app.websocket(f"{API_VERSION}/ws")
 async def websocket_endpoint_task(websocket: WebSocket):
     """
     WebSocket Router
@@ -107,11 +108,11 @@ async def websocket_endpoint_task(websocket: WebSocket):
         
         # Get Return Data
         data = None
-        if key in [ UID, ERR ]:
-            data = WS_CONF.get(key)
-        elif key == TEM:
-            data = SERV_CONF['IDEV'].get_all_device()
-
+        if key.upper() in WS_CONF.keys():
+            if key == TEM:
+                data = SERV_CONF['IDEV'].get_all_device()
+            else:
+                data = WS_CONF.get(key.upper())
         # Send Data
         if not data:
             await websocket.send_text("Got Unexpected key ({}) in WebSocket, Support is {}".format(key, ', '.join(WS_CONF.keys())))
@@ -139,11 +140,15 @@ if __name__ == "__main__":
         init_samples(framework=framework)
 
     # Fast API
+    # uvicorn.run(
+    #     "service.main:app", 
+    #     host = SERV_CONF["HOST"], 
+    #     port = int(SERV_CONF["PORT"]),
+    #     workers = 1,
+    #     reload=True )
+
     uvicorn.run(
         "service.main:app", 
         host = SERV_CONF["HOST"], 
         port = int(SERV_CONF["PORT"]),
-        workers = 1,
-        reload=True )
-
-
+        workers = 1 )
