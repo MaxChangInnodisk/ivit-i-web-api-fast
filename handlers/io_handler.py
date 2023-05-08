@@ -41,6 +41,7 @@ def get_src_info(uid: str=None):
     ret = [ parse_source_data(src) for src in data ]
     return ret
 
+
 def create_source(source_uid:str):
     """ Create source """
 
@@ -149,12 +150,15 @@ def add_source(files=None, input: str=None, option: dict=None) -> dict:
         fps=fps)
     
     type = src.get_type()
+    height, width = src.get_shape()
 
     data = {
         "uid": uid,
         "name": name,
         "type": type,
         "input": input,
+        "height": str(height), 
+        "width": str(width),
         "status": "stop"
     }
 

@@ -57,6 +57,7 @@ def intel_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
     source_type = "IMAGE"
     source_input = os.path.join( SERV_CONF["DATA_DIR"], source_name)
     source_uid = gen_uid(source_name)
+    source_height, source_width = "425", "640"
 
     model_uid = gen_uid(model_name)
     model_setting = {
@@ -91,7 +92,9 @@ def intel_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
             "name": source_name,
             "type": source_type,
             "input": source_input,
-            "status": source_status
+            "status": source_status,
+            "height": source_height,
+            "width": source_width,
         },
         replace=True )
 
@@ -152,6 +155,7 @@ def intel_sample_obj( db_path:str=SERV_CONF["DB_PATH"] ):
     source_type = "IMAGE"
     source_input = os.path.join( SERV_CONF["DATA_DIR"], source_name)
     source_uid = gen_uid(source_name)
+    source_height, source_width = "720", "1280"
 
     model_uid = gen_uid(model_name)
     model_setting = {
@@ -181,7 +185,9 @@ def intel_sample_obj( db_path:str=SERV_CONF["DB_PATH"] ):
             "name": source_name,
             "type": source_type,
             "input": source_input,
-            "status": source_status
+            "status": source_status,
+            "height": source_height,
+            "width": source_width,
         },
         replace=True )
 

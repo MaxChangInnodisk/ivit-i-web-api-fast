@@ -198,6 +198,8 @@ def init_tables(db_path:str):
                     "status TEXT,"
                     "type TEXT,"
                     "input TEXT,"
+                    "width TEXT,"
+                    "height TEXT,"
                     "annotation TEXT"
                     ");" )
     # Application
@@ -282,7 +284,9 @@ def parse_source_data(data: dict):
         "status": data[2],
         "type": data[3],
         "input": data[4],
-        "annotation": data[5]
+        "width": data[5],
+        "height": data[6],
+        "annotation": data[7]
     }
 
 
