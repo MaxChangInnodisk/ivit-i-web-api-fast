@@ -108,11 +108,11 @@ async def websocket_endpoint_task(websocket: WebSocket):
         
         # Get Return Data
         data = None
-        if key.upper() in WS_CONF.keys():
-            if key == TEM:
-                data = SERV_CONF['IDEV'].get_all_device()
-            else:
-                data = WS_CONF.get(key.upper())
+        if key == TEM:
+            data = SERV_CONF['IDEV'].get_all_device()
+        else:
+            data = WS_CONF.get(key.upper())
+            
         # Send Data
         if not data:
             await websocket.send_text("Got Unexpected key ({}) in WebSocket, Support is {}".format(key, ', '.join(WS_CONF.keys())))
