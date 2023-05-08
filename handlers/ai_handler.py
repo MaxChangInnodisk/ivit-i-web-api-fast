@@ -39,10 +39,30 @@ def vino_init(type:str, params:dict):
     
     return model
 
+# Jetson
+def jetson_init():
+    pass
+
+# dGPU
+def dgpu_init():
+    pass
+
+# Hailo
+def hailo_init():
+    pass
+
+# Xilinx
+def xlnx_init():
+    pass
+
 def get_ivit_api(framework:Literal['openvino', 'nvidia', 'jetson', 'xilinx', 'hailo']):
     
     map = {
-        "openvino": vino_init
+        "openvino": vino_init,
+        "nvidia": dgpu_init,
+        "jetson": jetson_init,
+        "xilinx": xlnx_init,
+        "hailo": hailo_init
     }
 
     return map[framework]
