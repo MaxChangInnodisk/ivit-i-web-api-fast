@@ -102,8 +102,11 @@ def del_source(src_data: DelSourceFormat):
 @source_router.get("/sources/{uid}/frame")
 def get_frame_from_source(uid:str):
     try:
-        image = get_source_frame(uid)
+        src = create_source(source_uid=uid)
+        frame = copy.deepcopy(src.frame) 
+        ret, image = cv2.imencode(".jpeg", frame)
         buf = image.tobytes()
+        src.release()
         return Response(    
             content = buf, 
             status_code = 200, media_type="image/jpeg" )
@@ -121,6 +124,7 @@ def get_frame_from_source_with_resolution(uid:str, data: Optional[FrameFormat]=N
             frame = cv2.resize( frame, (data.width, data.height))
         ret, image = cv2.imencode(".jpeg", frame)
         buffer = image.tobytes()
+        src.release()
         return Response(    
             content = buffer, 
             status_code = 200, media_type="image/jpeg" )
