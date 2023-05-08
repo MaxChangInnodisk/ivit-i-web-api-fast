@@ -315,9 +315,9 @@ def register_tb_device(tb_url):
         # Jetson device have to mapping to nvidia
         platform = "nvidia"
     
-    dev_name = "iVIT-I"
-    dev_type = "{}-{}".format(dev_name, get_mac_address()) 
-    dev_alias = dev_type
+    dev_type = "iVIT-I"
+    dev_name = "{}-{}".format(dev_type, get_mac_address()) 
+    dev_alias = dev_name
     
     send_data = { 
         TB_KEY_NAME  : dev_name,
