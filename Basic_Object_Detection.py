@@ -105,8 +105,8 @@ class Basic_Object_Detection(iAPP_OBJ):
 
         color = None
         with open(self.model_label,'r') as f:
-            lines = f.read().splitlines()
-            for idx, line in enumerate(lines):
+            # lines = f.read().splitlines()
+            for idx, line in enumerate(f.readlines()):
                 idx+=1
                 if self.params['application'].__contains__('palette'):
                     

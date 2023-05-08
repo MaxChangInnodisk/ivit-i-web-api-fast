@@ -27,8 +27,8 @@ class Basic_Classification(iAPP_CLS):
 
         color = None
         with open(self.model_label,'r') as f:
-            lines = f.read().splitlines()
-            for idx, line in enumerate(lines):
+            # lines = f.read().splitlines()
+            for idx, line in enumerate(f.readlines()):
                 idx+=1
                 if self.params['application'].__contains__('palette'):
                     

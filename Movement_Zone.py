@@ -506,8 +506,8 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
 
         color = None
         with open(self.model_label,'r') as f:
-            lines = f.read().splitlines()
-            for idx, line in enumerate(lines):
+            # lines = f.read().splitlines()
+            for idx, line in enumerate(f.readlines()):
                 idx+=1
                 if self.params['application'].__contains__('palette'):
                     
