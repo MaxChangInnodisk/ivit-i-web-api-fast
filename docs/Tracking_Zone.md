@@ -21,7 +21,7 @@ And the description of application output is [here](#adjust-trancking-distance).
 |draw_result|bool|True|Display information of detection.|
 |draw_bbox|bool|True|Display boundingbox.|
 
-* Basic
+* Basic sample
     ```json
         {
             "application": {
@@ -29,23 +29,17 @@ And the description of application output is [here](#adjust-trancking-distance).
                     {
                         "name": "default",
                         "depend_on": [],
-                        "area_point": []
                     }
                 ]
             }
         }
 
     ```
-* Set up application and event
+* Advanced Sample (Set up application and event)
 
    ```json
         {
             "application": {
-                "areas": [
-                    {
-                        "name": "Datong Rd",
-                        "depend_on": [ "car", "truck"
-                        ],
                         "palette": {
                             "car": [
                                 0,
@@ -58,6 +52,11 @@ And the description of application output is [here](#adjust-trancking-distance).
                                 0
                             ]
                         },
+                "areas": [
+                    {
+                        "name": "Datong Rd",
+                        "depend_on": [ 'car', 'truck'
+                        ],
                         "area_point": [
                             [
                                 0.156,
@@ -79,7 +78,7 @@ And the description of application output is [here](#adjust-trancking-distance).
                         "events": {
                             "title": "The daily traffic is over 2",
                             "logic_operator": ">",
-                            "logic_value": 2,
+                            "logic_value": 100,
                         }
                     },
                 ],
@@ -100,7 +99,7 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
 | Type | Description |
 | --- | --- |
-|object|Object's properties : xmin ,ymin ,xmax ,ymax ,score ,id ,label |
+|list|[ detection1 ,detection2 ,detection3 ,...]|
 * Example:
     ```bash
         detection        # (type object)                   

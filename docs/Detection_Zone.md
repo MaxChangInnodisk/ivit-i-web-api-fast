@@ -24,7 +24,7 @@ Application Setting
 |draw_result|bool|True|Display information of detection.|
 |draw_bbox|bool|True|Display boundingbox.|
 
-* Basic
+* Basic Sample
     ```json
         {
             "application": {
@@ -32,17 +32,28 @@ Application Setting
                     {
                         "name": "default",
                         "depend_on": [],
-                        "area_point": []
                     }
                 ]
             }
         }
     ```
-* Set up application and event
+* Advanced Sample (Set up application and event)
 
    ```json
     {
         "application": {
+						"palette": {
+                        "car": [
+                            0,
+                            255,
+                            0
+                        ],
+                        "truck": [
+                            0,
+                            255,
+                            0
+                        ]
+                    },
             "areas": [
                 {
                     "name": "The intersection of Datong Rd",
@@ -73,7 +84,7 @@ Application Setting
                         "logic_operator": ">",
                         "logic_value": 100,
                     }
-                }
+                },
             ]
         }
     }
@@ -92,7 +103,7 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
 | Type | Description |
 | --- | --- |
-|object|Object's properties : xmin ,ymin ,xmax ,ymax ,score ,id ,label |
+|list|[ detection1 ,detection2 ,detection3 ,...]|
 * Example:
     ```bash
         detection        # (type object)                   

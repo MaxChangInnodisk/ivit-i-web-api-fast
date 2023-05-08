@@ -16,30 +16,42 @@ And the description of application output is [here](#application-output).
 |name|str|default|Area name.**(Basic Classidication no need to set.)**|
 | depend_on (*) | list | [ ] | The application depend on which label. |
 | palette | dict | { } | Custom the color of each label. |
-* Sample
-
-   ```json
-    {
+* Basic Sample
+   ```bash
+     {
         "application": {
             "areas": [
                 {
                     "name": "default",
-                    "depend_on": [
-                        "airplane",
-                        "warplane"
-                    ],
-                    "palette": {
-                        "airplane": [
-                            255,
-                            255,
-                            255
-                        ],
-                        "warpalne": [
-                            0,
-                            0,
-                            0
-                        ]
-                    }
+                    "depend_on": [ ]
+                }
+            ]
+        }
+    }
+
+   ```
+* Advanced Sample
+
+   ```bash
+    {
+        "application": {
+            "palette": {
+                "Egyptian cat": [
+                    0,
+                    0,
+                    0
+                ],
+                "tabby, tabby cat": [
+                    255,
+                    0,
+                    0
+                ]
+            },
+            "areas": [
+                {
+                    "name": "default",
+                    "depend_on": ['Egyptian cat','tabby, tabby cat'
+                    ]
                 }
             ]
         }
@@ -55,15 +67,17 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 ## Format of input parameter
 * Input parameters are the result of model predict, and the result must packed like below.
 
-| Type | Description |
-| --- | --- |
-|tuple|( id, label, score )|
-* Example:
-    ```bash
-        id      # (type int)           value : 0   
-        label   # (type str)           value : cat   
-        score   # (type numpy.float32) value : 0.5921569    
-    ```
+| Name |Type | Description |
+|--- |--- | --- |
+| Input|list|[ turple ( id:int , label:str, score:float ) , ... ]|
+
+* Item Description  
+    |Name|Example|Description|
+    |---|---| --- |
+    |id|0|The sort index of the labels|
+    |label|cat|The name of the predict label|
+    |score|0.59221|The confidence of the prediction|
+
 ## Application output 
 * Application will return frame(already drawn) and organized information.The format of organized information as below.
     ```bash

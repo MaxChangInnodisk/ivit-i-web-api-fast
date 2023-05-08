@@ -19,7 +19,7 @@ And the description of application output is [here](#application-output).
 | palette | dict | { } | Custom the color of each label. |
 |draw_result|bool|True|Display information of detection.|
 |draw_bbox|bool|True|Display boundingbox.|
-* Basic
+* Basic Sample
     ```bash
     {
         "application": {
@@ -32,32 +32,29 @@ And the description of application output is [here](#application-output).
         }
     }
     ```
-* Custom
+* Advanced Sample
 
    ```json
     {
         "application": {
+            "palette": {
+                "car": [
+                    0,
+                    255,
+                    0
+                ]
+            },
             "areas": [
                 {
                     "name": "default",
-                    "depend_on": [
-                        "car",
-                        "truck"
-                    ],
-                    "palette": {
-                        "car": [
-                            0,
-                            255,
-                            0
-                        ],
-                        "truck": [
-                            0,
-                            255,
-                            0
-                        ]
-                    }
+                    "depend_on": [],
+                    "truck": [
+                        0,
+                        255,
+                        0
+                    ]
                 }
-            ]
+            ],
         }
     }
    ``` 
@@ -74,7 +71,7 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
 | Type | Description |
 | --- | --- |
-|object|Object's properties : xmin ,ymin ,xmax ,ymax ,score ,id ,label |
+|list|[ detection1 ,detection2 ,detection3 ,...]|
 
 * Example:
     ```bash

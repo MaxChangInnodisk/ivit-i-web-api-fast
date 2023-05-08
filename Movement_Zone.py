@@ -6,6 +6,7 @@ import threading
 import math
 from datetime import datetime
 sys.path.append( os.getcwd() )
+from ivit_i.utils.logger import ivit_logger
 from apps.palette import palette
 from multiprocessing.pool import ThreadPool
 from ivit_i.app import iAPP_OBJ
@@ -473,7 +474,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.model_label_list =[]
 
         # self.pool = ThreadPool(os.cpu_count() )
-       
+        self.logger = ivit_logger()
         self.init_palette(palette)
 
         self.collect_depand_info()
@@ -502,13 +503,23 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.tracking_distance = new_tracking_distance
 
     def init_palette(self,palette):
-        temp_id=1
+
+        color = None
         with open(self.model_label,'r') as f:
-            line = f.read().splitlines()
-            for i in line:
-                self.palette.update({i.strip():palette[str(temp_id)]})
-                self.model_label_list.append(i.strip())
-                temp_id+=1
+            # lines = f.read().splitlines()
+            for idx, line in enumerate(f.readlines()):
+                idx+=1
+                if self.params['application'].__contains__('palette'):
+                    
+                    if self.params['application']['palette'].__contains__(line.strip()):
+                        color = self.params['application']['palette'][line.strip()]
+                    else:
+                        color = palette[str(idx)]
+                else :         
+                    color = palette[str(idx)]
+                
+                self.palette.update({line.strip():color})
+                self.model_label_list.append(line.strip())
 
     def init_draw_params(self):
         """ Initialize Draw Parameters """
@@ -561,10 +572,14 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.area_color=[0,0,255]
         self.area_opacity=0.2
         for i in range(len(self.params['application']['areas'])):
-            if self.params['application']['areas'][i]['area_point']!=[]:
-                self.normalize_area_pts.update({i:self.params['application']['areas'][i]['area_point']})
-                self.area_name.update({i:self.params['application']['areas'][i]['name']})
-                # self.area_color.update({i:[random.randint(0,255),random.randint(0,255),random.randint(0,255)]})
+            if self.params['application']['areas'][i].__contains__('area_point'):
+                if self.params['application']['areas'][i]['area_point']!=[]:
+                    self.normalize_area_pts.update({i:self.params['application']['areas'][i]['area_point']})
+                    self.area_name.update({i:self.params['application']['areas'][i]['name']})
+                    # self.area_color.update({i:[random.randint(0,255),random.randint(0,255),random.randint(0,255)]})
+                else:
+                    self.normalize_area_pts.update({i:[[0,0],[1,0],[1,1],[0,1]]})
+                    self.area_name.update({i:"The defalt area"})
             else:
                 self.normalize_area_pts.update({i:[[0,0],[1,0],[1,1],[0,1]]})
                 self.area_name.update({i:"The defalt area"})
@@ -593,9 +608,20 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
             )
         return frame
 
-    def get_color(self, label,area_id):
+    def set_color(self,label:str,color:tuple):
+        """
+        set color :
+
+        sample of paremeter : 
+            label = "dog"
+            color = (0,0,255)
+        """
+        self.palette.update({label:color})
+        self.logger.info("Label: {} , change color to {}.".format(label,color))
+
+    def get_color(self, label):
        
-       return self.palette[area_id][label] 
+       return self.palette[label] 
    
     def collect_depand_info(self):
         for i in range(len(self.params['application']['areas'])): 
@@ -606,28 +632,28 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
             else:
                 self.depend_on.update({i:[]})    
 
-        temp_palette ={}
-        for area , value in self.depend_on.items():
-            temp_palette.update({area:{}})
-            if not self.depend_on.__contains__(area): 
-                temp_palette.update({area:self.palette})
-                continue
-            if self.depend_on[area]==[]:
-                temp_palette.update({area:self.palette})
-                continue
+        # temp_palette ={}
+        # for area , value in self.depend_on.items():
+        #     temp_palette.update({area:{}})
+        #     if not self.depend_on.__contains__(area): 
+        #         temp_palette.update({area:self.palette})
+        #         continue
+        #     if self.depend_on[area]==[]:
+        #         temp_palette.update({area:self.palette})
+        #         continue
                 
-            for id in range(len(value)):
-                if not (value[id] in self.model_label_list): continue
-                if not (self.params['application']['areas'][area].__contains__('palette')): 
-                    temp_palette[area].update({value[id]:self.palette[value[id]]})
-                    continue
-                if not (self.params['application']['areas'][area]['palette'].__contains__(value[id])): 
-                    temp_palette[area].update({value[id]:self.palette[value[id]]})
-                    continue  
-                # if self.palette.__contains__(value[id]):
-                temp_palette[area].update({value[id]:self.params['application']['areas'][area]['palette'][value[id]]})
+        #     for id in range(len(value)):
+        #         if not (value[id] in self.model_label_list): continue
+        #         if not (self.params['application']['areas'][area].__contains__('palette')): 
+        #             temp_palette[area].update({value[id]:self.palette[value[id]]})
+        #             continue
+        #         if not (self.params['application']['areas'][area]['palette'].__contains__(value[id])): 
+        #             temp_palette[area].update({value[id]:self.palette[value[id]]})
+        #             continue  
+        #         # if self.palette.__contains__(value[id]):
+        #         temp_palette[area].update({value[id]:self.params['application']['areas'][area]['palette'][value[id]]})
         
-        self.palette = temp_palette
+        # self.palette = temp_palette
 
     def init_logic_param(self):
         
@@ -886,7 +912,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
                 if self.app_thread.is_draw:
 
                     
-                    outer_clor = self.get_color(label,i)
+                    outer_clor = self.get_color(label)
                     font_color = (255,255,255)
                     self.draw_tag(self.app_thread.show_object_info, xmin, ymin, xmax, ymax,outer_clor ,font_color,frame)
                     
@@ -897,7 +923,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
                 
                     frame = self.custom_function(
                             frame = frame,
-                            color = self.get_color(label,i) ,
+                            color = self.get_color(label) ,
                             label = label,
                             score=score,
                             left_top = (xmin, ymin),
@@ -910,7 +936,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
                 if self.event_handler.__contains__(i)==False:
                     continue
                 
-                self.event_handler[i](frame,i,self.app_thread.total,self.app_thread.app_output)
+                self.event_handler[i](frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output)
                 # self.pool.apply_async(self.event_handler[i],(frame,ori_frame,i,self.app_thread.total,self.app_thread.app_output))
 
                 

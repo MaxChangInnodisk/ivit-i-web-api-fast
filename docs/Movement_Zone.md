@@ -22,7 +22,7 @@ And the description of application output is [here](#application-output).
 |events|dict|{ }|Conditions for a trigger event ·|
 |draw_result|bool|True|Display information of detection.|
 |draw_bbox|bool|True|Display boundingbox.|
-* Basic
+* Basic Sample
     ```json
         {
             "application": {
@@ -30,27 +30,6 @@ And the description of application output is [here](#application-output).
                     {
                         "name": "area",
                         "depend_on": [
-                            "car",
-                            "truck",
-                            "motocycle"
-                        ],
-                        "area_point": [
-                            [
-                                0.156,
-                                0.203
-                            ],
-                            [
-                                0.468,
-                                0.203
-                            ],
-                            [
-                                0.468,
-                                0.592
-                            ],
-                            [
-                                0.156,
-                                0.592
-                            ]
                         ],
                         "line_point": {
                             "line_1": [
@@ -87,35 +66,67 @@ And the description of application output is [here](#application-output).
         }
 
     ```
-* Traffic Flow
+* Advanced Sample (Traffic Flow)
 
    ```json
         {
             "application": {
+                "palette": {
+                            "car": [
+                                0,
+                                255,
+                                0
+                            ],
+                            "truck": [
+                                0,
+                                255,
+                                0
+                            ]
+                            },
                 "areas": [
                     {
                         "name": "area",
-                        "depend_on": [],
-                        "area_point": [],
+                        "depend_on": [
+                            "car",
+                            "truck"
+                        ],
+                        "area_point": [
+                            [
+                                0.156,
+                                0.203
+                            ],
+                            [
+                                0.468,
+                                0.203
+                            ],
+                            [
+                                0.468,
+                                0.592
+                            ],
+                            [
+                                0.156,
+                                0.592
+                            ]
+                        ],
                         "line_point": {
                             "line_1": [
                                 [
-                                    0.16666666666,
-                                    0.74074074074
+                                    0.14666666666,
+                                    0.45074074074
                                 ],
                                 [
-                                    0.57291666666,
-                                    0.62962962963
+                                    0.40291666666,
+                                    0.35962962963
                                 ]
                             ],
                             "line_2": [
                                 [
-                                    0.26041666666,
-                                    0.83333333333
+                                    0.14666666666,
+                                    0.55074074074
                                 ],
                                 [
-                                    0.72916666666,
-                                    0.62962962963
+                                    0.50291666666,
+                                    0.45962962963
                                 ]
                             ],
                         },
@@ -155,7 +166,7 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
 | Type | Description |
 | --- | --- |
-|object|Object's properties : xmin ,ymin ,xmax ,ymax ,score ,id ,label |
+|list|[ detection1 ,detection2 ,detection3 ,...]|
 * Example:
     ```bash
         detection        # (type object)                   
