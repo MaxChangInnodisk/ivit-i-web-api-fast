@@ -15,6 +15,7 @@ def init_ivit_env():
     sys.path.append(ws)
 
 def init_ivit_logger():
-    ivit_logger()
+    pass
+#     ivit_logger()
 
 
