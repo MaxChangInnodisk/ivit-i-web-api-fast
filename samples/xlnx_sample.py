@@ -75,12 +75,12 @@ def xlnx_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
                 {
                     "name": "default",
                     "depend_on":[],
-                    "palette": {
-                        "airplane": [255, 255, 255],
-                        "warpalne": [0, 0, 0],
-                    }
                 }
-            ]
+            ],
+            "palette": {
+                "airplane": [255, 255, 255],
+                "warpalne": [0, 0, 0],
+            }
         }
     }
     event_uid = None
