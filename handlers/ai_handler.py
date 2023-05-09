@@ -52,17 +52,41 @@ def hailo_init():
     pass
 
 # Xilinx
-def xlnx_init():
-    pass
+def xlnx_init(type:str, params:dict):
+    """ Initialize Xilinx """
+    if type == 'CLS':
+        from ivit_i.core.models import iClassification
+        model = iClassification(
+            model_path = params['model_path'],
+            label_path = params['label_path'],
+            # device = params['device'],
+            confidence_threshold = params['confidence_threshold'],
+            topk = params['topk'],
+        )
+    elif type == 'OBJ':
+        from ivit_i.core.models import iDetection
+        model = iDetection(
+            model_path = params["model_path"],
+            label_path = params["label_path"],
+            # device = params["device"],
+            # architecture_type = params["arch"],
+            anchors = params["anchors"],
+            confidence_threshold = params["confidence_threshold"]
+        )
+    else:
+        raise RuntimeError('Unexpect Type: {}'.format(type))
+    
+    return model
+
+
 
 def get_ivit_api(framework:Literal['openvino', 'nvidia', 'jetson', 'xilinx', 'hailo']):
     
     map = {
         "openvino": vino_init,
-        "nvidia": dgpu_init,
-        "jetson": jetson_init,
-        "xilinx": xlnx_init,
-        "hailo": hailo_init
+        "tensorrt": jetson_init,
+        "vitis-ai": xlnx_init,
+        "hailort": hailo_init
     }
 
     return map[framework]
