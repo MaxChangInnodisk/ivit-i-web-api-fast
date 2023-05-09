@@ -260,7 +260,7 @@ def update_ai_task(uid:str, data:dict=None):
     """ update AI Task via uid """
     
     RT_CONF[uid]['DATA'] = data
-    log.info('Update AI Task: {}'.format(uid))    
+    log.info('Update AI Task: {} With {}'.format(uid, data))    
     return 'Update success'
 
 
@@ -429,17 +429,16 @@ class InferenceLoop:
 
         try:
             # Area Event: Color, ... etc
-            areas = getattr(RT_CONF[self.uid]['DATA'], 'area', None)
-            if areas:
-                for area in areas:
-                    palette = area.get('palette')
-                    if palette:
-                        for key, val in palette.items():
-                            self.app.palette[key] = val
-                            try:
-                                self.app.params['application']['areas'][0]['palette'][key]=val
-                            except: pass
-        
+            palette = getattr(RT_CONF[self.uid]['DATA'], 'palette', None)
+            if palette:
+                for key, val in palette.items():
+                    self.app.palette[key] = val
+                    try:
+                        self.app.set_color(key,val)
+                        log.warning('Update Color Successed ( {} -> {} )'.format(key, val))
+                    except: 
+                        log.warning('Update Color Failed')
+
         except Exception as e:
             log.error('Setting Area Failed')
             log.exception(e)
