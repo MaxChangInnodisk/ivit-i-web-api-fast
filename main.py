@@ -17,6 +17,7 @@ The iVIT-I Service Entry
 
 # Basic
 import logging as log
+import json
 
 # About FastAPI
 import uvicorn
@@ -32,6 +33,7 @@ from .handlers import (
     app_handler, 
     db_handler
 )
+from .handlers.mesg_handler import ws_msg
 
 # About ICAP
 import paho
@@ -39,13 +41,16 @@ import paho
 # Routers
 from .routers import routers
 
+
 # Start up
 app = FastAPI( root_path = SERV_CONF['ROOT'] )
+
 
 # Resigter Router
 API_VERSION = '/v1'
 for router in routers:
     app.include_router( router, prefix=API_VERSION )
+
 
 # Middleware
 app.add_middleware(
@@ -64,6 +69,7 @@ async def print_finish(request, call_next):
     icap_handler.send_basic_attr()
     return response
 
+
 @app.on_event("startup")
 def startup_event():
 
@@ -72,60 +78,106 @@ def startup_event():
     icap_handler.init_icap()        # iCAP
     db_handler.reset_db()
     
+
 @app.on_event("shutdown")
 def shutdown_event():
     log.warning('Stop service ...')
 
 
 @app.websocket(f"{API_VERSION}/ws")
-async def websocket_endpoint_task(websocket: WebSocket):
+async def websocket_endpoint_task(ws: WebSocket):
     """
     WebSocket Router
 
-    1. <UID>    : Result of Inference
-    2. ERROR    : Runtime ErrorFormat
-        a. format
-            `{
-            "uid": <uid>,
-            "data": {}
-            "message": "",
-            "type": RuntimeError }
-            `
-    3. TEMP     : Temparature
+    Support:
+        1. Device Temparature
+        2. Task Inference Result
+
+    Request:
+        {
+            "type": < UID | TEMP | ERR >,
+            "data": < task_uid | target_device_name: Uinon[] >
+        }
+
+    Response:
+        {
+            "type": < UID | TEMP | ERR >,
+            "message": < error_message >,
+            "data": < infer_result |  device_info >
+        }
+
     """
+
+    # Key
     UID = "UID"
     ERR = "ERROR"
     TEM = "TEMP"
+
+    # Data Key
+    K_DATA = "data"
+    K_TYPE = "type"
+
+    # Other Key
+    IDEV = "IDEV"
+
+    SUP_KEYS = [ K_DATA, K_TYPE ]
+
     def init_uid(key:str, val=None):
         WS_CONF.update({ key: val})
 
-    init_uid('WS', websocket)
+    init_uid("WS", ws)
             
-    await websocket.accept()
-    while True:
-        # Receive Command
-        key = await websocket.receive_text()
-        
-        # Get Return Data
-        data = None
-        if key == TEM:
-            data = SERV_CONF['IDEV'].get_all_device()
-        else:
-            data = WS_CONF.get(key.upper())
-            
-        # Send Data
-        if not data:
-            await websocket.send_text("Got Unexpected key ({}) in WebSocket, Support is {}".format(key, ', '.join(WS_CONF.keys())))
-            continue
-        
-        if isinstance(data, str):
-            await websocket.send_text(data)
-        else:
-            log.debug('Send Data: {}'.format(data))
-            await websocket.send_json(get_pure_jsonify(data))
+    await ws.accept()
 
-        # Clear Data
-        init_uid(key)
+    while True:
+
+        try:
+            
+            req = await ws.receive_json()
+
+            # Check keys
+            if sum([ 1 for sup in SUP_KEYS if sup in req.keys() ]) < 2:
+                raise KeyError('Unexpect request key, support key is {}'.format(
+                    ', '.join(SUP_KEYS)))
+
+            # Parse keys
+            req_data = req[K_DATA]
+            req_type = req[K_TYPE]
+
+            # Get Data
+            data = None
+            if req_type == TEM:
+                data = SERV_CONF[IDEV].get_device_info(req_data) \
+                    if req_data != "" else \
+                        SERV_CONF[IDEV].get_all_device()
+                    
+            elif req_type == UID:
+                data = WS_CONF.get(req_data.upper())
+
+            # Invalid Key
+            if not data:
+                if req_type == UID:
+                    sup_keys = list(WS_CONF.keys())
+                    sup_keys.remove('WS')
+                    raise KeyError("Got Invalid AI Task UID, Support is [ {} ]".format(
+                        ', '.join( sup_keys ) ) )
+                else:
+                    raise KeyError("Got Unexpect Error")
+            
+            # Send JSON Data
+            await ws.send_json({
+                K_TYPE: req_type,
+                K_DATA: get_pure_jsonify(data) 
+            })
+
+            # Clear Data
+            if req_type == UID:
+                init_uid(req_data)
+
+        # Capture Error ( Exception )
+        except Exception as e:
+            await ws.send_json(
+                ws_msg( type=ERR, content=e ))
 
 
 if __name__ == "__main__":
