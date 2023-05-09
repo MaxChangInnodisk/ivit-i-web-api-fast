@@ -25,5 +25,6 @@ from ivit_i.core.models import (
 from ivit_i.utils import (
     iDevice,
     simple_exception, 
-    handle_exception
+    handle_exception,
+    Metric
 )
