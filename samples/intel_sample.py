@@ -6,6 +6,9 @@
 import gdown, sqlite3, os, sys, time, json
 import logging as log
 
+from .imagenet import IMAGE_NET_LABEL
+from .coco import COCO_LABEL
+
 from ..common import SERV_CONF
 from ..utils import gen_uid, json_to_str
 from ..handlers import db_handler
@@ -73,7 +76,34 @@ def intel_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
             "areas":[
                 {
                     "name": "default",
-                    "depend_on":[],
+                    "depend_on": [
+                        "Mexican hairless dog",
+                        "grey wolf",
+                        "Alaskan tundra wolf",
+                        "red wolf",
+                        "coyote",
+                        "dingo",
+                        "dhole",
+                        "African wild dog",
+                        "hyena",
+                        "red fox",
+                        "kit fox",
+                        "Arctic fox",
+                        "grey fox",
+                        "tabby cat",
+                        "tiger cat",
+                        "Persian cat",
+                        "Siamese cat",
+                        "Egyptian Mau",
+                        "cougar",
+                        "lynx",
+                        "leopard",
+                        "snow leopard",
+                        "jaguar",
+                        "lion",
+                        "tiger",
+                        "cheetah"
+                    ],
                     "palette": {
                         "airplane": [255, 255, 255],
                         "warpalne": [0, 0, 0],
@@ -170,7 +200,7 @@ def intel_sample_obj( db_path:str=SERV_CONF["DB_PATH"] ):
             "areas": [
                         {
                     "name": "default",
-                    "depend_on": [],
+                    "depend_on": COCO_LABEL,
                 }
             ]
         }
