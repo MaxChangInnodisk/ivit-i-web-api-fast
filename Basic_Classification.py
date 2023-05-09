@@ -94,4 +94,4 @@ class Basic_Classification(iAPP_CLS):
                 self.FONT_SCALE, cur_color, self.FONT_THICKNESS, self.FONT_THICK
             )      
 
-        return frame, app_output
+        return ( frame, app_output, {} )

@@ -173,5 +173,5 @@ class Basic_Object_Detection(iAPP_OBJ):
                             right_down = (xmax, ymax)
                         ) 
                                         
-        return ( frame, app_output)
+        return ( frame, app_output, {})
 
