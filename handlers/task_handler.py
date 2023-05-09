@@ -485,7 +485,10 @@ class InferenceLoop:
                 log.debug(cur_data)
 
                 # Send Data
-                self.results.update({"fps": self.metric.get_fps()})
+                self.results.update({
+                    "fps": self.metric.get_fps(),
+                    "live_time": self.metric.get_exec_time()
+                })
                 WS_CONF.update({ self.uid: self.results })
 
                 # Calculate FPS and Update spped_limitor
