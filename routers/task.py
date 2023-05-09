@@ -35,6 +35,7 @@ ACTION = {
 class TaskActionData(BaseModel):
     cv_display: Optional[bool]
     area: Optional[list]
+    palette: Optional[dict]
 
 
 class TaskAction(BaseModel):
