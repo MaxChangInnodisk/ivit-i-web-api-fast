@@ -295,7 +295,8 @@ def add_ai_task(add_data):
     )
     
     # Add App Information into Database
-    app_type = select_data(table='app', data=['type'], condition=f"WHERE name='{add_data.app_name}'")[0][0]
+    # app_type = select_data(table='app', data=['type'], condition=f"WHERE name='{add_data.app_name}'")[0][0]
+    app_type = RT_CONF["IAPP"].get_app(add_data.app_name).get_type()
     insert_data(
         table="app",
         data={
@@ -403,6 +404,8 @@ class InferenceLoop:
         
         self.draw = None
         self.results = None
+        self.event = None
+
         self.metric = Metric()
         self.latency_limitor = Metric()
 
@@ -476,7 +479,7 @@ class InferenceLoop:
                 cur_data = self.model.inference(frame)
 
                 # Run Application
-                self.draw, self.results = self.app(frame, cur_data, draw=True)
+                self.draw, self.results, self.event = self.app(frame, cur_data, draw=True)
             
                 # Display
                 self.dpr.show(self.draw)
