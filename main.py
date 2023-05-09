@@ -192,6 +192,7 @@ if __name__ == "__main__":
         init_samples(framework=framework)
 
     # Fast API
+
     # uvicorn.run(
     #     "service.main:app", 
     #     host = SERV_CONF["HOST"], 
