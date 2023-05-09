@@ -277,7 +277,7 @@ def get_model_tag_from_arch(arch):
     if "yolo" in arch:
         return MODEL_CONF["OBJ"]
 
-    elif "resnet" in arch or "vgg" in arch:
+    elif "resnet" in arch or "vgg" in arch or "mobile" in arch:
         return MODEL_CONF["CLS"]
          
 
