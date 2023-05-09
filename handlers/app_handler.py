@@ -34,7 +34,6 @@ def create_app(app_uid:str, label_path:str):
         params = app_info['app_setting'], 
         label = label_path
     )
-    log.info(app)
     
     log.info('Initialized application: {}'.format(app_uid))
     return app
