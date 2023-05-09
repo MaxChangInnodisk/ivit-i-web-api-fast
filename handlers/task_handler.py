@@ -24,6 +24,7 @@ from .db_handler import (
     parse_task_data,
     parse_model_data
 )
+from .ivit_handler import Metric
 
 
 def get_task_info(uid:str=None):
@@ -202,11 +203,12 @@ def run_ai_task(uid:str, data:dict=None):
 
     RT_CONF[uid].update({ 
         'EXEC': InferenceLoop(
-        uid=uid,
-        src=src,
-        model=model,
-        app=app,
-        dpr=dpr ),
+            uid=uid,
+            src=src,
+            model=model,
+            app=app,
+            dpr=dpr 
+        ),
         'DATA': {} 
     })
 
@@ -380,6 +382,12 @@ def del_ai_task(uid:str):
         condition=f"WHERE uid='{uid}'")
 
 
+class FakeDisplayer:
+    log.warning('Initialize Fake Displayer')
+    show = lambda frame: frame
+    release = lambda: log.warning('Release Fake Displayer')
+
+
 class InferenceLoop:
     """ Inference Thread Helper """
 
@@ -388,13 +396,17 @@ class InferenceLoop:
         self.src = src
         self.model = model
         self.app = app
-        self.dpr = dpr        
+        self.dpr = dpr if dpr else FakeDisplayer()
 
-        self.stop_thread = False
+        self.is_ready = True
         self.thread_object = None
         
         self.draw = None
         self.results = None
+        self.metric = Metric()
+        self.latency_limitor = Metric()
+
+        self.minimum_latency = 1/self.src.get_fps()
 
         self.icap_alive = 'ICAP' in SERV_CONF and not (SERV_CONF['ICAP'] is None)
         
@@ -403,74 +415,100 @@ class InferenceLoop:
     def create_thread(self) -> threading.Thread:
         return threading.Thread(target=self._inference_thread, daemon=True)
 
+
+    def _dynamic_change_app(self):
+        """ Dynamic Modify Varaible of the Application """
+
+        # Return: No dynamic variable setting
+        if getattr(RT_CONF[self.uid], 'DATA', {}):
+            return
+        
+        # Debug: with raise key
+        if getattr(RT_CONF[self.uid]['DATA'], 'raise', False):
+            raise RuntimeError('Raise Testing when AI Task Running')
+
+        try:
+            # Area Event: Color, ... etc
+            areas = getattr(RT_CONF[self.uid]['DATA'], 'area', None)
+            if areas:
+                for area in areas:
+                    palette = area.get('palette')
+                    if palette:
+                        for key, val in palette.items():
+                            self.app.palette[key] = val
+                            try:
+                                self.app.params['application']['areas'][0]['palette'][key]=val
+                            except: pass
+        
+        except Exception as e:
+            log.error('Setting Area Failed')
+            log.exception(e)
+        
+        finally:
+            # Clear DATA
+            RT_CONF[self.uid]['DATA'] = {}
+
+
     def _inference_thread(self):
         
         prev_data, cur_data = None, None
 
         try:
             log.warning('Start AI Task Inference Stream')
-            frame_idx = 0
-            t_wait_fps = time.time()
-            while(not self.stop_thread):
+            self.prev_time = time.time()
+
+            # Make sure source is ready
+            while( self.is_ready and self.src.is_ready):
                 
                 # Limit Speed to fit FPS
-                if not self.src.is_ready:
-                    raise self.src.errors[-1] \
-                        if len(self.src.errors) > 0 \
-                            else RuntimeError('Unexpected Source Error ...')
-                        
+                if self.minimum_latency < self.latency_limitor.update():
+                    time.sleep(1e-3); continue
+                
+                # Ready to calculate performance
+                self.metric.update()
 
-                if 1/(time.time()-t_wait_fps) > self.src.get_fps():
-                    time.sleep(0.033); continue
-
-                # Dynamic Modify Varaible
-                if getattr(RT_CONF[self.uid]['DATA'], 'raise', False):
-                    raise RuntimeError('Raise Testing when AI Task Running')
-                areas = getattr(RT_CONF[self.uid]['DATA'], 'area', None)
-                if areas:
-                    for area in areas:
-                        palette = area.get('palette')
-                        log.info(palette)
-                        if palette:
-                            for key, val in palette.items():
-                                self.app.palette[key] = val
-                                try:
-                                    self.app.params['application']['areas'][0]['palette'][key]=val
-                                except: pass
-                RT_CONF[self.uid]['DATA'] = {}
-
+                # Setting Dynamic Variable
+                self._dynamic_change_app()
+ 
                 # Get data        
                 ret, frame = self.src.read()
-                frame_idx += 1
 
-                # Do Async Inference
+                # Do Sync Inference
                 cur_data = self.model.inference(frame)
-                
-                # Update Inference Data if need
-                prev_data = cur_data if cur_data else prev_data
-
-                # Check Previous Data    
-                print('get data:', cur_data)
-
-                if not prev_data: continue
 
                 # Run Application
-                self.draw, self.results = self.app(frame, prev_data, draw=True)
+                self.draw, self.results = self.app(frame, cur_data, draw=True)
             
                 # Display
-                if self.dpr: 
-                    self.dpr.show(self.draw)
+                self.dpr.show(self.draw)
+
+                # Log
+                log.debug(cur_data)
 
                 # Send Data
+                self.results.update({"fps": self.metric.get_fps()})
                 WS_CONF.update({ self.uid: self.results })
 
-            update_task_status(self.uid, 'stop')
+                # Calculate FPS and Update spped_limitor
+                self.metric.update()
+                self.latency_limitor.update()
 
+            # Check is error from source or not
+            if (not self.src.is_ready) and len(self.src.errors) > 0:
+                raise self.src.errors[-1]
+
+            # Update Task Status to Stop
+            update_task_status(self.uid, 'stop')
             log.warning('Stop InferenceLoop')
 
+        # If Get Exception
         except Exception as e:
+            
+            # Write Log
             log.error('InferenceLoop Error!!!')
             log.exception(e)
+
+            # Send and Store Error Message with Json Format
             json_exp = json_exception(e)
             if "WS" in WS_CONF:
                 asyncio.run( WS_CONF["WS"].send_json({"ERROR": json_exp}) )
@@ -480,13 +518,9 @@ class InferenceLoop:
         finally:
 
             self.model.release()
-            
-            if self.dpr:
-                self.dpr.release()
-            
+            self.dpr.release()
             if self.icap_alive:
                 SERV_CONF['ICAP'].send_attr(data=task_handler.get_task_info())
-            print('finish')
 
         log.warning('InferenceLoop ({}) is Stop'.format(self.uid))
 
@@ -494,7 +528,7 @@ class InferenceLoop:
         return self.results
 
     def stop(self):
-        self.stop_thread = True
+        self.is_ready = False
         self.thread_object.join()
         self.create_thread()
 
