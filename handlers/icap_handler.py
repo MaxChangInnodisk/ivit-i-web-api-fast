@@ -386,7 +386,7 @@ def init_icap():
         SERV_CONF.update({"ICAP":icap_handler})
         logging.info("Update ICAP Object into {}".format(SERV_CONF.get_name))
     else:
-        raise RuntimeError('Register iCAP Failed')
+        log.error('Register iCAP Failed')
 
 def send_basic_attr():
     if ('ICAP' in SERV_CONF) and not (SERV_CONF['ICAP'] is None):
