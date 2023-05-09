@@ -51,7 +51,7 @@ def xlnx_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
     task_status = 'stop'
     task_uid = gen_uid()
 
-    device = 'CPU'
+    device = 'DPU'
 
     source_status = 'stop'
     source_name = data_name
@@ -149,7 +149,7 @@ def xlnx_sample_obj( db_path:str=SERV_CONF["DB_PATH"] ):
     task_status = 'stop'
     task_uid = gen_uid()
 
-    device = 'CPU'
+    device = 'DPU'
 
     source_status = 'stop'
     source_name = data_name
