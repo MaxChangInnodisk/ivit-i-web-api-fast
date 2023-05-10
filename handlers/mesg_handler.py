@@ -34,7 +34,7 @@ def json_exception(content) -> dict:
     }
 
 
-def ws_msg(content:Union[str, dict], type:Literal["UID","ERROR","TEMP"]) -> dict:
+def ws_msg(content:Union[str, dict], type:Literal["UID","ERROR","TEMP", "PROC"]) -> dict:
     """ Web Socket response handler """
 
     # Define Basic Format

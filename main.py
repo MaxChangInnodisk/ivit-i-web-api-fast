@@ -95,13 +95,13 @@ async def websocket_endpoint_task(ws: WebSocket):
 
     Request:
         {
-            "type": < UID | TEMP | ERR >,
+            "type": < UID | TEMP | ERR | PROC >,
             "data": < task_uid | target_device_name: Uinon[] >
         }
 
     Response:
         {
-            "type": < UID | TEMP | ERR >,
+            "type": < UID | TEMP | ERR | PROC >,
             "message": < error_message >,
             "data": < infer_result |  device_info >
         }
@@ -112,6 +112,7 @@ async def websocket_endpoint_task(ws: WebSocket):
     UID = "UID"
     ERR = "ERROR"
     TEM = "TEMP"
+    PRO = "PROC"
 
     # Data Key
     K_DATA = "data"
