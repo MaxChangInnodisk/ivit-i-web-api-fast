@@ -18,7 +18,7 @@ from ..common import SERV_CONF, MODEL_CONF, WS_CONF
 from ..utils import gen_uid, load_db_json
 
 from .db_handler import select_data, insert_data, update_data, delete_data
-from .mesg_handler import handle_exception, simple_exception
+from .mesg_handler import handle_exception, simple_exception, ws_msg
 
 # Model Deployer
 
@@ -96,7 +96,7 @@ class ModelDeployerWrapper(abc.ABC):
             print(SERV_CONF["PROC"])
             return
         
-        asyncio.run( WS_CONF["WS"].send_json({"PROC": SERV_CONF["PROC"]}) )
+        asyncio.run( WS_CONF["WS"].send_json( ws_msg(type="PROC", content=SERV_CONF["PROC"])) )
 
     def update_status(self, status:str, message: str="", push_mesg:bool=True):
         """ Update Status and push message to front end """
@@ -253,7 +253,7 @@ def parse_model_data(data: dict):
         "classes": data[6],
         "input_size": data[7],
         "preprocess": data[8],
-        "meta_data": load_db_json(data[9]),
+        "meta_data": json.loads(data[9]),
         "annotation": data[10]
     }
 
@@ -434,9 +434,9 @@ def add_model_into_db(models_information:dict, db_path:str=SERV_CONF["DB_PATH"])
                 "label_path": model_info['label_path'],
                 "json_path": model_info['json_path'],
                 "classes": classes,
-                "input_size": json.dumps(model_info['input_size']),
+                "input_size": model_info['input_size'],
                 "preprocess": model_info['preprocess'],
-                "meta_data": re.sub('["]', '\'', json.dumps(model_info)),
+                "meta_data": model_info,
         }
 
         insert_data(
