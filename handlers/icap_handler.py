@@ -86,15 +86,15 @@ class ICAP_HANDLER():
                 client.subscribe(_topic)
                 logging.info('  - Subcribe: {}'.format(_topic))
 
+            # Send Shared Attribute to iCAP
+            self.send_attr(data = {
+                    "ivitUrl": get_address(),
+                    "ivitTask": task_handler.get_task_info()
+            })
+
         # Connect Failed
         else: logging.error('MQTT Got Bad connection. Code:', rc)
         
-        # Send Shared Attribute to iCAP
-        self.send_attr(data = {
-                "ivitUrl": get_address(),
-                "ivitTask": task_handler.get_task_info()
-        })
-
     def __attr_deploy_event(self, data):
         deploy_event = ICAP_DEPLOYER( data = data)
         deploy_event.start_deploy()
@@ -389,8 +389,11 @@ def init_icap():
         log.error('Register iCAP Failed')
 
 def send_basic_attr():
-    if ('ICAP' in SERV_CONF) and not (SERV_CONF['ICAP'] is None):
-        SERV_CONF['ICAP'].send_attr(data=task_handler.get_task_info())
+    try:
+        if ('ICAP' in SERV_CONF) and not (SERV_CONF['ICAP'] is None):
+            SERV_CONF['ICAP'].send_attr(data=task_handler.get_task_info())
+    except Exception as e:
+        log.warning(handle_exception(e))
 
 if __name__ == "__main__":
 
