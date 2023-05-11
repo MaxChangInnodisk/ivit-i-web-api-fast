@@ -61,7 +61,7 @@ def xlnx_init(type:str, params:dict):
             label_path = params['label_path'],
             # device = params['device'],
             confidence_threshold = params['confidence_threshold'],
-            topk = params['topk'],
+            topk = params.get('topk', 1),
         )
     elif type == 'OBJ':
         from ivit_i.core.models import iDetection
