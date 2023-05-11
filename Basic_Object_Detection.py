@@ -82,7 +82,7 @@ class Basic_Object_Detection(iAPP_OBJ):
     def custom_function(self, frame, color:tuple, label,score, left_top:tuple, right_down:tuple,draw_bbox=True,draw_result=True):
         """ The draw method customize by user 
         """
-        (xmin, ymin), (xmax, ymax) = left_top, right_down
+        (xmin, ymin), (xmax, ymax) = map(int, left_top), map(int, right_down)
         info = '{} {:.1%}'.format(label, score)
         # Draw bounding box
         draw_bbox = self.draw_bbox if self.draw_bbox is not None else draw_bbox
