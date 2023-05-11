@@ -5,11 +5,19 @@
 
 import sys, time, json, re, traceback, sqlite3
 import logging as log
-from typing import Union
+from typing import Union, Tuple
 
 from ..utils import load_db_json
 from ..common import SERV_CONF
 
+# --------------------------------------------------------
+# Sqlite3 Helper
+
+def db_to_list(cursor:sqlite3.Cursor) -> list:
+    return [ row for row in cursor.fetchall() ]
+
+def is_list_empty(data:list) -> bool:
+    return len(data)==0
 
 def check_db_is_empty(dp_path:str):
     """ Check Database is empty """
@@ -27,6 +35,34 @@ def check_db_is_empty(dp_path:str):
     conn.close()
     return is_empty
 
+def connect_db(dp_path:str=SERV_CONF["DB_PATH"])-> Tuple[sqlite3.Connection, sqlite3.Cursor]:
+    con = sqlite3.connect(dp_path)
+    cur = con.cursor()
+    return ( con, cur )
+
+def close_db(con:sqlite3.Connection, cur:sqlite3.Cursor) -> None:
+    cur.close()
+    con.close()
+ 
+def select_column_by_uid(cursor:sqlite3.Cursor, table:str, uid:str, cols:Union[str, list]) -> list:
+    return db_to_list( cursor.execute(
+        """SELECT {} FROM {} WHERE uid=\"{}\"""".format(
+            ', '.join(cols) if isinstance(cols, list) else cols, 
+            table, 
+            uid
+    )))
+
+def update_column_by_uid(cursor:sqlite3.Cursor, table:str, uid:str, data:dict):
+    set_list =[ f'{key} = "{val}"' for key, val in data.items() ]
+    set_string = ', '.join(set_list)
+    return db_to_list( cursor.execute(
+        """UPDATE {} SET {} WHERE uid=\"{}\"""".format(
+            table,
+            set_string,
+            uid
+    )))
+
+# --------------------------------------------------------
 
 def insert_data(table:str, data:dict, db_path:str=SERV_CONF["DB_PATH"], replace:bool=False) -> None:
     """ Insert data into `ivit_i.sqlite`
@@ -41,33 +77,30 @@ def insert_data(table:str, data:dict, db_path:str=SERV_CONF["DB_PATH"], replace:
         - sqlite insert sample
             - ```INSERT OR REPLACE INTO table_name (column1, column2, column3, ...)
             VALUES (value1, value2, value3, ...);```
+    
+    - workflow
+        1. 將主要的語法組合好，包含 Table
+        2. 將所有的 Key 給裝入 () 當中
+        3. VALUES 的部份則根據有幾個 Key 就給幾個 ?
+        4. 同時組裝參數 (<value_1>, <value_2>, <value_3> ... , )
     """
 
     head = f"INSERT {'OR REPLACE' if replace else ''} INTO {table}"
-    col, val = [], []
+    cols, vals = list(data.keys()), []
     
-    for db_key, db_val in data.items():
-        # Append Key
-        col.append(f"\"{db_key}\"")
-        
-        # Process Value
-        if isinstance(db_val, str) or db_val is None:
-            db_val = f'"{db_val}\"'
-        val.append(db_val)
-
-    col_string = "({})".format( ', '.join(col) )
-    val_string = "({})".format( ', '.join(val) )
+    col_string = "({})".format( ", ".join(cols) )
+    val_string = "({})".format( ", ".join(["?" for _ in range(len(cols))]) )
     
-    commond = "{} {} VALUES {}".format(
+    command = "{} {} VALUES {}".format(
         head, col_string, val_string )
 
-    # log.debug(commond)
+    for val in data.values():
+        vals.append( val if isinstance(val, str) \
+            else json.dumps(val) )
 
     conn = sqlite3.connect( db_path, check_same_thread=False )
-    ivit_db = conn.cursor()
-    
-    ivit_db.execute(commond)
-
+    cursor = conn.cursor()
+    cursor.execute(command, tuple(vals))
     conn.commit()
     conn.close()
 
@@ -87,7 +120,7 @@ def update_data(table:str, data:dict, condition:Union[str, None]=None, db_path:s
     """
     head = f"UPDATE {table} SET "
     
-    set_list =[ f"{key} = '{val}'" for key, val in data.items() ]
+    set_list =[ f'{key} = "{val}"' for key, val in data.items() ]
     set_string = ', '.join(set_list)
 
     # Concatenate
@@ -95,12 +128,12 @@ def update_data(table:str, data:dict, condition:Union[str, None]=None, db_path:s
 
     # If got the condition
     if condition:
-        command = f"{command} {condition}"
-    
+        command = command + " " + condition
+        
     # Write into database
     conn = sqlite3.connect(db_path)
-    ivit_db = conn.cursor()
-    ivit_db.execute(command)    
+    cursor = conn.cursor()
+    cursor.execute(command)    
     conn.commit()
     conn.close()
 
@@ -124,15 +157,14 @@ def select_data(table:str, data:Union[str,list], condition:Union[str, None]=None
 
     # If got the condition
     if condition:
-        command = f"{command} {condition}"
-
+        command = command + " " + condition
+    
     conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    cursor = c.execute(command)     
-    ret_data = [ row for row in cursor ]    
+    cursor = conn.cursor()
+    data = db_to_list( cursor.execute(command) )
     conn.close()
 
-    return ret_data
+    return data
 
 
 def delete_data(table:str, condition:Union[str, None]=None, db_path:str=SERV_CONF["DB_PATH"]) -> list:
@@ -151,8 +183,8 @@ def delete_data(table:str, condition:Union[str, None]=None, db_path:str=SERV_CON
         command = f"{command} {condition}"
 
     conn = sqlite3.connect(db_path)
-    c = conn.cursor()
-    cursor = c.execute(command)     
+    cursor = conn.cursor()
+    cursor.execute(command)     
     conn.commit()
     conn.close()
 
@@ -248,20 +280,28 @@ def reset_db(db_path=SERV_CONF["DB_PATH"]):
 
 
 
-def parse_task_data(data: dict):
+def parse_task_data(data: Union[dict, sqlite3.Cursor]) -> dict:
+    """Parse all task data
+
+    Args:
+        data (Union[dict, sqlite3.Cursor]): _description_
+
+    Returns:
+        dict: Support key is: uid, name, source_uid, model_uid, model_setting, status, device, error
+    """
     return {
         "uid": data[0],
         "name": data[1],
         "source_uid": data[2],
         "model_uid": data[3],
-        "model_setting": load_db_json(data[4]),
+        "model_setting": json.loads(data[4]),
         "status": data[5],
         "device": data[6],
         "error": data[7]
     }
 
 
-def parse_model_data(data: dict):
+def parse_model_data(data: Union[dict, sqlite3.Cursor]):
     return {
         "uid": data[0],
         "name": data[1],
@@ -272,7 +312,7 @@ def parse_model_data(data: dict):
         "classes": data[6],
         "input_size": data[7],
         "preprocess": data[8],
-        "meta_data": load_db_json(data[9]),
+        "meta_data": json.loads(data[9]),
         "annotation": data[10]
     }
 
@@ -295,7 +335,7 @@ def parse_app_data(data: dict):
         "uid": data[0],
         "name": data[1],
         "type": data[2],
-        "app_setting": load_db_json(data[3]),
+        "app_setting": json.loads(data[3]),
         "event_uid": data[4],
         "annotation": data[5]
     }
