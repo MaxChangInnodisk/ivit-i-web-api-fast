@@ -6,11 +6,12 @@
 # Basic
 import json, os, shutil, copy, cv2
 import logging as log
+import numpy as np
 from fastapi import APIRouter, File, Form, UploadFile
 from fastapi.responses import Response
 # from typing_extensions import Annotated
 
-from typing import List, Optional
+from typing import List, Optional, Literal
 from pydantic import BaseModel
 
 from ..handlers.mesg_handler import http_msg
@@ -29,6 +30,11 @@ class DelSourceFormat(BaseModel):
 class FrameFormat(BaseModel):
     height: int
     width: int
+
+# Helper
+
+def frame2buf(frame:np.ndarray, format:Literal['.jpeg', '.png']='.jpeg')-> bytes:
+    return cv2.imencode(format, frame)[1].tobytes()
 
 # API
 @source_router.get("/sources")
@@ -102,13 +108,9 @@ def del_source(src_data: DelSourceFormat):
 @source_router.get("/sources/{uid}/frame")
 def get_frame_from_source(uid:str):
     try:
-        src = create_source(source_uid=uid)
-        frame = copy.deepcopy(src.frame) 
-        ret, image = cv2.imencode(".jpeg", frame)
-        buf = image.tobytes()
-        src.release()
+        frame = get_source_frame(source_uid=uid)
         return Response(    
-            content = buf, 
+            content = frame2buf(frame=frame), 
             status_code = 200, media_type="image/jpeg" )
     except Exception as e:
         update_data(table='source', data={'status': 'error'}, condition=f"WHERE uid='{uid}'")
@@ -117,16 +119,9 @@ def get_frame_from_source(uid:str):
 @source_router.post("/sources/{uid}/frame")
 def get_frame_from_source_with_resolution(uid:str, data: Optional[FrameFormat]=None):
     try:
-        
-        src = create_source(source_uid=uid)
-        frame = copy.deepcopy(src.frame) 
-        if data and data.width and data.height:
-            frame = cv2.resize( frame, (data.width, data.height))
-        ret, image = cv2.imencode(".jpeg", frame)
-        buffer = image.tobytes()
-        src.release()
+        frame = get_source_frame(source_uid=uid, resolution=[ data.height, data.width])
         return Response(    
-            content = buffer, 
+            content = frame2buf(frame=frame), 
             status_code = 200, media_type="image/jpeg" )
     except Exception as e:
         update_data(table='source', data={'status': 'error'}, condition=f"WHERE uid='{uid}'")
