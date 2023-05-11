@@ -76,34 +76,7 @@ def intel_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
             "areas":[
                 {
                     "name": "default",
-                    "depend_on": [
-                        "Mexican hairless dog",
-                        "grey wolf",
-                        "Alaskan tundra wolf",
-                        "red wolf",
-                        "coyote",
-                        "dingo",
-                        "dhole",
-                        "African wild dog",
-                        "hyena",
-                        "red fox",
-                        "kit fox",
-                        "Arctic fox",
-                        "grey fox",
-                        "tabby cat",
-                        "tiger cat",
-                        "Persian cat",
-                        "Siamese cat",
-                        "Egyptian Mau",
-                        "cougar",
-                        "lynx",
-                        "leopard",
-                        "snow leopard",
-                        "jaguar",
-                        "lion",
-                        "tiger",
-                        "cheetah"
-                    ],
+                    "depend_on": IMAGE_NET_LABEL,
                     "palette": {
                         "airplane": [255, 255, 255],
                         "warpalne": [0, 0, 0],
@@ -137,7 +110,7 @@ def intel_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
                 "uid": app_uid,
                 "name": app_name,
                 "type": app_type,
-                "app_setting": json_to_str(app_setting)
+                "app_setting": app_setting
             },
             replace = True
         )
@@ -149,7 +122,7 @@ def intel_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
             "name": task_name,
             "source_uid": source_uid,
             "model_uid": model_uid,
-            "model_setting": json_to_str(model_setting),
+            "model_setting": model_setting,
             "status": task_status,
             "device": device
         },
@@ -230,7 +203,7 @@ def intel_sample_obj( db_path:str=SERV_CONF["DB_PATH"] ):
                 "uid": app_uid,
                 "name": app_name,
                 "type": app_type,
-                "app_setting": json_to_str(app_setting)
+                "app_setting": app_setting
             },
             replace = True
         )
@@ -242,7 +215,7 @@ def intel_sample_obj( db_path:str=SERV_CONF["DB_PATH"] ):
             "name": task_name,
             "source_uid": source_uid,
             "model_uid": model_uid,
-            "model_setting": json_to_str(model_setting),
+            "model_setting": model_setting,
             "status": task_status,
             "device": device
         },
