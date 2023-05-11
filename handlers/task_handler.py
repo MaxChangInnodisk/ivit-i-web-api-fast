@@ -3,10 +3,10 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-import threading, time
+import threading, time, sqlite3
 import logging as log
 import asyncio
-
+from typing import Union
 # Custom
 from ..common import SERV_CONF, RT_CONF, WS_CONF
 from ..utils import gen_uid, json_to_str
@@ -16,54 +16,90 @@ from .io_handler import create_displayer, create_source, update_src_status
 from . import task_handler
 from .app_handler import create_app
 from .mesg_handler import json_exception
+from .err_handler import InvalidError, InvalidUidError
 from .db_handler import (
     select_data,
     update_data,
     delete_data,
     insert_data,
     parse_task_data,
-    parse_model_data
+    parse_model_data,
+    db_to_list,
+    is_list_empty,
+    connect_db,
+    close_db
 )
 from .ivit_handler import Metric
 
+# --------------------------------------------------------
 
 def get_task_info(uid:str=None):
-    """ Get AI Task Information from Database  """
+    """ Get AI Task Information from Database
+    1. Get All AI Task Information
+    2. Parse Each AI Task Information
+    """
+
+    print('GET Task Information: {}'.format(uid))
+
+    # DB Helper    
+    def select_column_by_uid(cursor:sqlite3.Cursor, table:str, uid:str, cols:Union[str, list]) -> list:
+        return db_to_list( cursor.execute(
+            """SELECT {} FROM {} WHERE uid=\"{}\"""".format(
+                ', '.join(cols) if isinstance(cols, list) else cols, 
+                table, 
+                uid
+        )))
+
+    # Basic Params
+    return_data, return_errors = [], []
+
+    # Open DB
+    con, cur = connect_db()
+
+    # Move DB Cursor
+    results = db_to_list( cur.execute(
+        '''SELECT * FROM task''' if uid == None \
+            else """SELECT * FROM task WHERE uid=\"{}\"""".format(uid)
+    ))
+    print(results)
+    # Check DB Data
+    if is_list_empty(results):
+        raise InvalidUidError("Got invalid task uid: {}".format(uid))
     
     # Get Data
-    if uid == None:    
-        data = select_data(table='task', data="*")
-    else:
-        data = select_data(table='task', data="*", condition=f"WHERE uid='{uid}'")
-
-    # Parse Data
-    ret = []
-    for task in data:
-
-        # Task Information
-        info = parse_task_data(task)
+    for info in map(parse_task_data, results):
+  
         task_uid = app_uid = info['uid']
         task_name = info['name']
         source_uid = info['source_uid']
         model_uid = info['model_uid']
         
-        # Another Information: Source, Model, App
-        try:
-            source_name = select_data(table='source', data=["name"], condition=f"WHERE uid='{source_uid}'")[0][0]
-        except Exception as e:
-            log.exception(e)
+        # Source
+        results = select_column_by_uid(cur, 'source', source_uid, ["name"])
 
-        try:
-            model_name, model_type = select_data(table='model', data=["name", "type"], condition=f"WHERE uid='{model_uid}'")[0]
-            
-        except Exception as e:
-            log.exception(e)
+        if is_list_empty(results):
+            source_name = None
+            return_errors.append( InvalidUidError(f'Got invalid source uid: {source_uid}') )
+        else:
+            source_name = results[0]
 
-        try:
-            app_uid, app_name = select_data(table='app', data=["uid", "name"], condition=f"WHERE uid='{task_uid}'")[0]
-        except Exception as e:
-            log.exception(e)
+        # Model
+        results = select_column_by_uid(cur, 'model', model_uid, ["name", "type"])
+        if is_list_empty(results):
+            model_name, model_type = None, None
+            return_errors.append( InvalidUidError(f'Got invalid source uid: {model_uid}') )
+        else:
+            model_name, model_type = results[0]
         
+        # App
+        results = select_column_by_uid(cur, "app", app_uid, ["name"])
+        if is_list_empty(results):
+            return_errors.append( InvalidUidError(f'Got invalid application uid: {app_uid}') )
+            app_name = None
+        else:
+            app_name = results[0]
+
+        # Add More Data
         info.update({
             'task_uid': task_uid,
             'task_name': task_name,
@@ -72,15 +108,19 @@ def get_task_info(uid:str=None):
             'model_type': model_type,
             'app_uid': app_uid,
             'app_name': app_name,
-            'error': info['error']
+            'error': return_errors
         })
-        
+
+        # Pop unused data
         for key in [ 'uid', 'name' ]:
             info.pop(key, None)
         
-        ret.append(info)
+        return_data.append(info)
 
-    return ret
+    # Cloase DB
+    close_db(con, cur)
+
+    return return_data
 
 
 def get_task_status(uid):
@@ -120,6 +160,8 @@ def verify_thres(threshold:float):
 
 def run_ai_task(uid:str, data:dict=None):
     """ Run AI Task via uid """
+
+    
 
     # Check Keyword in RT_CONF
     def check_rt_conf(uid):
