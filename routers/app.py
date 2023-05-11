@@ -29,8 +29,7 @@ def get_app_info(uid: str=None):
     if uid == None:    
         data = select_data(table='app', data="*")
     else:
-        data = select_data(table='app', data="*", condition=f"WHERE uid='{uid}'")
-    
+        data = select_data(table='app', data="*", condition=f'WHERE uid="{uid}"')
     ret = [ parse_app_data(app) for app in data ]
     return ret
         
