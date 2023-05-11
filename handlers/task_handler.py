@@ -61,7 +61,7 @@ def get_task_info(uid:str=None):
         '''SELECT * FROM task''' if uid == None \
             else """SELECT * FROM task WHERE uid=\"{}\"""".format(uid)
     ))
-    print(results)
+    
     # Check DB Data
     if is_list_empty(results):
         raise InvalidUidError("Got invalid task uid: {}".format(uid))
