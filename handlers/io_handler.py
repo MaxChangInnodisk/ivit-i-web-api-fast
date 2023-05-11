@@ -5,7 +5,7 @@
 
 import time, os, shutil, cv2, copy
 import logging as log
-
+import numpy as np
 from ..common import RT_CONF, SERV_CONF
 from ..utils import gen_uid
 
@@ -37,10 +37,10 @@ def get_src_info(uid: str=None):
         data = select_data(table='source', data="*")
     else:
         data = select_data(table='source', data="*", condition=f"WHERE uid='{uid}'")
-    
+    if data==[]:
+        raise KeyError('Could not find source: {}'.format(uid))
     ret = [ parse_source_data(src) for src in data ]
     return ret
-
 
 def create_source(source_uid:str):
     """ Create source """
@@ -90,8 +90,6 @@ def create_source(source_uid:str):
     # Update into RT_CONF
     RT_CONF[K_SRC].update( { source_uid: src_object } )
     log.info('Update {} to {}'.format(source_uid, SERV_CONF.get_name))
-
-    update_src_status(source_uid, 'loaded')
 
     log.info('Initialized Source')
     return src_object
@@ -169,9 +167,24 @@ def add_source(files=None, input: str=None, option: dict=None) -> dict:
     return data
 
 
-def get_source_frame(source_uid:str):
+def get_source_frame(source_uid:str, resolution:list=None) -> np.ndarray:
+    """Get source frame with target resolution
+
+    Args:
+        source_uid (str): the uid of source
+        resolution (list, optional): (height, width). Defaults to None.
+
+    Returns:
+        cv2.ndarray: _description_
+    """
     src = create_source(source_uid=source_uid)
-    frame = copy.deepcopy(src.frame) 
-    return cv2.imencode(".jpeg", frame)[1]
+    frame = copy.deepcopy(src.frame)
+    src.release()
+    update_data(table="source", data={"status": "stop"}, condition='WHERE uid="{}"'.format(source_uid))
     
+    if not (resolution is None):
+        frame = cv2.resize( frame, (resolution[1], resolution[0]))
+    
+    return frame
+
 create_displayer = Displayer
