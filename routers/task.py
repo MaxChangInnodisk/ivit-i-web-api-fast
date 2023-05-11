@@ -85,9 +85,11 @@ def execute_task_usage():
 
 @task_router.get("/tasks/{uid}")
 async def get_target_task_information(uid: str):
-    ret = task_handler.get_task_info(uid=uid)
-    return http_msg( content = ret, status_code = 200 )
-
+    try:
+        ret = task_handler.get_task_info(uid=uid)
+        return http_msg( content = ret, status_code = 200 )
+    except Exception as e:
+        return http_msg( content=e, status_code=500)
 
 @task_router.post("/tasks/exec")
 async def execute_task(exec_data: TaskAction):
