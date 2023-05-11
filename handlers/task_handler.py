@@ -3,7 +3,7 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-import threading, time, sqlite3
+import threading, time, sqlite3, copy
 import logging as log
 import asyncio
 from typing import Union
@@ -330,7 +330,7 @@ def add_ai_task(add_data):
             "name": add_data.task_name,
             "source_uid": add_data.source_uid,
             "model_uid": add_data.model_uid,
-            "model_setting": json_to_str(add_data.model_setting),
+            "model_setting": add_data.model_setting,
             "status": "stop",
             "device": add_data.device
         }
