@@ -110,7 +110,7 @@ def update_data(table:str, data:dict, condition:Union[str, None]=None, db_path:s
     ---
 
     - 
-    UPDATE employees
+    UPDATE employees 
         SET city = 'Toronto',
             state = 'ON',
             postalcode = 'M5P 2N7'
@@ -120,7 +120,7 @@ def update_data(table:str, data:dict, condition:Union[str, None]=None, db_path:s
     """
     head = f"UPDATE {table} SET "
     
-    set_list =[ f'{key} = "{val}"' for key, val in data.items() ]
+    set_list =[ f'{key} = "{json.dumps(val) if isinstance(val, dict) else val}"' for key, val in data.items() ]
     set_string = ', '.join(set_list)
 
     # Concatenate
