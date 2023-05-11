@@ -6,6 +6,9 @@
 import gdown, sqlite3, os, sys, time, json
 import logging as log
 
+from .imagenet import IMAGE_NET_LABEL
+from .coco import COCO_LABEL
+
 from ..common import SERV_CONF
 from ..utils import gen_uid, json_to_str
 from ..handlers import db_handler
@@ -74,7 +77,7 @@ def xlnx_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
             "areas":[
                 {
                     "name": "default",
-                    "depend_on":[],
+                    "depend_on": IMAGE_NET_LABEL,
                 }
             ],
             "palette": {
@@ -100,18 +103,16 @@ def xlnx_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
         replace=True )
 
     # Application
-    data = db_handler.select_data(table='task', data="*", condition=f"WHERE uid = '{task_uid}'")
-    if data == []:
-        db_handler.insert_data(
-            table="app",
-            data={
-                "uid": app_uid,
-                "name": app_name,
-                "type": app_type,
-                "app_setting": json_to_str(app_setting)
-            },
-            replace = True
-        )
+    db_handler.insert_data(
+        table="app",
+        data={
+            "uid": app_uid,
+            "name": app_name,
+            "type": app_type,
+            "app_setting": json_to_str(app_setting)
+        },
+        replace = True
+    )
 
     db_handler.insert_data(
         table="task",
@@ -171,7 +172,7 @@ def xlnx_sample_obj( db_path:str=SERV_CONF["DB_PATH"] ):
             "areas": [
                         {
                     "name": "default",
-                    "depend_on": [],
+                    "depend_on": COCO_LABEL,
                 }
             ]
         }
@@ -193,18 +194,16 @@ def xlnx_sample_obj( db_path:str=SERV_CONF["DB_PATH"] ):
         replace=True )
 
     # Application
-    data = db_handler.select_data(table='app', data=["uid"], condition=f"WHERE uid = '{task_uid}'")
-    if data == []:
-        db_handler.insert_data(
-            table="app",
-            data={
-                "uid": app_uid,
-                "name": app_name,
-                "type": app_type,
-                "app_setting": json_to_str(app_setting)
-            },
-            replace = True
-        )
+    db_handler.insert_data(
+        table="app",
+        data={
+            "uid": app_uid,
+            "name": app_name,
+            "type": app_type,
+            "app_setting": json_to_str(app_setting)
+        },
+        replace = True
+    )
 
     db_handler.insert_data(
         table="task",
