@@ -117,7 +117,7 @@ async def execute_task(exec_data: TaskAction):
             table='task', 
             data={
                 'status':'error',
-                'error': json.dumps(json_exception(e))}, 
+                'error': json_exception(e)},
             condition=f"WHERE uid='{uid}'")
         
         return http_msg( content=e, status_code=500)
