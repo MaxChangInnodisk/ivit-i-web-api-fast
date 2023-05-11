@@ -20,7 +20,7 @@ def load_json(path:str):
     return data
 
 def json_to_str(data:dict) -> str:
-    return re.sub('["]', '\'', json.dumps(data))
+    return re.sub('["]', '\"', json.dumps(data))
 
 def load_db_json(db_json:str):
     return json.loads(re.sub('[\']', '"', db_json))
