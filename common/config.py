@@ -131,7 +131,9 @@ ICAP_CONF = ConfigWrapper(
 
 
 """ Runtime Object to store each AI Task ( Thread Ojbect ) and Source ( Ojbect ) """
-RT_CONF = ConfigWrapper()
+RT_CONF = ConfigWrapper(
+    SRC = {}
+)
 
 
 """ WebSocket Object to store each WebSocket Object"""
