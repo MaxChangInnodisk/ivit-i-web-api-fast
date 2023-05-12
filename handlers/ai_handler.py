@@ -10,21 +10,24 @@ else:
     from typing import Literal
 
 from ..common import init_ivit_env
-# init_ivit_env()
+
+CLS = "CLS"
+OBJ = "OBJ"
+SEG = "SEG"
 
 # OpenVINO
 def vino_init(type:str, params:dict):
     """ Initialize OpenVINO """
-    if type == 'CLS':
+    if type == CLS:
         from ivit_i.core.models import iClassification
         model = iClassification(
             model_path = params['model_path'],
             label_path = params['label_path'],
             device = params['device'],
             confidence_threshold = params['confidence_threshold'],
-            topk = params['topk'],
+            topk = params.get('topk', 1),
         )
-    elif type == 'OBJ':
+    elif type == OBJ:
         from ivit_i.core.models import iDetection
         model = iDetection(
             model_path = params["model_path"],
@@ -54,7 +57,7 @@ def hailo_init():
 # Xilinx
 def xlnx_init(type:str, params:dict):
     """ Initialize Xilinx """
-    if type == 'CLS':
+    if type == CLS:
         from ivit_i.core.models import iClassification
         model = iClassification(
             model_path = params['model_path'],
@@ -63,7 +66,7 @@ def xlnx_init(type:str, params:dict):
             confidence_threshold = params['confidence_threshold'],
             topk = params.get('topk', 1),
         )
-    elif type == 'OBJ':
+    elif type == OBJ:
         from ivit_i.core.models import iDetection
         model = iDetection(
             model_path = params["model_path"],
@@ -80,7 +83,7 @@ def xlnx_init(type:str, params:dict):
 
 
 
-def get_ivit_api(framework:Literal['openvino', 'nvidia', 'jetson', 'xilinx', 'hailo']):
+def get_ivit_api(framework:Literal['openvino', 'tensorrt', 'jetson', 'vitis-ai', 'hailort']):
     
     map = {
         "openvino": vino_init,
