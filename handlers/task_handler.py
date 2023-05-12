@@ -7,15 +7,23 @@ import threading, time, sqlite3, copy
 import logging as log
 import asyncio
 from typing import Union
+
 # Custom
 from ..common import SERV_CONF, RT_CONF, WS_CONF
 from ..utils import gen_uid, json_to_str
 
 from .ai_handler import get_ivit_api
-from .io_handler import create_displayer, create_source, update_src_status
+from .io_handler import (
+    create_displayer, 
+    create_source, 
+    update_src_status, 
+    start_source, 
+    stop_source,
+    is_source_using
+)
 from . import task_handler
 from .app_handler import create_app
-from .mesg_handler import json_exception
+from .mesg_handler import json_exception, handle_exception, simple_exception
 from .err_handler import InvalidError, InvalidUidError
 from .db_handler import (
     select_data,
@@ -41,8 +49,6 @@ def get_task_info(uid:str=None):
     2. Parse Each AI Task Information
     """
 
-    print('GET Task Information: {}'.format(uid))
-
     # Basic Params
     return_data, return_errors = [], []
 
@@ -66,6 +72,7 @@ def get_task_info(uid:str=None):
         task_name = info['name']
         source_uid = info['source_uid']
         model_uid = info['model_uid']
+        error = info['error']
         
         # Source
         results = select_column_by_uid(cur, 'source', source_uid, ["name"])
@@ -101,7 +108,7 @@ def get_task_info(uid:str=None):
             'model_type': model_type,
             'app_uid': app_uid,
             'app_name': app_name,
-            'error': return_errors
+            'error': return_errors if return_errors!=[] else error
         })
 
         # Pop unused data
@@ -117,11 +124,12 @@ def get_task_info(uid:str=None):
 
 
 def get_task_status(uid):
+    """Get Status of AI Task"""
     return select_data(table='task', data=['status'], condition=f"WHERE uid='{uid}'")[0][0]
 
 
 def update_task_status(uid, status, err_mesg:dict = {}):
-    
+    """Update Status of AI Task"""    
     write_data = {
         'status':status,
         'error': err_mesg
@@ -153,24 +161,39 @@ def verify_thres(threshold:float):
         raise ValueError('Threshold value should in range 0 to 1')
 
 
+# --------------------------------------------------------
+# Execute AI Task
 
-def run_ai_task(uid:str, data:dict=None):
-    """ Run AI Task via uid """
-
+def run_ai_task(uid:str, data:dict=None) -> str:
+    """Run AI Task
     
+    Workflow
+    1. Check task is exist
+    2. Parse task information
+    3. Check task status
+        If running then return message; 
+        If stop or error then keep going; 
+        If loading then wait for N seconds ( default is 20 ).
+    4. Get model information and load model
+    5. Get source object and displayer object
+    6. Load Application
+    7. Create InferenceLoop and keep in RT_CONF[<uid>]['EXEC']
+    8. Start source and Start InferenceLoop
+    """
+    # Get Task Information
+    task = select_data(table='task', data="*", condition=f"WHERE uid='{uid}'")
 
-    # Check Keyword in RT_CONF
-    def check_rt_conf(uid):
-        if RT_CONF.get(uid) is None:
-            RT_CONF.update( {uid: {'EXEC': None}} )
-
-    # Task Information
-    task = verify_task_exist(uid=uid)
-    task_info   = parse_task_data(task)
-    source_uid  =  task_info['source_uid']
+    # Not found AI Task
+    if is_list_empty(task):
+        raise RuntimeError("Could not find AI Task ({})".format(uid))
+    
+    # Parse Information
+    task_info   = parse_task_data(task[0])
+    source_uid  = task_info['source_uid']
     model_uid   = task_info['model_uid']
 
     # Check Status: Wait Task if there is someone launching task
+    timeout = 0
     while(True):
 
         status = get_task_status(uid)
@@ -179,43 +202,43 @@ def run_ai_task(uid:str, data:dict=None):
             mesg = 'AI Task is running'
             log.warn(mesg)
             return mesg    
-        elif status == "stop":
-            update_task_status(uid, 'loading')
-            break
-        elif status == 'error':
+        elif status in [ "stop", "error" ]:
             update_task_status(uid, 'loading')
             break
         else:
             time.sleep(1)
+            timeout += 1
+            if timeout >= 20:
+                raise RuntimeError('Waitting AI Task Timeout')
 
-    # Model Information
-    model_data = select_data( table='model', data="*", 
-                            condition=f"WHERE uid='{model_uid}'")[0]
-    model_info = parse_model_data(model_data)
-
-    # Load Model: Config
-    model_info['meta_data'].update( 
-        {**task_info['model_setting'], 'device': task_info['device'] } )
+    # Prepare AI Model Config and Load Model
+    try:
+        model_data = select_data( table='model', data="*", 
+                                condition=f"WHERE uid='{model_uid}'")[0]
+        model_info = parse_model_data(model_data)
+        
+        model_info['meta_data'].update( 
+            {**task_info['model_setting'], 'device': task_info['device'] } )
+        
+        # Load AI Model
+        load_model = get_ivit_api(SERV_CONF["FRAMEWORK"])
+        model = load_model( model_info['type'], model_info['meta_data'])
     
-    # Load Model
-    load_model = get_ivit_api(SERV_CONF["FRAMEWORK"])
-    model = load_model( model_info['type'], model_info['meta_data'])
-    
-    # Source & Displayer
+    except Exception as e:
+        raise RuntimeError("Load AI Model Failed: {}".format(simple_exception(e)[1]))
+        
+    # Create Source Object
     try:
         src = create_source(source_uid=source_uid)
         height, width = src.get_shape()
-        log.warning('{}, {}'.format(height, width))
 
     except Exception as e:
-        log.exception(e)
-        update_data(table='source', data={'status':'error'}, condition=f"WHERE uid='{source_uid}'")
-        raise e
+        update_src_status(source_uid, 'error')
+        raise RuntimeError("Load Source Failed: {}".format(simple_exception(e)[1]))
 
-
+    # Create Displayer Object
     try:
         cv_flag = getattr(data, 'cv_display', None) 
-        # Parse Data
         dpr = create_displayer(
             cv=cv_flag,
             rtsp=True, 
@@ -226,37 +249,38 @@ def run_ai_task(uid:str, data:dict=None):
             platform='intel')
             
     except Exception as e:
-        log.exception(e)
-        raise RuntimeError('Initialize Displayer Failed !')
+        raise RuntimeError("Load Displayer Failed: {}".format(simple_exception(e)[1]))
 
     # Load Application
     try:
         app = create_app(app_uid=uid, label_path=model_info['label_path'])
     except Exception as e:
-        log.exception(e)
-        raise RuntimeError('Initialize Application Faild !')
+        raise RuntimeError("Load Application Failed: {}".format(simple_exception(e)[1]))
     
     # Create Threading
-    check_rt_conf(uid=uid)
+    try:
+        # Check Keyword in RT_CONF
+        if RT_CONF.get(uid) is None:
+            RT_CONF.update( {uid: {'EXEC': None}} )
+        
+        RT_CONF[uid].update({ 
+            'EXEC': InferenceLoop(
+                uid=uid,
+                src=src,
+                model=model,
+                app=app,
+                dpr=dpr 
+            ),
+            'DATA': {} 
+        })
 
-    RT_CONF[uid].update({ 
-        'EXEC': InferenceLoop(
-            uid=uid,
-            src=src,
-            model=model,
-            app=app,
-            dpr=dpr 
-        ),
-        'DATA': {} 
-    })
+        # Start each threading
+        start_source(source_uid)
+        RT_CONF[uid]['EXEC'].start()
 
-    # Start each threading
-    src.start()
-    RT_CONF[uid]['EXEC'].start()
-    
-    # Change Status
-    update_task_status(uid, 'running')
-    update_src_status(source_uid, 'running')
+    except Exception as e:
+        del RT_CONF[uid]['EXEC']
+        raise RuntimeError("Launch AI Task Failed: {}".format(simple_exception(e)[1]))
 
     # End
     mesg = 'Run AI Task ( {}: {} )'.format(uid, task_info['name'] )
@@ -279,17 +303,12 @@ def stop_ai_task(uid:str, data:dict=None):
 
     # Stop AI Task
     RT_CONF[uid]['EXEC'].stop()
-    RT_CONF[uid]['EXEC'] = None
-    update_task_status(uid, 'stop')
+    del RT_CONF[uid]['EXEC']
     
     # Stop Source if not using
-    status_list = select_data(table='task', data=['status'], condition=f"WHERE source_uid='{source_uid}'")
-    at_least_one_using = True in [ 'running' in status for status in status_list ]
-    
-    if not at_least_one_using:
-        RT_CONF['SRC'][source_uid].release()
-        update_src_status(source_uid, 'stop')
+    stop_source(source_uid)
 
+    update_task_status(uid, 'stop')
     log.info(mesg)
     return mesg
 
@@ -300,7 +319,6 @@ def update_ai_task(uid:str, data:dict=None):
     RT_CONF[uid]['DATA'] = data
     log.info('Update AI Task: {} With {}'.format(uid, data))    
     return 'Update success'
-
 
 
 def add_ai_task(add_data):
@@ -314,26 +332,29 @@ def add_ai_task(add_data):
     errors = {}
     task_uid = app_uid = gen_uid()
 
-    # Check Database Data
-    con, cur = connect_db()
+    try:
+        # Check Database Data
+        con, cur = connect_db()
 
-    # Task Name
-    results = db_to_list(cur.execute("""SELECT name FROM task WHERE name=\"{}\" """.format(add_data.task_name)))
-    if not is_list_empty(results):
-        errors.update( {"task_name": "Duplicate task name: {}".format(add_data.task_name)} )
+        # Task Name
+        results = db_to_list(cur.execute("""SELECT name FROM task WHERE name=\"{}\" """.format(add_data.task_name)))
+        if not is_list_empty(results):
+            errors.update( {"task_name": "Duplicate task name: {}".format(add_data.task_name)} )
 
-    # Source UID
-    results = db_to_list(cur.execute("""SELECT uid FROM source WHERE uid=\"{}\" """.format(add_data.source_uid)))
-    if is_list_empty(results):
-        errors.update( {"source_uid": "Unkwon Source UID: {}".format(add_data.source_uid)} )
+        # Source UID
+        results = db_to_list(cur.execute("""SELECT uid FROM source WHERE uid=\"{}\" """.format(add_data.source_uid)))
+        if is_list_empty(results):
+            errors.update( {"source_uid": "Unkwon Source UID: {}".format(add_data.source_uid)} )
 
-    # Model UID
-    results = db_to_list(cur.execute("""SELECT uid FROM model WHERE uid=\"{}\" """.format(add_data.model_uid)))
-    if is_list_empty(results):
-        errors.update( {"model_uid": "Unkwon model UID: {}".format(add_data.model_uid)} )
-
-    # Close DB
-    close_db(con, cur)
+        # Model UID
+        results = db_to_list(cur.execute("""SELECT uid FROM model WHERE uid=\"{}\" """.format(add_data.model_uid)))
+        if is_list_empty(results):
+            errors.update( {"model_uid": "Unkwon model UID: {}".format(add_data.model_uid)} )
+    except Exception as e:
+        log.exception(e)
+    finally:
+        # Close DB
+        close_db(con, cur)
 
     # Model Setting
     threshold = add_data.model_setting['confidence_threshold']
@@ -486,7 +507,6 @@ class InferenceLoop:
     def create_thread(self) -> threading.Thread:
         return threading.Thread(target=self._inference_thread, daemon=True)
 
-
     def _dynamic_change_app(self):
         """ Dynamic Modify Varaible of the Application """
 
@@ -518,7 +538,6 @@ class InferenceLoop:
             # Clear DATA
             RT_CONF[self.uid]['DATA'] = {}
 
-
     def _inference_thread(self):
         
         prev_data, cur_data = None, None
@@ -526,6 +545,7 @@ class InferenceLoop:
         try:
             log.warning('Start AI Task Inference Stream')
             self.prev_time = time.time()
+            update_task_status(self.uid, 'running')
 
             # Make sure source is ready
             while( self.is_ready and self.src.is_ready):
@@ -572,7 +592,6 @@ class InferenceLoop:
 
             # Update Task Status to Stop
             update_task_status(self.uid, 'stop')
-            log.warning('Stop InferenceLoop')
 
         # If Get Exception
         except Exception as e:
