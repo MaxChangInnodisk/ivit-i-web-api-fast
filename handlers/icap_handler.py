@@ -11,7 +11,7 @@ from typing import Union
 from ..common import SERV_CONF, ICAP_CONF
 from ..utils import get_mac_address, get_address
 
-from .mesg_handler import handle_exception
+from .mesg_handler import handle_exception, http_msg_formatter
 from .model_handler import ModelDeployerWrapper, URL_DEPLOYER
 from . import task_handler
 
@@ -33,7 +33,7 @@ TB_KEY_TOKEN_TYPE   = "credentialsType"
 TB_KEY_ID           = "id"
 TB_KEY_TOKEN        = "accessToken"
 
-
+# --------------------------------------------------------
 # HANDLER
 
 class ICAP_HANDLER():
@@ -50,7 +50,9 @@ class ICAP_HANDLER():
         
         self.client.username_pw_set(token)
         self.client.connect_async(str(host), int(port), keepalive=60, bind_address="")
-    
+
+    # Basic
+
     def start(self):
         self.client.loop_start()
     
@@ -63,14 +65,65 @@ class ICAP_HANDLER():
 
     def __del__(self):
         self.release()
+   
+    # Private Event
+
+    def _attr_deploy_event(self, data):
+        """ Deployment Event """
+        deploy_event = ICAP_DEPLOYER( data = data)
+        deploy_event.start_deploy()
+
+    def _attr_event(self, data):
+        """ Attribute Event """
+        keys = data.keys()
+        if 'sw_description' in keys:    
+            logging.warning('Detected url from iCAP, start to deploy ...')
+            self._attr_deploy_event(data)
+        else:
+            logging.warning('Unexpected key')
+
+    def _rpc_event(self, request_idx, data):
+        """ Receive RPC Event """
+
+        send_topic  = ICAP_CONF['TOPIC_SND_RPC']+f"{request_idx}"
+        resp = None
+
+        try:
+            method  = data["method"].upper()
+            web_api = data["params"].get("api")
+            data    = data["params"].get("data")
+
+            # Check 
+            if web_api is None:
+                raise KeyError("The RPC command must have 'api' key.")
+
+            # Redirect URL
+            trg_url = "http://{}:{}{}{}".format(
+                "127.0.0.1", SERV_CONF["NGINX_PORT"], '/ivit', web_api)
+
+            # Send Request
+            if method == "GET":
+                ret, resp = send_get_api(trg_url)  
+            elif method == "POST":
+                ret, resp = send_post_api(trg_url, data)
+            else:
+                raise KeyError("Invalid method, sopported is 'GET', 'POST', 'PUT', 'DELETE'")
+
+        except Exception as e:
+            resp = http_msg_formatter(e, status_code=500)
+
+        finally:
+            self.send_data(resp, send_topic)
+
+    # MQTT Event
 
     def on_connect(self, client, userdata, flags, rc):
+        """Connect to MQTT Method
 
-        # Subscribing in on_connect() means that if we lose the connection and
-        # reconnect then subscriptions will be renewed.
-        # client.subscribe("test/test")
-        # Connect Success
-
+        Workflow
+            Connect to MQTT
+            Send attributes with ivitUrl and ivitTask if success
+        """
         if rc == 0:
             
             logging.info('MQTT Connected successfully')
@@ -94,62 +147,42 @@ class ICAP_HANDLER():
 
         # Connect Failed
         else: logging.error('MQTT Got Bad connection. Code:', rc)
-        
-    def __attr_deploy_event(self, data):
-        deploy_event = ICAP_DEPLOYER( data = data)
-        deploy_event.start_deploy()
-
-    def __attr_event(self, data):
-        print("[ Attribute Event ]")
-        keys = data.keys()
-        if 'sw_description' in keys:    
-            logging.warning('Detected url from iCAP, start to deploy ...')
-            self.__attr_deploy_event(data)
-
-    def __rpc_event(self, request_idx, data):
-        print("[ RPC Event ({}) ]".format(request_idx))
-        method  = data["method"].upper()
-        params  = data["params"]
-        web_api = params["api"]
-        data    = params.get("data")
-
-        # trg_url = "http://{}:{}{}".format("127.0.0.1", app.config['PORT'], web_api)
-        trg_url = "http://{}:{}{}{}".format(
-            "127.0.0.1", SERV_CONF["NGINX_PORT"], '/ivit', web_api)
-
-        ret, resp = send_get_api(trg_url) if method.upper() == "GET" else send_post_api(trg_url, data)
-
-        send_topic  = ICAP_CONF['TOPIC_SND_RPC']+f"{request_idx}"
-
-        self.send_data(resp, send_topic)
-        log_data, dat_limit = str(resp), 100
-        log_data = log_data if len(log_data)<dat_limit else log_data[:dat_limit] + ' ...... '
-        print("[iCAP] Topic: {}, Data: {}".format(send_topic, log_data))
-
+     
     def on_message(self,client, userdata, msg):
+        
+        # Parse Data
         topic = msg.topic
-        data = json.loads(msg.payload.decode())
+        mesg = msg.payload.decode()
+        
+        # Expect to get dictionaray format
+        try:
+            data = json.loads(mesg)
+        except:
+            data = "Invalid json format: {}".format(mesg)
+
+        # Do something
         if ICAP_CONF["TOPIC_REC_RPC"] in topic:
             request_idx = topic.split('/')[-1]
-            self.__rpc_event(request_idx, data)
+            self._rpc_event(request_idx, data)
 
         elif ICAP_CONF["TOPIC_REC_ATTR"] in topic:
-            self.__attr_event(data)
+            self._attr_event(data)
 
     def on_publish(self, client, userdata, result):
-        print("[MQTT] Data published to thingsboard.")
         pass
+
+    # Send Data Usage
 
     def send_data(self, data: dict, topic: str):
         self.client.publish(topic, json.dumps(data))
 
-    def send_attr(self, data: dict, topic:str=ICAP_CONF["TOPIC_REC_ATTR"]):
+    def send_attr(self, data: dict, topic:str=ICAP_CONF["TOPIC_SND_ATTR"]):
         self.client.publish(topic, json.dumps(data))
 
     def send_tele(self, data: dict, topic:str=ICAP_CONF["TOPIC_SND_TEL"]):
         self.client.publish(topic, json.dumps(data))
 
-
+# --------------------------------------------------------
 # DEPLOYER
 
 class ICAP_DEPLOYER(URL_DEPLOYER):
@@ -215,6 +248,7 @@ class ICAP_DEPLOYER(URL_DEPLOYER):
 
         SERV_CONF["ICAP"].send_tele(icap_data)
 
+# --------------------------------------------------------
 # Helper Function
 
 def response_status(code):
@@ -255,14 +289,16 @@ def resp_to_json(resp):
     except Exception as e: 
         resp_data = resp.text
 
-    if type(resp_data) == str:
-        logging.debug('Convert string response to json with key `data`')
+    if isinstance(resp_data, str):
+        logging.warning('Convert string response to json with key `data`')
         resp_data = { KEY_RESP_DATA: resp_data }
     
     # Merge data  
     data.update(resp_data)
     return response_status(code), data
 
+# --------------------------------------------------------
+# Send Request Function
 
 def send_post_api(trg_url, data, h_type='json', timeout=10, stderr=True):
     """ Using request to simulate POST method """
@@ -285,6 +321,8 @@ def send_get_api(trg_url, h_type='json', timeout=10):
     except Exception as e:
         return request_exception(exception=e, calling_api=trg_url) 
 
+# --------------------------------------------------------
+# Register Thingsboard Function
 
 def register_tb_device(tb_url):
     """ Register Thingsboard Device
@@ -388,12 +426,16 @@ def init_icap():
     else:
         log.error('Register iCAP Failed')
 
+# --------------------------------------------------------
+# Send Basic Attribute
+
 def send_basic_attr():
     try:
         if ('ICAP' in SERV_CONF) and not (SERV_CONF['ICAP'] is None):
             SERV_CONF['ICAP'].send_attr(data=task_handler.get_task_info())
     except Exception as e:
         log.warning(handle_exception(e))
+
 
 if __name__ == "__main__":
 
