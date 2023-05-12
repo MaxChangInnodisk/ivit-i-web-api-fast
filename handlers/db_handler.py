@@ -3,54 +3,46 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-import sys, time, json, re, traceback, sqlite3
+import sys, time, json, re, sqlite3
 import logging as log
 from typing import Union, Tuple
 
-from ..utils import load_db_json
 from ..common import SERV_CONF
 
 # --------------------------------------------------------
-# Sqlite3 Helper
+# Sqlite3 Command Helper
 
 def db_to_list(cursor:sqlite3.Cursor) -> list:
+    """ Convert sqlite data to list """
     return [ row for row in cursor.fetchall() ]
 
+
 def is_list_empty(data:list) -> bool:
+    """ Check list is empty or not """
     return len(data)==0
 
-def check_db_is_empty(dp_path:str):
-    """ Check Database is empty """
-    is_empty = True
-    conn = sqlite3.connect(dp_path)
-    c = conn.cursor()
-
-    c.execute("SELECT COUNT(*) FROM task ")
-    result = c.fetchone()
-
-    if result[0] == 0:
-        is_empty = True
-    else:
-        is_empty = False
-    conn.close()
-    return is_empty
 
 def connect_db(dp_path:str=SERV_CONF["DB_PATH"])-> Tuple[sqlite3.Connection, sqlite3.Cursor]:
     con = sqlite3.connect(dp_path)
     cur = con.cursor()
     return ( con, cur )
 
+
 def close_db(con:sqlite3.Connection, cur:sqlite3.Cursor) -> None:
     cur.close()
     con.close()
  
+
 def select_column_by_uid(cursor:sqlite3.Cursor, table:str, uid:str, cols:Union[str, list]) -> list:
-    return db_to_list( cursor.execute(
+    
+    data = db_to_list( cursor.execute(
         """SELECT {} FROM {} WHERE uid=\"{}\"""".format(
             ', '.join(cols) if isinstance(cols, list) else cols, 
             table, 
             uid
     )))
+    return data 
+
 
 def update_column_by_uid(cursor:sqlite3.Cursor, table:str, uid:str, data:dict):
     set_list =[ f'{key} = "{val}"' for key, val in data.items() ]
@@ -62,7 +54,26 @@ def update_column_by_uid(cursor:sqlite3.Cursor, table:str, uid:str, data:dict):
             uid
     )))
 
+
 # --------------------------------------------------------
+# Sqlite3 Helper: The function below will connect sqlite and close each time
+
+
+def is_db_empty(dp_path:str) -> bool:
+    """Check database is empty or not
+
+    Args:
+        dp_path (str): path to sqlite
+
+    Returns:
+        bool: is empty or not
+    """
+    con, cur = connect_db(dp_path)
+    cur.execute("SELECT COUNT(*) FROM task ")
+    result = cur.fetchone()
+    close_db(con, cur)
+    return (result[0] is None)
+
 
 def insert_data(table:str, data:dict, db_path:str=SERV_CONF["DB_PATH"], replace:bool=False) -> None:
     """ Insert data into `ivit_i.sqlite`
@@ -120,7 +131,14 @@ def update_data(table:str, data:dict, condition:Union[str, None]=None, db_path:s
     """
     head = f"UPDATE {table} SET "
     
-    set_list =[ f'{key} = "{json.dumps(val) if isinstance(val, dict) else val}"' for key, val in data.items() ]
+    set_list = []
+    for key, val in data.items():
+        if isinstance(val, dict):
+            data = f'{key} = \'{json.dumps(val)}\''
+        else:
+            data = f'{key} = \'{val}\''
+        set_list.append(data)
+
     set_string = ', '.join(set_list)
 
     # Concatenate
@@ -131,11 +149,16 @@ def update_data(table:str, data:dict, condition:Union[str, None]=None, db_path:s
         command = command + " " + condition
         
     # Write into database
-    conn = sqlite3.connect(db_path)
-    cursor = conn.cursor()
-    cursor.execute(command)    
-    conn.commit()
-    conn.close()
+    try:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        
+        cursor.execute(command)    
+        conn.commit()
+        conn.close()
+
+    except Exception as e:
+        log.exception(e)
 
 
 def select_data(table:str, data:Union[str,list], condition:Union[str, None]=None, db_path:str=SERV_CONF["DB_PATH"]) -> list:
@@ -279,6 +302,9 @@ def reset_db(db_path=SERV_CONF["DB_PATH"]):
     })
 
 
+# --------------------------------------------------------
+# Sqlite3 Parser: Parse each table data 
+
 
 def parse_task_data(data: Union[dict, sqlite3.Cursor]) -> dict:
     """Parse all task data
@@ -339,6 +365,4 @@ def parse_app_data(data: dict):
         "event_uid": data[4],
         "annotation": data[5]
     }
-
-
 
