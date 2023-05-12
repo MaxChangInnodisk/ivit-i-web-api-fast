@@ -34,33 +34,7 @@ def json_exception(content) -> dict:
     }
 
 
-def ws_msg(content:Union[str, dict], type:Literal["UID","ERROR","TEMP", "PROC"]) -> dict:
-    """ Web Socket response handler """
-
-    # Define Basic Format
-    ret = {
-        K_DATA: {},
-        K_MESG: "",
-        K_TYPE: type
-    }
-
-    # If is Exception
-    if isinstance(content, Exception):
-        log.exception(content)
-        ret[K_TYPE] = K_ERR
-        ret[K_MESG] = json_exception(content=content)[K_MESG]
-        
-    # If not Exception, check input content is String or Object
-    elif isinstance(content, str):
-        ret[K_MESG] = content
-
-    else:
-        ret[K_DATA] = content
-    
-    return ret
-        
-
-def http_msg(content, status_code:int=200, media_type:str="application/json"):
+def http_msg_formatter(content, status_code:int=200):
     """ HTTP response handler """
 
     # Checking Input Type
@@ -78,6 +52,7 @@ def http_msg(content, status_code:int=200, media_type:str="application/json"):
     # If is Exception
     if isinstance(content, Exception):
         log.exception(content)
+        # Update Message and Type
         ret.update(json_exception(content=content))
         
     # If not Exception, check input content is String or Object
@@ -86,6 +61,28 @@ def http_msg(content, status_code:int=200, media_type:str="application/json"):
 
     else:
         ret[K_DATA] = content
+    
+    return ret
+
+def ws_msg(content:Union[str, dict], type:Literal["UID","ERROR","TEMP", "PROC"]) -> dict:
+    """ Web Socket response handler """
+    
+    # Use Http Formatter
+    ret = http_msg_formatter(content=content)
+
+    # Update Type if not error
+    if ret[K_TYPE] == "":
+        ret[K_TYPE] = type
+
+    # Remove status_code
+    ret.pop(K_CODE, None)
+    
+    return ret
+
+def http_msg(content, status_code:int=200, media_type:str="application/json"):
+    """ HTTP response handler """
+
+    ret = http_msg_formatter(content=content, status_code=status_code)
     
     return Response(    
         content = json.dumps(ret), 
