@@ -188,7 +188,7 @@ if __name__ == "__main__":
     framework = SERV_CONF["FRAMEWORK"]
     
     db_handler.init_tables(dp_path)
-    if db_handler.check_db_is_empty(dp_path):
+    if db_handler.is_db_empty(dp_path):
         db_handler.init_sqlite(dp_path)
         init_samples(framework=framework)
 
