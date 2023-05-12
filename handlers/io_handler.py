@@ -6,6 +6,8 @@
 import time, os, shutil, cv2, copy
 import logging as log
 import numpy as np
+from typing import Union, Tuple
+
 from ..common import RT_CONF, SERV_CONF
 from ..utils import gen_uid
 
@@ -14,14 +16,21 @@ from .db_handler import (
     insert_data,
     update_data,
     delete_data,
-    parse_source_data
+    parse_source_data,
+    is_list_empty
 )
+
+from .err_handler import InvalidUidError
 
 # iVIT Libraray
 from .ivit_handler import SourceV2, Displayer
 
+# --------------------------------------------------------
+# Consistant
 K_SRC = 'SRC'
 
+# --------------------------------------------------------
+# Helper Function
 
 def get_src_status(source_uid):
     return select_data(table='source', data=['status'], condition=f"WHERE uid='{source_uid}'")[0][0]
@@ -30,7 +39,7 @@ def get_src_status(source_uid):
 def update_src_status(source_uid, status):
     update_data(table='source', data={'status': status}, condition=f"WHERE uid='{source_uid}'")
 
-# Helper Function
+
 def get_src_info(uid: str=None):
     """ Get Source Information from database """
     if uid == None:    
@@ -42,33 +51,46 @@ def get_src_info(uid: str=None):
     ret = [ parse_source_data(src) for src in data ]
     return ret
 
-def create_source(source_uid:str):
-    """ Create source """
 
-    # Source Information
-    source = select_data(
-        table='source', data="*",
-        condition=f"WHERE uid='{source_uid}'" )
-    assert len(source) >= 1, "Could not find source"
-    source = source[0]
-    src_info = parse_source_data(source)
+def is_source_using(source_uid) -> Tuple[bool, str]:
+    flag, mesg = True, ""
+    data = select_data(table='task', data=['uid', 'status'], condition=f"WHERE source_uid='{source_uid}'")
+    
+    if is_list_empty(data):
+        mesg = "No one using this source"
+    
+    else:
+        using_tasks = [ uid for uid, status in data if status == 'running' ]
+        
+        flag = (len(using_tasks)>1)
+        mesg = "The source is still used by {}".format(", ".join(using_tasks))
 
-    # Update Key    
-    if RT_CONF.get(K_SRC) is None:
-        RT_CONF.update( { K_SRC: {} })
+    log.warning(mesg)
+    return (flag, mesg)
 
-    # Check Source
+
+def is_src_loaded(source_uid) -> bool:
+    """Check source object is loaded
+
+    Args:
+        source_uid (_type_): _description_
+
+    Raises:
+        RuntimeError: _description_
+
+    Returns:
+        bool: _description_
+    """
     timeout = 0
     while(True):
 
         status = get_src_status(source_uid)
         
         if status in [ 'running',  "loaded" ]:
-            mesg = 'Source is running'
             src = RT_CONF[K_SRC].get(source_uid)
             if src is None:
                 break
-            return src
+            return True
     
         elif status in ["stop", "error"]:
             update_src_status(source_uid, 'loading')
@@ -81,6 +103,43 @@ def create_source(source_uid:str):
         if timeout >=10:
             raise RuntimeError('Initialize Source Object Timeout')
 
+    return False
+# --------------------------------------------------------
+# Main Function: Displayer
+
+create_displayer = Displayer
+
+# --------------------------------------------------------
+# Main Function: Source
+
+def create_source(source_uid:str) -> SourceV2:
+    """Create Source, if source already created then just return the SourceV2 object
+
+    Args:
+        source_uid (str): source uid
+
+    Raises:
+        RuntimeError: _description_
+
+    Returns:
+        SourceV2: _description_
+    """
+    # Source Information
+    source = select_data(
+        table='source', data="*",
+        condition=f"WHERE uid='{source_uid}'" )
+    
+    # Verify Source UID is available 
+    if is_list_empty(source):
+        raise InvalidUidError('Could not find source uid.')
+
+    # Parse Source Information
+    src_info = parse_source_data(source[0])
+
+    # Check Source
+    if is_src_loaded(source_uid):
+        return RT_CONF[K_SRC].get(source_uid)
+
     # Initialize Source         
     src_object = SourceV2(
         input=src_info['input'], 
@@ -92,8 +151,28 @@ def create_source(source_uid:str):
     log.info('Update {} to {}'.format(source_uid, SERV_CONF.get_name))
 
     log.info('Initialized Source')
+    update_src_status(source_uid, 'loaded')
+    
     return src_object
 
+
+def start_source(source_uid:str):
+    """Start source"""
+    src = create_source(source_uid)
+    src.start()
+    update_src_status(source_uid, 'running')
+
+
+def stop_source(source_uid:str):
+    
+    if not is_source_using(source_uid)[0]:
+        return
+    
+    src = create_source(source_uid)
+    src.release()
+    update_src_status(source_uid, 'stop')
+    log.warning('Stop source: {}'.format(source_uid))
+    
 
 def add_source(files=None, input: str=None, option: dict=None) -> dict:
     """ Add new source function """
@@ -187,4 +266,3 @@ def get_source_frame(source_uid:str, resolution:list=None) -> np.ndarray:
     
     return frame
 
-create_displayer = Displayer
