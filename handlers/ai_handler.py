@@ -9,15 +9,33 @@ if sys.version_info < (3, 8):
 else:
     from typing import Literal
 
+from .ivit_handler import iModel
+
 from ..common import init_ivit_env
 
 CLS = "CLS"
 OBJ = "OBJ"
 SEG = "SEG"
 
+class InvalidModelTypeError(Exception):
+    def __init__(self, message) -> None:
+        self.message = message
+
+
 # OpenVINO
-def vino_init(type:str, params:dict):
-    """ Initialize OpenVINO """
+def ivit_i_intel(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
+    """Initialize iVIT-I Intel Function
+
+    Args:
+        type (Literal[&quot;CLS&quot;, &quot;OBJ&quot;, &quot;SEG&quot;]): the model type
+        params (dict): the model setting
+
+    Raises:
+        InvalidModelTypeError: get unexpected model type
+
+    Returns:
+        iModel: return model which inherit iModel
+    """
     if type == CLS:
         from ivit_i.core.models import iClassification
         model = iClassification(
@@ -38,25 +56,36 @@ def vino_init(type:str, params:dict):
             confidence_threshold = params["confidence_threshold"]
         )
     else:
-        raise RuntimeError('Unexpect Type: {}'.format(type))
+        raise InvalidModelTypeError('Unexpect Type: {}'.format(type))
     
     return model
 
 # Jetson
-def jetson_init():
+def ivit_i_jetson():
     pass
 
 # dGPU
-def dgpu_init():
+def ivit_i_dgpu():
     pass
 
 # Hailo
-def hailo_init():
+def ivit_i_hailo():
     pass
 
 # Xilinx
-def xlnx_init(type:str, params:dict):
-    """ Initialize Xilinx """
+def ivit_i_xlnx(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
+    """Initialize iVIT-I Xilinx Function
+
+    Args:
+        type (Literal[&quot;CLS&quot;, &quot;OBJ&quot;, &quot;SEG&quot;]): the model type
+        params (dict): the model setting
+
+    Raises:
+        InvalidModelTypeError: get unexpected model type
+
+    Returns:
+        iModel: return model which inherit iModel
+    """
     if type == CLS:
         from ivit_i.core.models import iClassification
         model = iClassification(
@@ -77,19 +106,26 @@ def xlnx_init(type:str, params:dict):
             confidence_threshold = params["confidence_threshold"]
         )
     else:
-        raise RuntimeError('Unexpect Type: {}'.format(type))
+        raise InvalidModelTypeError('Unexpect Type: {}'.format(type))
     
     return model
 
 
 
-def get_ivit_api(framework:Literal['openvino', 'tensorrt', 'jetson', 'vitis-ai', 'hailort']):
-    
+def get_ivit_api(framework:Literal["openvino", "tensorrt", "jetson", "vitis-ai", "hailort"]) -> iModel:
+    """Get iVIT-I API
+
+    Args:
+        framework (Literal[&quot;openvino&quot;, &quot;tensorrt&quot;, &quot;jetson&quot;, &quot;vitis): supported framework
+
+    Returns:
+        iModel: return target model which inherit with iModel
+    """
     map = {
-        "openvino": vino_init,
-        "tensorrt": jetson_init,
-        "vitis-ai": xlnx_init,
-        "hailort": hailo_init
+        "openvino": ivit_i_intel,
+        "tensorrt": ivit_i_jetson,
+        "vitis-ai": ivit_i_xlnx,
+        "hailort": ivit_i_hailo
     }
 
     return map[framework]
