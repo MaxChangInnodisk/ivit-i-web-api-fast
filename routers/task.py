@@ -127,8 +127,13 @@ async def execute_task(exec_data: TaskAction):
 def add_task(add_data: AddTaskFormat):
 
     try:
+    
         ret = task_handler.add_ai_task(add_data=add_data)
-        return http_msg(content=ret)
+    
+        code = 200 if ret['status']=='success' else 500
+    
+        return http_msg(content=ret, status_code=code)
+    
     except Exception as e:
         return http_msg(content=e, status_code=500)
 

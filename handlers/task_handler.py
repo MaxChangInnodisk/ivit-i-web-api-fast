@@ -27,7 +27,9 @@ from .db_handler import (
     db_to_list,
     is_list_empty,
     connect_db,
-    close_db
+    close_db,
+    select_column_by_uid,
+    update_column_by_uid
 )
 from .ivit_handler import Metric
 
@@ -41,15 +43,6 @@ def get_task_info(uid:str=None):
 
     print('GET Task Information: {}'.format(uid))
 
-    # DB Helper    
-    def select_column_by_uid(cursor:sqlite3.Cursor, table:str, uid:str, cols:Union[str, list]) -> list:
-        return db_to_list( cursor.execute(
-            """SELECT {} FROM {} WHERE uid=\"{}\"""".format(
-                ', '.join(cols) if isinstance(cols, list) else cols, 
-                table, 
-                uid
-        )))
-
     # Basic Params
     return_data, return_errors = [], []
 
@@ -61,7 +54,7 @@ def get_task_info(uid:str=None):
         '''SELECT * FROM task''' if uid == None \
             else """SELECT * FROM task WHERE uid=\"{}\"""".format(uid)
     ))
-    
+
     # Check DB Data
     if is_list_empty(results):
         raise InvalidUidError("Got invalid task uid: {}".format(uid))
@@ -128,6 +121,7 @@ def get_task_status(uid):
 
 
 def update_task_status(uid, status, err_mesg:dict = {}):
+    
     write_data = {
         'status':status,
         'error': err_mesg
@@ -136,6 +130,7 @@ def update_task_status(uid, status, err_mesg:dict = {}):
 
 
 def verify_task_exist(uid):
+    
     # Task Information
     task = select_data(table='task', data="*", condition=f"WHERE uid='{uid}'")
     
@@ -156,6 +151,7 @@ def verify_duplicate_task(task_name):
 def verify_thres(threshold:float):
     if threshold < 0.1 and threshold > 1.0:
         raise ValueError('Threshold value should in range 0 to 1')
+
 
 
 def run_ai_task(uid:str, data:dict=None):
@@ -306,6 +302,7 @@ def update_ai_task(uid:str, data:dict=None):
     return 'Update success'
 
 
+
 def add_ai_task(add_data):
     """ Add a AI Task 
     ---
@@ -314,13 +311,41 @@ def add_ai_task(add_data):
     """
     
     # Generate Task UUID and Application UUID    
+    errors = {}
     task_uid = app_uid = gen_uid()
 
-    # CHECK: task exist
-    verify_duplicate_task(add_data.task_name)
+    # Check Database Data
+    con, cur = connect_db()
 
-    # CHECK: threshold value is available
-    verify_thres(threshold=add_data.model_setting['confidence_threshold'])
+    # Task Name
+    results = db_to_list(cur.execute("""SELECT name FROM task WHERE name=\"{}\" """.format(add_data.task_name)))
+    if not is_list_empty(results):
+        errors.update( {"task_name": "Duplicate task name: {}".format(add_data.task_name)} )
+
+    # Source UID
+    results = db_to_list(cur.execute("""SELECT uid FROM source WHERE uid=\"{}\" """.format(add_data.source_uid)))
+    if is_list_empty(results):
+        errors.update( {"source_uid": "Unkwon Source UID: {}".format(add_data.source_uid)} )
+
+    # Model UID
+    results = db_to_list(cur.execute("""SELECT uid FROM model WHERE uid=\"{}\" """.format(add_data.model_uid)))
+    if is_list_empty(results):
+        errors.update( {"model_uid": "Unkwon model UID: {}".format(add_data.model_uid)} )
+
+    # Close DB
+    close_db(con, cur)
+
+    # Model Setting
+    threshold = add_data.model_setting['confidence_threshold']
+    if threshold < 0.1 or threshold > 1.0:
+        errors.update( {"confidence_threshold": "Invalid confidence threshold, should in range 0 to 1"})
+    
+    if len(errors.keys())>0:
+        return {
+        "uid": task_uid,
+        "status": "failed",
+        "data": errors
+    }
 
     # Add Task Information into Database
     insert_data(
@@ -345,13 +370,14 @@ def add_ai_task(add_data):
             "uid": app_uid,
             "name": add_data.app_name,
             "type": app_type,
-            "app_setting": json_to_str(add_data.app_setting)
+            "app_setting": add_data.app_setting
         }
     )
     
     return {
         "uid": task_uid,
-        "status": "success"
+        "status": "success",
+        "data": errors
     }
 
 
