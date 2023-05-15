@@ -69,10 +69,9 @@ def is_db_empty(dp_path:str) -> bool:
         bool: is empty or not
     """
     con, cur = connect_db(dp_path)
-    cur.execute("SELECT COUNT(*) FROM task ")
-    result = cur.fetchone()
+    nums = db_to_list(cur.execute("SELECT COUNT(*) FROM task "))[0][0]
     close_db(con, cur)
-    return (result[0] is None)
+    return nums==0
 
 
 def insert_data(table:str, data:dict, db_path:str=SERV_CONF["DB_PATH"], replace:bool=False) -> None:
