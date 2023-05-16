@@ -1,0 +1,20 @@
+{
+    "PROJECT": "ivit-i",
+    "PLATFORM": "intel",
+    "FRAMEWORK": "openvino",
+    "VERSION": "v1.1",
+    "SERVICE": {
+        "HOST": "127.0.0.1",
+        "PORT": 819      
+    },
+    "ICAP": {
+        "HOST": "10.204.16.115",
+        "PORT": 3000
+    },
+    "NGINX": {
+        "PORT": 6632
+    },
+    "WEB_SITE": {
+        "PORT": 4999
+    }
+}   
