@@ -1,0 +1,25 @@
+# YAML
+version: '3'
+services:
+  rtsp:
+    image: aler9/rtsp-simple-server
+    network_mode: host
+    volumes: 
+      - ./rtsp-config.yml:/mediamtx.yml
+  webrtc:
+    image: ghcr.io/deepch/rtsptoweb:latest
+    network_mode: host
+    volumes:
+      - ./webrtc-config.json:/config/config.json
+    depends_on:
+      - rtsp
+  nginx:
+    image: nginx
+    network_mode: host
+    volumes:
+      - ./nginx-config.template:/etc/nginx/templates/default.conf.template
+    environment:
+      - NGINX_PORT=6632
+      - API_PORT=819
+      - RTC_PORT=8083
+      - WEB_PORT=4999
