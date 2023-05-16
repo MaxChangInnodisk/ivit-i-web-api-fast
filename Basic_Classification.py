@@ -2,7 +2,7 @@ import sys, os, cv2
 import numpy as np 
 import logging
 sys.path.append( os.getcwd() )
-from ivit_i.utils.logger import ivit_logger
+from ivit_i.common.logger import ivit_logger
 from apps.palette import palette
 from ivit_i.app import iAPP_CLS
 class Basic_Classification(iAPP_CLS):

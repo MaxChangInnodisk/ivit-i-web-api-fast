@@ -1,7 +1,7 @@
 import sys, os, cv2
 sys.path.append( os.getcwd() )
 from apps.palette import palette
-from ivit_i.utils.logger import ivit_logger
+from ivit_i.common.logger import ivit_logger
 from ivit_i.app import iAPP_OBJ
 class Basic_Object_Detection(iAPP_OBJ):    
     """ Basic Object Detection Application

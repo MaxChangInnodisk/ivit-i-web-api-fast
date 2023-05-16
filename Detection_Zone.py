@@ -5,7 +5,7 @@ import os
 import threading
 from datetime import datetime
 sys.path.append( os.getcwd() )
-from ivit_i.utils.logger import ivit_logger
+from ivit_i.common.logger import ivit_logger
 from apps.palette import palette
 import math
 from multiprocessing.pool import ThreadPool
