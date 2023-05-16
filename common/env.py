@@ -4,7 +4,7 @@
 # https://opensource.org/licenses/MIT
 
 import sys, os
-from ivit_i.utils import ivit_logger
+from ivit_i.common import ivit_logger
 
 def init_ivit_env():
     
