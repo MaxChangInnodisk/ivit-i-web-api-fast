@@ -7,8 +7,11 @@ import sys, time, json, re, sqlite3
 import logging as log
 from typing import Union, Tuple
 
-from ..common import SERV_CONF
-
+try:
+    from ..common import SERV_CONF
+except:
+    from common import SERV_CONF
+    
 # --------------------------------------------------------
 # Sqlite3 Command Helper
 

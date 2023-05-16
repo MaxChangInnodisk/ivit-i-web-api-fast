@@ -14,8 +14,13 @@ import requests
 
 import logging as log
 from fastapi import File
-from ..common import SERV_CONF, MODEL_CONF, WS_CONF
-from ..utils import gen_uid, load_db_json
+
+try:
+    from ..common import SERV_CONF, MODEL_CONF, WS_CONF
+    from ..utils import gen_uid, load_db_json
+except:
+    from common import SERV_CONF, MODEL_CONF, WS_CONF
+    from utils import gen_uid, load_db_json
 
 from .db_handler import select_data, insert_data, update_data, delete_data
 from .mesg_handler import handle_exception, simple_exception, ws_msg

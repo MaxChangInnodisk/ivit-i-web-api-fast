@@ -11,12 +11,18 @@ from fastapi.responses import Response
 from typing import Optional
 from pydantic import BaseModel
 
-
-from ..common import SERV_CONF
-from ..handlers.mesg_handler import http_msg
-from ..handlers.ivit_handler import iAPP_HANDLER
-from ..handlers.app_handler import parse_app_data
-from ..handlers.db_handler import select_data, insert_data
+try:
+    from ..common import SERV_CONF
+    from ..handlers.mesg_handler import http_msg
+    from ..handlers.ivit_handler import iAPP_HANDLER
+    from ..handlers.app_handler import parse_app_data
+    from ..handlers.db_handler import select_data, insert_data
+except:
+    from common import SERV_CONF
+    from handlers.mesg_handler import http_msg
+    from handlers.ivit_handler import iAPP_HANDLER
+    from handlers.app_handler import parse_app_data
+    from handlers.db_handler import select_data, insert_data
 
 
 # Router

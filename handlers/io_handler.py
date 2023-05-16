@@ -8,8 +8,12 @@ import logging as log
 import numpy as np
 from typing import Union, Tuple
 
-from ..common import RT_CONF, SERV_CONF
-from ..utils import gen_uid
+try:
+    from ..common import RT_CONF, SERV_CONF
+    from ..utils import gen_uid
+except:
+    from common import RT_CONF, SERV_CONF
+    from utils import gen_uid
 
 from .db_handler import (
     select_data, 

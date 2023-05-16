@@ -9,8 +9,12 @@ import asyncio
 from typing import Union
 
 # Custom
-from ..common import SERV_CONF, RT_CONF, WS_CONF
-from ..utils import gen_uid, json_to_str
+try:
+    from ..common import SERV_CONF, RT_CONF, WS_CONF
+    from ..utils import gen_uid, json_to_str
+except:
+    from common import SERV_CONF, RT_CONF, WS_CONF
+    from utils import gen_uid, json_to_str
 
 from .ai_handler import get_ivit_api
 from .io_handler import (

@@ -12,8 +12,12 @@ from fastapi.responses import Response
 from typing import Optional, Dict, List
 from pydantic import BaseModel
 
-from ..common import SERV_CONF
-from ..handlers.mesg_handler import http_msg
+try:
+    from ..common import SERV_CONF
+    from ..handlers.mesg_handler import http_msg
+except:
+    from common import SERV_CONF
+    from handlers.mesg_handler import http_msg
 
 # --------------------------------------------------------------------
 # Router

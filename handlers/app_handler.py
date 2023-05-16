@@ -8,8 +8,11 @@ import logging as log
 from typing import Union
 
 # Import iVIT-I 
-from ..common import SERV_CONF, RT_CONF
-
+try:
+    from ..common import SERV_CONF, RT_CONF
+except:
+    from common import SERV_CONF, RT_CONF
+    
 from .db_handler import select_data, parse_app_data
 from .ivit_handler import iAPP_HANDLER, iAPP_CLS, iAPP_OBJ, iAPP_SEG
 

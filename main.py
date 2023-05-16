@@ -24,22 +24,22 @@ import uvicorn
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 
-from .utils import check_json, get_pure_jsonify
-from .common import SERV_CONF, WS_CONF
-from .samples import init_samples
-from .handlers import (
+from utils import check_json, get_pure_jsonify
+from common import SERV_CONF, WS_CONF
+from samples import init_samples
+from handlers import (
     model_handler, 
     icap_handler, 
     app_handler, 
     db_handler
 )
-from .handlers.mesg_handler import ws_msg
+from handlers.mesg_handler import ws_msg
 
 # About ICAP
 import paho
 
 # Routers
-from .routers import routers
+from routers import routers
 
 
 # Start up

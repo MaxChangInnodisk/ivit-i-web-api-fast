@@ -11,8 +11,11 @@ else:
 
 from .ivit_handler import iModel
 
-from ..common import init_ivit_env
-
+try:
+    from ..common import init_ivit_env
+except:
+    from common import init_ivit_env
+    
 CLS = "CLS"
 OBJ = "OBJ"
 SEG = "SEG"

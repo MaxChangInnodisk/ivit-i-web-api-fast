@@ -11,12 +11,21 @@ import time
 import json
 import logging as log
 
-from .imagenet import IMAGE_NET_LABEL
-from .coco import COCO_LABEL
-
-from ..common import SERV_CONF
-from ..utils import gen_uid, json_to_str
-from ..handlers import db_handler
+try:
+    from .imagenet import IMAGE_NET_LABEL
+    from .coco import COCO_LABEL
+except:
+    from imagenet import IMAGE_NET_LABEL
+    from coco import COCO_LABEL
+    
+try:
+    from ..common import SERV_CONF
+    from ..utils import gen_uid, json_to_str
+    from ..handlers import db_handler
+except:
+    from common import SERV_CONF
+    from utils import gen_uid, json_to_str
+    from handlers import db_handler
 
 
 def download_file(file_path, file_url):

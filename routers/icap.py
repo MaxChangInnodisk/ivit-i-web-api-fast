@@ -10,10 +10,14 @@ from typing import List, Optional
 from enum import Enum
 
 from pydantic import BaseModel
-
-from ..common import SERV_CONF, ICAP_CONF
-from ..handlers.mesg_handler import http_msg
-from ..handlers import icap_handler
+try:
+    from ..common import SERV_CONF, ICAP_CONF
+    from ..handlers.mesg_handler import http_msg
+    from ..handlers import icap_handler
+except:
+    from common import SERV_CONF, ICAP_CONF
+    from handlers.mesg_handler import http_msg
+    from handlers import icap_handler
 
 # Router
 

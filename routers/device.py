@@ -8,8 +8,12 @@
 import logging as log
 from fastapi import APIRouter
 
-from ..common import SERV_CONF
-from ..handlers.mesg_handler import http_msg
+try:
+    from ..common import SERV_CONF
+    from ..handlers.mesg_handler import http_msg
+except:
+    from common import SERV_CONF
+    from handlers.mesg_handler import http_msg
 
 # Router
 device_router = APIRouter(tags=["device"])

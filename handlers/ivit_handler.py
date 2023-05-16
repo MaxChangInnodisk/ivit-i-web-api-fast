@@ -3,7 +3,11 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-from .. import common
+try:
+    from .. import common
+except:
+    import common
+    
 common.init_ivit_env()
 
 from ivit_i.io import (

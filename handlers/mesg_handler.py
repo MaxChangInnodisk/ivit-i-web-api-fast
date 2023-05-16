@@ -8,7 +8,11 @@ import json
 import logging as log
 from fastapi.responses import Response
 
-from ..common import init_ivit_env
+try:
+    from ..common import init_ivit_env
+except:
+    from common import init_ivit_env
+
 from .ivit_handler import simple_exception, handle_exception
 
 K_MESG  = "message"

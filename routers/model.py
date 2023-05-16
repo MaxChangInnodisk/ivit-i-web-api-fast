@@ -11,12 +11,12 @@ from fastapi.responses import Response
 from typing import Optional, List
 from pydantic import BaseModel
 
-from ..common import SERV_CONF
-
-from ..handlers.mesg_handler import http_msg
-from ..handlers.db_handler import select_data, insert_data, delete_data
-
-from ..handlers import model_handler
+try:
+    from ..handlers.mesg_handler import http_msg
+    from ..handlers import model_handler
+except:
+    from handlers.mesg_handler import http_msg
+    from handlers import model_handler
 
 # Router
 model_router = APIRouter( tags=["model"] )

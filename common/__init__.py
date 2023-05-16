@@ -4,7 +4,8 @@
 # https://opensource.org/licenses/MIT
 
 
-# __path__ = __import__('pkgutil').extend_path(__path__, __name__)
+__path__ = __import__('pkgutil').extend_path(__path__, __name__)
+
 from .env import (
     init_ivit_env,
     init_ivit_logger

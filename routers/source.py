@@ -14,9 +14,14 @@ from fastapi.responses import Response
 from typing import List, Optional, Literal
 from pydantic import BaseModel
 
-from ..handlers.mesg_handler import http_msg
-from ..handlers.io_handler import get_source_frame, add_source, get_src_info, create_source
-from ..handlers.db_handler import select_data, insert_data, delete_data, update_data
+try:
+    from ..handlers.mesg_handler import http_msg
+    from ..handlers.io_handler import get_source_frame, add_source, get_src_info, create_source
+    from ..handlers.db_handler import select_data, insert_data, delete_data, update_data
+except:
+    from handlers.mesg_handler import http_msg
+    from handlers.io_handler import get_source_frame, add_source, get_src_info, create_source
+    from handlers.db_handler import select_data, insert_data, delete_data, update_data
 
 # Router
 source_router = APIRouter(tags=["source"])

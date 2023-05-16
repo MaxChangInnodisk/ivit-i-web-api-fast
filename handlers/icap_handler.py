@@ -8,8 +8,13 @@ import logging as log
 import paho.mqtt.client as mqtt
 from typing import Union
 
-from ..common import SERV_CONF, ICAP_CONF
-from ..utils import get_mac_address, get_address
+try:
+    from ..common import SERV_CONF, ICAP_CONF
+    from ..utils import get_mac_address, get_address
+
+except:
+    from common import SERV_CONF, ICAP_CONF
+    from utils import get_mac_address, get_address
 
 from .mesg_handler import handle_exception, http_msg_formatter
 from .model_handler import ModelDeployerWrapper, URL_DEPLOYER
