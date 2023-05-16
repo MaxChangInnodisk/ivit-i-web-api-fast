@@ -4,7 +4,7 @@ import logging
 sys.path.append( os.getcwd() )
 from ivit_i.common.logger import ivit_logger
 from apps.palette import palette
-from ivit_i.app import iAPP_CLS
+from ivit_i.common.app import iAPP_CLS
 class Basic_Classification(iAPP_CLS):
     """ __init__, __call__ """
 

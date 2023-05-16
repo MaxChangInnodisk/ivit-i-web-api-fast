@@ -9,7 +9,7 @@ from ivit_i.common.logger import ivit_logger
 from apps.palette import palette
 import math
 from multiprocessing.pool import ThreadPool
-from ivit_i.app import iAPP_OBJ
+from ivit_i.common.app import iAPP_OBJ
 
 class event_handle(threading.Thread):
     def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int):
