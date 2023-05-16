@@ -16,6 +16,5 @@ def init_ivit_env():
 
 def init_ivit_logger():
     pass
-#     ivit_logger()
 
 

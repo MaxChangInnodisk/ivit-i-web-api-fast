@@ -21,10 +21,9 @@ from ivit_i.common.app import (
 from ivit_i.core.models import (
     iModel
 )
-
+from ivit_i.common import (
+    Metric, simple_exception, handle_exception
+)
 from ivit_i.utils import (
     iDevice,
-    simple_exception, 
-    handle_exception,
-    Metric
 )
