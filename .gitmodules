@@ -1,0 +1,4 @@
+[submodule "apps"]
+	path = apps
+	url = https://github.com/InnoIPA/ivit-i-app.git
+	branch = r1.1

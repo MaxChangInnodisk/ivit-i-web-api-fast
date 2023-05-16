@@ -161,3 +161,5 @@ cython_debug/
 
 !**/*/.gitkeep
 data/*
+model/*
+ivit_i.sqlite

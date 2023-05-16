@@ -202,7 +202,7 @@ if __name__ == "__main__":
     #     reload=True )
 
     uvicorn.run(
-        "service.main:app", 
+        "main:app", 
         host = SERV_CONF["HOST"], 
         port = int(SERV_CONF["PORT"]),
         workers = 1 )
