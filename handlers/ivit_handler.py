@@ -11,7 +11,7 @@ from ivit_i.io import (
     Displayer
 )
 
-from ivit_i.app import (
+from ivit_i.common.app import (
     iAPP_HANDLER,
     iAPP_CLS,
     iAPP_OBJ,
