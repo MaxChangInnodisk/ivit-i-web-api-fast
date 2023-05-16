@@ -425,6 +425,7 @@ def init_db_model(model_dir:str=SERV_CONF["MODEL_DIR"], add_db:bool=True) -> dic
 
 def add_model_into_db(models_information:dict, db_path:str=SERV_CONF["DB_PATH"]):
     """ Add Model Information Into Database """
+    assert models_information, "Model Information is null" 
     for model_name, model_info in models_information.items():
         model_uid = gen_uid(model_name)
         with open(model_info['label_path'], 'r') as f:
