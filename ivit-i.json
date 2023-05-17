@@ -3,6 +3,7 @@
     "PLATFORM": "intel",
     "FRAMEWORK": "openvino",
     "VERSION": "v1.1",
+    "TAG": "service",
     "SERVICE": {
         "HOST": "127.0.0.1",
         "PORT": 819      
@@ -13,8 +14,5 @@
     },
     "NGINX": {
         "PORT": 6632
-    },
-    "WEB_SITE": {
-        "PORT": 4999
     }
 }   
