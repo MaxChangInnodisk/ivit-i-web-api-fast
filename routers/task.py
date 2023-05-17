@@ -119,6 +119,7 @@ async def execute_task(exec_data: TaskAction):
         return http_msg( content = mesg, status_code = 200 )
 
     except Exception as e:
+        log.exception(e)
         update_data(
             table='task', 
             data={
