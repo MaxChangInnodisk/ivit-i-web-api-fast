@@ -47,7 +47,7 @@ function help(){
 }
 
 # Get information from argument
-while getopts "bcqh:p:" option; do
+while getopts "bcqp:h" option; do
 	case $option in
 		b )
 			INTERATIVE=false ;;
