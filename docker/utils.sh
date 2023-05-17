@@ -140,3 +140,14 @@ function check_folder(){
 		mkdir ${TRG_PATH}	
 	fi
 }
+
+function check_config(){
+	CONF=$1
+	FLAG=$(ls ${CONF} 2>/dev/null)
+	if [[ -z $FLAG ]];then 
+		printd "Couldn't find configuration (${CONF})" Cy; 
+		exit
+	else 
+		printd "Detected configuration (${CONF})" Cy; 
+	fi
+}

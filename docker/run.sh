@@ -6,27 +6,35 @@
 
 
 # ========================================================
-# Basic Parameters
-DOCKER_USER="maxchanginnodisk"
-PROJECT="ivit-i"
-PLATFORM="intel"
-VERSION="v1.1"
-TAG="runtime"
-DOCKER_COMPOSE="./docker/docker-compose.yml"
-
-# ========================================================
 # Store the utilities
 FILE=$(realpath "$0")
 ROOT=$(dirname "${FILE}")
 source "${ROOT}/utils.sh"
 
 # ========================================================
-# Set the default value of the getopts variable 
-INTERATIVE=true
-QUICK=false
-RUN_SERVICE=false
+# Basic Parameters
+CONF="ivit-i.json"
+DOCKER_USER="maxchanginnodisk"
+DOCKER_COMPOSE="docker/docker-compose.yml"
 
 # ========================================================
+# Check configuration is exit
+check_config ${CONF}
+
+# ========================================================
+# Parse information from configuration
+check_jq
+PROJECT=$(cat "${CONF}" | jq -r '.PROJECT')
+VERSION=$(cat "${CONF}" | jq -r '.VERSION')
+PLATFORM=$(cat "${CONF}" | jq -r '.PLATFORM')
+TAG=$(cat "${CONF}" | jq -r '.TAG')
+
+# ========================================================
+# Set the default value of the getopts variable 
+INTERATIVE=true
+RUN_SERVICE=true
+QUICK=false
+
 # Help
 function help(){
 	echo "Run the iVIT-I environment."
@@ -39,10 +47,12 @@ function help(){
 }
 
 # Get information from argument
-while getopts "bqh:p:" option; do
+while getopts "bcqh:p:" option; do
 	case $option in
 		b )
 			INTERATIVE=false ;;
+		c )
+			RUN_SERVICE=false ;;
 		q )
 			QUICK=true ;;
 		p )
@@ -71,6 +81,7 @@ SET_NETS="--net=host"
 # [DEFINE COMMAND]
 RUN_CMD=""
 CLI_CMD="bash"
+WEB_CMD="source ~/.bashrc && python3 main.py"
 
 # [DEFINE OPTION]
 SET_CONTAINER_MODE=""
