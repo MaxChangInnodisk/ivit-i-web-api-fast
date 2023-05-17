@@ -1,7 +1,6 @@
-import sys, os, cv2
+import sys, os, cv2 ,logging
 sys.path.append( os.getcwd() )
 from apps.palette import palette
-from ivit_i.common.logger import ivit_logger
 from ivit_i.common.app import iAPP_OBJ
 class Basic_Object_Detection(iAPP_OBJ):    
     """ Basic Object Detection Application
@@ -21,7 +20,6 @@ class Basic_Object_Detection(iAPP_OBJ):
         self.palette={}
         self.model_label = label
         self.model_label_list =[]
-        self.logger = ivit_logger()
         
         self.init_palette(palette)
         self.init_draw_params()
@@ -34,11 +32,11 @@ class Basic_Object_Detection(iAPP_OBJ):
         self.font_size  = None
         self.font_thick = None
         self.thick      = None
-        self.draw_result =True
+        self.draw_result =self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else True
         
         #for draw area
         self.area_name={}
-        self.draw_bbox =True
+        self.draw_bbox =self.params['application']['draw_bbox'] if self.params['application'].__contains__('draw_bbox') else True
         self.draw_area=True
         self.area_opacity=None
         self.area_color=None
@@ -67,12 +65,6 @@ class Basic_Object_Detection(iAPP_OBJ):
         self.thick  = BASE_THICK + round( scale )
         self.font_thick = self.thick//2
         self.font_size = BASE_FONT_SIZE + ( scale*FONT_SCALE )
-        if self.params:
-            self.draw_result = self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else True
-            self.draw_bbox = self.params['application']['draw_bbox'] if self.params['application'].__contains__('draw_bbox') else True
-        else :
-            self.draw_result = True
-            self.draw_bbox = True
 
         self.area_color=[0,0,255]
         self.area_opacity=0.4  
@@ -120,21 +112,58 @@ class Basic_Object_Detection(iAPP_OBJ):
                 self.palette.update({line.strip():color})
                 self.model_label_list.append(line.strip())
 
-    def set_color(self,label:str,color:tuple):
-        """
-        set color :
-
-        sample of paremeter : 
-            label = "dog"
-            color = (0,0,255)
-        """
-        self.palette.update({label:color})
-        self.logger.info("Label: {} , change color to {}.".format(label,color))
-
     def get_color(self, label):
 
         return self.palette[label] 
        
+    def set_draw(self,params:dict):
+        """
+        Control anything about drawing.
+        Which params you can contral :
+
+        {  
+            draw_bbox : bool ,
+            draw_result : bool ,
+            palette: list:[ turple:( label:str , color:turple ) ]
+        }
+        
+        Args:
+            params (dict): 
+        """
+        if not isinstance(params, dict):
+            logging.error("Input type is dict! but your type is {} ,please correct it.".format(type(params.get('draw_area', None))))
+            return
+
+        if isinstance(params.get('draw_bbox', self.draw_bbox) , bool):
+            self.draw_bbox= params.get('draw_bbox', self.draw_bbox)
+            logging.info("Change draw_bbox mode , now draw_bbox mode is {} !".format(self.draw_bbox))
+        else:
+            logging.error("draw_bbox type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_bbox', self.draw_bbox))))
+        
+        if isinstance(params.get('draw_result', self.draw_result) , bool):    
+            self.draw_result= params.get('draw_result', self.draw_result)
+            logging.info("Change draw_result mode , now draw_result mode is {} !".format(self.draw_result))
+        else:
+            logging.error("draw_result type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_result', self.draw_result))))
+        
+
+        palette = params.get('palette', None)
+        if isinstance(palette, list):
+            if len(palette)==0:
+                logging.warning("Not set palette!")
+                pass
+            else:
+                for info in palette:
+                    (label , color) = info
+                    if isinstance(label, str) and isinstance(color, tuple):
+                        self.palette.update({label:color})
+                        logging.info("Label: {} , change color to {}.".format(label,color))
+                    else:
+                        logging.error("Value in palette type must (label:str , color :Turple ),your type \
+                                      label:{} , color:{} is error.".format(type(label),type(color)))
+        else:
+            logging.error("Not set palette or your type {} is error.".format(type(palette)))
+
 
     def __call__(self, frame, detections, draw=True) -> tuple:
         #collect depend_on for each area from config
