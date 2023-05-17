@@ -27,7 +27,7 @@ K_ERR = "ERROR"
 def json_exception(content) -> dict:
     """ Return a iVIT Exception with JSON format """
     
-    err_type, err_detail = simple_exception(content)
+    err_type, err_detail = simple_exception(error=content)
     
     # if not err_type in [ "ImageOpenError", "VideoOpenError", "RtspOpenError", "UsbCamOpenError" ]:
     #     err_type = "RuntimeError"
