@@ -4,9 +4,10 @@ import uuid
 import os
 import threading
 import math
+from . import types as Error
 from datetime import datetime
+from typing import Union, get_args
 sys.path.append( os.getcwd() )
-from ivit_i.common.logger import ivit_logger
 from apps.palette import palette
 from multiprocessing.pool import ThreadPool
 from ivit_i.common.app import iAPP_OBJ
@@ -318,8 +319,8 @@ class app_common_handle(threading.Thread):
         
         
         return temp_direction , tracked
-  
-    def inpolygon(self,px,py,poly):
+    @staticmethod
+    def inpolygon(px,py,poly):
         is_in = False
         for i , corner in enumerate(poly):
             next_i = i +1 if i +1 < len(poly) else 0
@@ -442,7 +443,9 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.params = params  
 
         self.check_params()
-
+        # ( correct , error_list )=self.verify_params(params)
+        # if not correct :
+        #     raise Error.LinePointIncorrect(error_list)
         self.app_type = 'obj'
         self.depend_on ={}
         self.palette={}
@@ -474,7 +477,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.model_label_list =[]
 
         # self.pool = ThreadPool(os.cpu_count() )
-        self.logger = ivit_logger()
+    
         self.init_palette(palette)
 
         self.collect_depand_info()
@@ -486,6 +489,48 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.init_event_object()
         self.event_start()
 
+    @staticmethod
+    def verify_params(params:dict):
+        """
+
+        To verify the line point whether or not in area point.
+     
+        Args:
+            params (dict): app config.
+
+        Returns:
+            Tuple:( bool , error:list )
+        """
+        error = []
+        error_temp=[]
+        if not params.__contains__('application'):
+            logging.error('App config is not set application, plz set application in app config')
+            return False
+        elif not params['application'].__contains__('areas'):
+            logging.error('App config is not set area , plz set area in app config')
+            return False
+        
+        num_area = len(params['application']['areas'])
+
+        if num_area==0:
+            logging.error('App config is not set area info , plz set area info in app config')
+            return False
+
+        for area_idx in range(num_area):
+            
+            for line_name,line_value in params['application']['areas'][area_idx]['line_point'].items():
+                for point in line_value:
+                    if not app_common_handle.inpolygon(point[0],point[1],params['application']['areas'][area_idx]['area_point']):
+                
+                        logging.error('Area name : {}  line_point is out of area_point !'.format(params['application']['areas'][area_idx]['name']\
+                                                                       ,point[0],point[1] ))
+                        error_temp.append(line_name)
+                        break
+            
+            error.append((params['application']['areas'][area_idx]['name'],error_temp))
+            error_temp=[]
+
+        return ( len(error)==0 , error)
 
     def check_params(self):
         if not self.params:
@@ -529,13 +574,13 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.font_size  = None
         self.font_thick = None
         self.thick      = None
-        self.draw_result =1
-        
+        self.draw_result =True
+        self.draw_tracking = True
         #for draw area
         self.area_name={}
-        self.draw_bbox =1
-        self.draw_area=1
-        self.is_draw_line = 1
+        self.draw_bbox =True
+        self.draw_area=True
+        self.is_draw_line = True
         self.area_opacity=None
         self.area_color=None
         self.area_pts = {}
@@ -617,7 +662,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
             color = (0,0,255)
         """
         self.palette.update({label:color})
-        self.logger.info("Label: {} , change color to {}.".format(label,color))
+        logging.info("Label: {} , change color to {}.".format(label,color))
 
     def get_color(self, label):
        
@@ -732,6 +777,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
             self.area_mask.update({i:tmp})
                      
     def draw_line(self,frame,is_draw_line=True):
+        is_draw_line = self.is_draw_line
         if not is_draw_line : return
         for id, val in self.line_point.items():
             
@@ -752,6 +798,44 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
     def event_start(self):
         for i in range(len(self.event_handler)):
             self.event_handler[i].start()       
+    
+    @staticmethod
+    def sort_point_list(point_list:list):
+        """
+        This function will help user to sort the point in the list counterclockwise.
+        step 1 : We will calculate the center point of the cluster of point list.
+        step 2 : calculate arctan for each point in point list.
+        step 3 : sorted by arctan.
+
+        Args:
+            pts_2ds (list): not sort point.
+
+
+        Returns:
+            point_list(list): after sort.
+        
+        """
+
+        cen_x, cen_y = np.mean(point_list, axis=0)
+        #refer_line = np.array([10,0]) 
+        temp_point_list = []
+        sorted_point_list = []
+        for i in range(len(point_list)):
+
+            o_x = point_list[i][0] - cen_x
+            o_y = point_list[i][1] - cen_y
+            atan2 = np.arctan2(o_y, o_x)
+            # angle between -180~180
+            if atan2 < 0:
+                atan2 += np.pi * 2
+            temp_point_list.append([point_list[i], atan2])
+        
+        temp_point_list = sorted(temp_point_list, key=lambda x:x[1])
+        for x in temp_point_list:
+            sorted_point_list.append(x[0])
+       
+        
+        return sorted_point_list
          
     def draw_area_event(self, frame, is_draw_area, area_color=None, area_opacity=None, draw_points=True, draw_polys=True):
         """ Draw Detecting Area and update center point if need.
@@ -824,7 +908,9 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         if data is None   : return False 
         return True
   
-    def draw_tag(self,tracking_tag,xmin, ymin, xmax, ymax,outer_clor,font_color,frame):
+    def draw_tag(self,tracking_tag,xmin, ymin, xmax, ymax,outer_clor,font_color,frame,draw_tracking=True):
+        draw_tracking = self.draw_tracking
+        if not draw_tracking: return
         (t_wid, t_hei), t_base = cv2.getTextSize(str(tracking_tag), cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
         half_wid, half_hei = t_wid//2, t_hei//2
         [cnt_x, cnt_y] = [(xmin+xmax)//2,(ymin+ymax)//2]
@@ -861,6 +947,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
             for point in self.normalize_area_pts[area]:
                 if point[0]>1: return
                 temp_point.append([math.ceil(point[0]*frame.shape[1]),math.ceil(point[1]*frame.shape[0])])
+            temp_point = self.sort_point_list(temp_point)
             self.area_pts.update({area:temp_point})
             temp_point = []
             
@@ -873,6 +960,79 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
                     self.line_point[area][line_name].append([math.ceil(point[0]*frame.shape[1]),math.ceil(point[1]*frame.shape[0])])
 
         self.change_resulutuon = 0
+
+
+    def set_draw(self,params:dict):
+        """
+        Control anything about drawing.
+        Which params you can contral :
+
+        { 
+            draw_area : bool , 
+            draw_bbox : bool ,
+            draw_result : bool ,
+            draw_tracking : bool ,
+            draw_line : bool ,
+            palette: list[ tuple:( label:str , color:Union[tuple , list] ) ]
+        }
+        
+        Args:
+            params (dict): 
+        """
+        color_support_type = Union[tuple, list]
+        if not isinstance(params, dict):
+            logging.error("Input type is dict! but your type is {} ,please correct it.".format(type(params.get('draw_area', None))))
+            return
+
+        if isinstance(params.get('draw_area', self.draw_area) , bool):
+            self.draw_area= params.get('draw_area', self.draw_area) 
+            logging.info("Change draw_area mode , now draw_area mode is {} !".format(self.draw_area))
+        else:
+            logging.error("draw_area type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_area', self.draw_area))))
+
+        if isinstance(params.get('draw_bbox', self.draw_bbox) , bool):
+            self.draw_bbox= params.get('draw_bbox', self.draw_bbox)
+            logging.info("Change draw_bbox mode , now draw_bbox mode is {} !".format(self.draw_bbox))
+        else:
+            logging.error("draw_bbox type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_bbox', self.draw_bbox))))
+        
+        if isinstance(params.get('draw_result', self.draw_result) , bool):    
+            self.draw_result= params.get('draw_result', self.draw_result)
+            logging.info("Change draw_result mode , now draw_result mode is {} !".format(self.draw_result))
+        else:
+            logging.error("draw_result type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_result', self.draw_result))))
+        
+        if isinstance(params.get('draw_tracking', self.draw_tracking) , bool):    
+            self.draw_tracking= params.get('draw_tracking', self.draw_tracking)
+            logging.info("Change draw_tracking mode , now draw_tracking mode is {} !".format(self.draw_tracking))
+        else:
+            logging.error("draw_tracking type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_tracking', self.draw_tracking))))
+
+        if isinstance(params.get('draw_line', self.is_draw_line) , bool):    
+            self.is_draw_line= params.get('draw_line', self.is_draw_line)
+            logging.info("Change draw_line mode , now draw_line mode is {} !".format(self.is_draw_line))
+        else:
+            logging.error("draw_line type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_line', self.is_draw_line))))
+
+        palette = params.get('palette', None)
+        if isinstance(palette, list):
+            if len(palette)==0:
+                logging.warning("Not set palette!")
+                pass
+            else:
+                for info in palette:
+                    (label , color) = info
+                    if isinstance(label, str) and isinstance(color, get_args(color_support_type)):
+                        if self.palette.__contains__(label):
+                           self.palette.update({label:color})
+                        else:
+                            logging.error("Model can't recognition the label {} , please checkout your label!.".format(label))
+                        logging.info("Label: {} , change color to {}.".format(label,color))
+                    else:
+                        logging.error("Value in palette type must (label:str , color :Union[tuple , list] ),your type \
+                                      label:{} , color:{} is error.".format(type(label),type(color)))
+        else:
+            logging.error("Not set palette or your type {} is error.".format(type(palette)))
 
     def __call__(self, frame, detections, draw=True):
 

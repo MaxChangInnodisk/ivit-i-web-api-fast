@@ -6,6 +6,9 @@ Step 2. [Create Instance](#create-instance).
 Step 3. Follow the [format of input parameter](#format-of-input-parameter) to use application.  
 Other features : Different situation needs different value of "trancking distance".You can follow [here](#adjust-trancking-distance) to adjust trancking distance.  
 And the description of application output is [here](#application-output).   
+
+More function :  
+1. User can control anythong about draw through function [set_draw()](#control-anything-about-draw).
 ## Setting app config 
 * The description of key from config.(*) represent must be set.  
 
@@ -233,4 +236,43 @@ You need to use [app_config](#setting-app-config) and label path to create insta
                         ]
                     }
     
+    ```
+## Control anything about draw.
+* In this application we can control :
+1. show bounding box. 
+2. show result box.  
+3. show detection zone.
+4. show tracking tag.
+5. show line that use to decide flow about object. 
+6. change color for specific object.   
+
+* Before we use set_draw() , we need to set parameter like bellow.  
+    ```bash
+
+        data:dict = {  
+                draw_bbox : bool ,  # Control bounding box whether draw or not draw.
+                draw_result : bool , # Control result box whether draw or not draw.
+                draw_area : bool , # Control detection zone whether draw or not draw.
+                draw_tracking : bool, # Control tracking tag whether draw or not draw.
+                draw_line : bool , # Control line that use to decide flow about object whether draw or not draw.
+                palette: list:[ turple:( label:str , color:turple ) ] # change color for specific object.
+            }
+
+    ```
+
+* Usage
+    ```python
+
+        #step 1 : setting
+        data = {  
+            "draw_bbox" : True ,    
+            "draw_result" : True , 
+            "draw_area": True, 
+            "draw_tracking" : True,
+            "draw_line" : True,
+            "palette": [ ( "car" , (255,0,166) ) ] 
+        } 
+        
+        #step 2 : call set_draw()
+        app.set_draw(data)
     ```
