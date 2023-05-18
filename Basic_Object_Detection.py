@@ -2,6 +2,7 @@ import sys, os, cv2 ,logging
 sys.path.append( os.getcwd() )
 from apps.palette import palette
 from ivit_i.common.app import iAPP_OBJ
+from typing import Union, get_args
 class Basic_Object_Detection(iAPP_OBJ):    
     """ Basic Object Detection Application
     * Parameters
@@ -124,12 +125,13 @@ class Basic_Object_Detection(iAPP_OBJ):
         {  
             draw_bbox : bool ,
             draw_result : bool ,
-            palette: list:[ turple:( label:str , color:turple ) ]
+            palette:list[ tuple:( label:str , color:Union[tuple , list]  ) ]
         }
         
         Args:
             params (dict): 
         """
+        color_support_type = Union[tuple, list]
         if not isinstance(params, dict):
             logging.error("Input type is dict! but your type is {} ,please correct it.".format(type(params.get('draw_area', None))))
             return
@@ -155,11 +157,14 @@ class Basic_Object_Detection(iAPP_OBJ):
             else:
                 for info in palette:
                     (label , color) = info
-                    if isinstance(label, str) and isinstance(color, tuple):
-                        self.palette.update({label:color})
+                    if isinstance(label, str) and isinstance(color, get_args(color_support_type)):
+                        if self.palette.__contains__(label):
+                           self.palette.update({label:color})
+                        else:
+                            logging.error("Model can't recognition the label {} , please checkout your label!.".format(label))
                         logging.info("Label: {} , change color to {}.".format(label,color))
                     else:
-                        logging.error("Value in palette type must (label:str , color :Turple ),your type \
+                        logging.error("Value in palette type must (label:str , color :Union[tuple , list] ),your type \
                                       label:{} , color:{} is error.".format(type(label),type(color)))
         else:
             logging.error("Not set palette or your type {} is error.".format(type(palette)))

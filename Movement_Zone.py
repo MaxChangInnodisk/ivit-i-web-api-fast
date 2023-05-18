@@ -6,6 +6,7 @@ import threading
 import math
 from . import types as Error
 from datetime import datetime
+from typing import Union, get_args
 sys.path.append( os.getcwd() )
 from apps.palette import palette
 from multiprocessing.pool import ThreadPool
@@ -498,7 +499,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
             params (dict): app config.
 
         Returns:
-            Turple:( bool , error:list )
+            Tuple:( bool , error:list )
         """
         error = []
         error_temp=[]
@@ -972,12 +973,13 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
             draw_result : bool ,
             draw_tracking : bool ,
             draw_line : bool ,
-            palette: list:[ turple:( label:str , color:turple ) ]
+            palette: list[ tuple:( label:str , color:Union[tuple , list] ) ]
         }
         
         Args:
             params (dict): 
         """
+        color_support_type = Union[tuple, list]
         if not isinstance(params, dict):
             logging.error("Input type is dict! but your type is {} ,please correct it.".format(type(params.get('draw_area', None))))
             return
@@ -1020,11 +1022,14 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
             else:
                 for info in palette:
                     (label , color) = info
-                    if isinstance(label, str) and isinstance(color, tuple):
-                        self.palette.update({label:color})
+                    if isinstance(label, str) and isinstance(color, get_args(color_support_type)):
+                        if self.palette.__contains__(label):
+                           self.palette.update({label:color})
+                        else:
+                            logging.error("Model can't recognition the label {} , please checkout your label!.".format(label))
                         logging.info("Label: {} , change color to {}.".format(label,color))
                     else:
-                        logging.error("Value in palette type must (label:str , color :Turple ),your type \
+                        logging.error("Value in palette type must (label:str , color :Union[tuple , list] ),your type \
                                       label:{} , color:{} is error.".format(type(label),type(color)))
         else:
             logging.error("Not set palette or your type {} is error.".format(type(palette)))
