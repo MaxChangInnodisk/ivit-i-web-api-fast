@@ -25,7 +25,16 @@ the faster web api for iVIT-I
     ```bash
     git clone -b r1.1 --recurse-submodules https://github.com/MaxChangInnodisk/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
     ```
-    
+* Choose a platform you want
+    * Modify `PLATFORM` and `FRAMEWORK` in `ivit-i.json`. 
+        | PLATFORM  |   FRAMEWORK
+        |   ---     |   ---
+        | intel     |   openvino
+        | xilinx    |   vitis-ai
+        | hailo     |   hailort
+        | nvidia    |   tensorrt
+        | jetson    |   tensorrt
+
 * Run `iVIT-I-Web-Api`
     ```bash
     sudo ./docker/run.sh -q
@@ -48,18 +57,13 @@ the faster web api for iVIT-I
     * Stop: [`docker/stop.sh`](./docker/stop.sh)
 
 * Run **another platform**
-
-    1. Modify the `PLATFORM` key in [`ivit-i.json`](./ivit-i.json)
-        ```json
+    Modify the `PLATFORM` key in [`ivit-i.json`](./ivit-i.json)
+    ```json
+    {
         "PLATFORM": "xilinx",
-        ```
-    2. Use `-p` argument: 
-        ```bash
-        sudo ./docker/run.sh -q -p xilinx
-        ```
-        *** **NOTICE** ***
-        * The argument priority is higher than configuration file ( ivit-i.json )
-        * It won't change the configuration content.
+        "FRAMEWORK": "vitis-ai"
+    }
+    ```
 
 * Enter docker container with interative mode.
     ```bash
