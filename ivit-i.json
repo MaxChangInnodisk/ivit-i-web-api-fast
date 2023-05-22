@@ -1,7 +1,7 @@
 {
     "PROJECT": "ivit-i",
-    "PLATFORM": "intel",
-    "FRAMEWORK": "openvino",
+    "PLATFORM": "xilinx",
+    "FRAMEWORK": "vitis-ai",
     "VERSION": "v1.1",
     "TAG": "service",
     "SERVICE": {
