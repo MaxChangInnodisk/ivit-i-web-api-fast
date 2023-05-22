@@ -50,7 +50,6 @@ def download_file(file_path, file_url):
         return
 
     gdown.download(url=file_url, output=file_path, quiet=False, fuzzy=True)
-    extract_file(file_path)
 
 def download_model(file_name, file_url):
     ext = '.zip'
@@ -58,7 +57,7 @@ def download_model(file_name, file_url):
         file_name += ext
     file_path = os.path.join(SERV_CONF["MODEL_DIR"], file_name)
     download_file(file_path, file_url)
-
+    extract_file(file_path)
 
 def download_data(file_name, file_url):
     file_path = os.path.join(SERV_CONF["DATA_DIR"], file_name)
