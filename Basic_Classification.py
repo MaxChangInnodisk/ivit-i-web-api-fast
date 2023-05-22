@@ -1,7 +1,5 @@
-import sys, os, cv2
-import numpy as np 
+import cv2
 import logging
-sys.path.append( os.getcwd() )
 from apps.palette import palette
 from ivit_i.common.app import iAPP_CLS
 class Basic_Classification(iAPP_CLS):
@@ -94,3 +92,119 @@ class Basic_Classification(iAPP_CLS):
             )      
 
         return ( frame, app_output, {} )
+
+
+
+if __name__=='__main__':
+    import logging as log
+    import cv2, sys
+    from argparse import ArgumentParser, SUPPRESS
+    from ivit_i.io import Source, Displayer
+    from ivit_i.core.models import iClassification
+    from ivit_i.common import Metric
+
+    def build_argparser():
+
+        parser = ArgumentParser(add_help=False)
+
+        basic_args = parser.add_argument_group('Basic options')
+        basic_args.add_argument('-h', '--help', action='help', default=SUPPRESS, help='Show this help message and exit.')
+        basic_args.add_argument('-m', '--model', required=True, help='the path to model')
+        basic_args.add_argument('-i', '--input', required=True,
+                        help='Required. An input to process. The input must be a single image, '
+                            'a folder of images, video file or camera id.')
+        basic_args.add_argument('-l', '--label', help='Optional. Labels mapping file.', default=None, type=str)
+        basic_args.add_argument('-d', '--device', type=str,
+                        help='Optional. `Intel` support [ `CPU`, `GPU` ] \
+                                `Hailo` is support [ `HAILO` ]; \
+                                `Xilinx` support [ `DPU` ]; \
+                                `dGPU` support [ 0, ... ] which depends on the device index of your GPUs; \
+                                `Jetson` support [ 0 ].' )
+        
+        model_args = parser.add_argument_group('Model options')
+        model_args.add_argument('-t', '--confidence_threshold', default=0.1, type=float,
+                                    help='Optional. Confidence threshold for detections.')
+        model_args.add_argument('-topk', help='Optional. Number of top results. Default value is 5. Must be from 1 to 10.', default=5,
+                                    type=int, choices=range(1, 11))
+
+        io_args = parser.add_argument_group('Input/output options')
+        io_args.add_argument('-n', '--name', default='ivit', 
+                            help="Optional. The window name and rtsp namespace.")
+        io_args.add_argument('-r', '--resolution', type=str, default=None, 
+                            help="Optional. Only support usb camera. The resolution you want to get from source object.")
+        io_args.add_argument('-f', '--fps', type=int, default=None,
+                            help="Optional. Only support usb camera. The fps you want to setup.")
+        io_args.add_argument('--no_show', action='store_true',
+                            help="Optional. Don't display any stream.")
+
+        args = parser.parse_args()
+        # Parse Resoltion
+        if args.resolution:
+            args.resolution = tuple(map(int, args.resolution.split('x')))
+
+        return args
+    
+    # 1. Argparse
+    args = build_argparser()
+
+    # 2. Basic Parameters
+    infer_metrx = Metric()
+    
+    # 3. Init Model
+    model = iClassification(
+        model_path = args.model,
+        label_path = args.label,
+        confidence_threshold = args.confidence_threshold,
+        device=args.device,
+        topk = args.topk )
+    
+    # 4. Init Source
+    src = Source(   
+        input = args.input, 
+        resolution = args.resolution, 
+        fps = args.fps )
+    
+    # 5. Init Display
+    if not args.no_show:
+        dpr = Displayer( cv = True )
+    
+    # 6. Setting iApp
+    app_config =   {
+                        "application": {
+                            "areas": [
+                                {
+                                    "name": "default",
+                                    "depend_on": [ ]
+                                }
+                            ]
+                        }
+                    }
+    
+    app = Basic_Classification(app_config,args.label)
+    
+    # 7. Start Inference
+    try:
+        while(True):
+            # Get frame & Do infernece
+            frame = src.read()       
+            detections = model.inference( frame )
+            frame , app_output , event_output =app(frame,detections)
+                
+            # Draw FPS: default is left-top                     
+            infer_metrx.paint_metrics(frame)
+            
+            # Display
+            dpr.show(frame=frame)                   
+            if dpr.get_press_key()==ord('q'):
+                break
+
+            # Update Metrix
+            infer_metrx.update()
+
+    except KeyboardInterrupt: 
+        log.info('Detected Key Interrupt !')
+
+    finally:
+        model.release()     # Release Model
+        src.release()       # Release Source
+        dpr.release()   # Release Display
