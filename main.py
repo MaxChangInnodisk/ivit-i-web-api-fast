@@ -150,7 +150,7 @@ async def websocket_endpoint_task(ws: WebSocket):
             if req_type == TEM:
                 data = SERV_CONF[IDEV].get_device_info(req_data) \
                     if req_data != "" else \
-                        SERV_CONF[IDEV].get_all_device()
+                        SERV_CONF[IDEV].get_device_info()
                     
             elif req_type == UID:
                 data = WS_CONF.get(req_data.upper())
