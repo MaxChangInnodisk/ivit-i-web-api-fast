@@ -6,8 +6,14 @@
 import gdown, sqlite3, os, sys, time, json
 import logging as log
 
-from .imagenet import IMAGE_NET_LABEL
-from .coco import COCO_LABEL
+try:
+    from .imagenet import IMAGE_NET_LABEL
+    from .coco import COCO_LABEL
+    from .utils import download_data, download_model
+except:
+    from imagenet import IMAGE_NET_LABEL
+    from coco import COCO_LABEL
+    from utils import download_data, download_model
 
 try:
     from ..common import SERV_CONF
@@ -17,24 +23,6 @@ except:
     from common import SERV_CONF
     from utils import gen_uid, json_to_str
     from handlers import db_handler
-
-def download_file(file_path, file_url):
-    check_data = file_path
-    if os.path.splitext(file_path)[1] == '.zip':
-        check_data = os.path.splitext(file_path)[0]
-
-    if os.path.exists(check_data):
-        return
-    
-    gdown.download(url=file_url, output=file_path, quiet=False, fuzzy=True)
-
-def download_model(file_name, file_url):
-    file_path = os.path.join(SERV_CONF["MODEL_DIR"], file_name)
-    download_file(file_path, file_url)
-
-def download_data(file_name, file_url):
-    file_path = os.path.join(SERV_CONF["DATA_DIR"], file_name)
-    download_file(file_path, file_url)
 
 
 def xlnx_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
