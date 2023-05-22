@@ -39,10 +39,12 @@ QUICK=false
 function help(){
 	echo "Run the iVIT-I environment."
 	echo
-	echo "Syntax: scriptTemplate [-bqh]"
+	echo "Syntax: scriptTemplate [-bcpqh]"
 	echo "options:"
-	echo "b		run in background"
-	echo "q		Qucik launch iVIT-I"
+	echo "b		Run in background."
+	echo "c		Run command line mode."
+	echo "p		Select a platform to run ( the priority is higher than ivit-i.json ). support in [ 'intel', 'xilinx' ]"
+	echo "q		Qucik start."
 	echo "h		help."
 }
 
@@ -81,7 +83,7 @@ SET_NETS="--net=host"
 # [DEFINE COMMAND]
 RUN_CMD=""
 CLI_CMD="bash"
-WEB_CMD="source ~/.bashrc && python3 main.py"
+WEB_CMD="python3 main.py"
 
 # [DEFINE OPTION]
 SET_CONTAINER_MODE=""
@@ -127,7 +129,7 @@ if [[ ${INTERATIVE} = true ]]; then
 	SET_CONTAINER_MODE="-it"
 	printd " * Run Interative Terminal Mode"
 else
-	SET_CONTAINER_MODE="-dt"; 
+	SET_CONTAINER_MODE="-d"; 
 	printd " * Run Background Mode"
 fi
 
