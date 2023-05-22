@@ -359,7 +359,9 @@ def register_tb_device(tb_url):
         platform = "nvidia"
     
     dev_type = "iVIT-I"
-    dev_name = "{}-{}".format(dev_type, get_mac_address()) 
+    dev_tail = ICAP_CONF.get("DEVICE_NAME", "")
+    dev_tail = dev_tail if dev_tail != "" else get_mac_address()
+    dev_name = "{}-{}".format(dev_type, dev_tail)
     dev_alias = dev_name
     
     send_data = { 
