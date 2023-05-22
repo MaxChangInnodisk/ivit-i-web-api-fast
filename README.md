@@ -20,8 +20,10 @@ the faster web api for iVIT-I
 
 # Quick Start
 * Download Repository
+
+    *** **NOTICE: Must use `--recurse-submodules` to clone repository or you gonna lose submodules** ***
     ```bash
-    git clone https://github.com/MaxChangInnodisk/ivit-i-web-api-fast.git
+    git clone --recurse-submodules https://github.com/MaxChangInnodisk/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
     ```
     
 * Run `iVIT-I-Web-Api`
