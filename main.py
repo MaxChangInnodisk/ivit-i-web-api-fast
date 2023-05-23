@@ -77,7 +77,7 @@ def startup_event():
     app_handler.init_db_app()      # AppHandler
     icap_handler.init_icap()        # iCAP
     db_handler.reset_db()
-    
+    log.info('iVIT-I Web Service Initialized !!!')
 
 @app.on_event("shutdown")
 def shutdown_event():

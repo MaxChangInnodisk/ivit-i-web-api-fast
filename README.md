@@ -10,6 +10,7 @@ the faster web api for iVIT-I
 * [About Scripts](#about-scripts)
 * [Web API Documentation](#web-api-documentation)
 * [Reference](#reference)
+* [Troubleshooting](#troubleshooting)
 
 
 # Requirements
@@ -98,9 +99,25 @@ the faster web api for iVIT-I
 *** *Make sure the web API service has already been launched.* ***
 * The documentation will be mounted at `<ip>:<nginx_port>/ivit/docs`
 * [FastAPI Swagger ( http://127.0.0.1:6632/ivit/docs )](http://127.0.0.1:6632/ivit/docs)
- 
+
 
 # Reference
 * [bluenviron/mediamtx](https://github.com/bluenviron/mediamtx)
 * [deepch/RTSPtoWeb](https://github.com/deepch/RTSPtoWeb)
 * [nginx](https://www.nginx.com/)
+
+# Troubleshooting
+1. Keep re-connect to MQTT ( iCAP ).
+    * Issue
+        
+        ![keeping-connect-to-mqtt-server](assets/images/keeping-connect-to-mqtt-server.png)
+
+    * Solution
+        Duplicate name on iCAP server, please modify `DEVICE_NAME` in `ivit-i.json`
+        ```JSON
+        {
+            "ICAP": {
+                "DEVICE_NAME": "Your Custom Name"
+            }
+        }
+        ```
