@@ -38,7 +38,7 @@ def xlnx_sample_cls( db_path:str=SERV_CONF["DB_PATH"] ):
     data_url = "https://drive.google.com/file/d/1hq2CvCT4SRTvvkHo3QVZSh85bdUuiXbR/view?usp=sharing"
     download_data(data_name, data_url)
 
-    model_name = "mobilenet_1_1_224_tf2"
+    model_name = "mobilenet_1_0_224_tf2"
     model_url = "https://drive.google.com/file/d/1U6oZOtMEIynU_TI21RyuEvy-1OmkBgI3/view?usp=sharing"
     download_model(model_name, model_url)
 
