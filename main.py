@@ -148,6 +148,9 @@ async def websocket_endpoint_task(ws: WebSocket):
             # Get Data
             data = None
             if req_type == TEM:
+                if isinstance(req_data, str):
+                    req_data = req_data.replace("'", '"')
+                    req_data = json.loads(req_data)
                 data = SERV_CONF[IDEV].get_device_info(req_data) \
                     if req_data != "" else \
                         SERV_CONF[IDEV].get_device_info()
