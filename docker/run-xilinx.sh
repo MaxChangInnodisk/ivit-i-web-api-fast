@@ -34,24 +34,28 @@ TAG=$(cat "${CONF}" | jq -r '.TAG')
 # Get Option
 INTERATIVE=true
 QUICK=false
-RUN_SERVICE=false
+RUN_SERVICE=true
 
 # Help
 function help(){
 	echo "Run the iVIT-I environment."
 	echo
-	echo "Syntax: scriptTemplate [-bqh]"
+	echo "Syntax: scriptTemplate [-bcpqh]"
 	echo "options:"
-	echo "b		Run in background"
-	echo "q		Qucik launch iVIT-I"
+	echo "b		Run in background."
+	echo "c		Run command line mode."
+	echo "q		Qucik start."
 	echo "h		help."
 }
 
+
 # Get information from argument
-while getopts "bqh:" option; do
+while getopts "bcqh:" option; do
 	case $option in
 		b )
 			INTERATIVE=false ;;
+		c )
+			RUN_SERVICE=false ;;
 		q )
 			QUICK=true ;;
 		h )
@@ -78,7 +82,10 @@ SET_TIME="-v /etc/localtime:/etc/localtime:ro"
 SET_NETS="--net=host"
 
 # [DEFINE COMMAND]
-RUN_CMD="bash"
+# [DEFINE COMMAND]
+RUN_CMD=""
+CLI_CMD="bash"
+WEB_CMD="python3 main.py"
 
 # [DEFINE OPTION]
 SET_CONTAINER_MODE=""
@@ -117,6 +124,15 @@ if [[ ${INTERATIVE} = true ]]; then
 else
 	SET_CONTAINER_MODE="-dt"; 
 	printd " * Run Background Mode" R
+fi
+
+# Checking Run CLI or Web
+if [[ ${RUN_SERVICE} = true ]]; then 
+	RUN_CMD="${RUN_CMD} ${WEB_CMD}"
+	printd " * Run Web API Directly" R
+else 
+	RUN_CMD="${RUN_CMD} ${CLI_CMD}"
+	printd " * Run Command Line Interface" R
 fi
 
 # Conbine docker command line
