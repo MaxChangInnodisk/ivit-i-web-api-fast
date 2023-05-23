@@ -38,6 +38,28 @@ TB_KEY_TOKEN_TYPE   = "credentialsType"
 TB_KEY_ID           = "id"
 TB_KEY_TOKEN        = "accessToken"
 
+# Helper
+
+def dict_printer(title:str, data:dict, content_maximum:int = 50, level:str='info'):
+    
+    log_wrapper = {
+        'debug': logging.debug,
+        'info': logging.info,
+        'warn': logging.warning,
+        'warning': logging.warning,
+    }
+
+    _logger = log_wrapper[level]
+    
+    _logger("[ iCAP ] {}".format(title))
+    
+    for key, val in data.items():
+        val = str(val)
+        _logger("    - {}: {}".format(
+            key, val if len(val)<=content_maximum else val[:content_maximum]+' ... '
+        ))
+    
+
 # --------------------------------------------------------
 # HANDLER
 
@@ -48,12 +70,20 @@ class ICAP_HANDLER():
         self.client.on_connect = self.on_connect
         self.client.on_message = self.on_message
         self.client.on_publish = self.on_publish
-        
-        logging.info('Initialize MQTT ...')
-        
-        [ logging.info(f"   - {key}: {val}") for key, val in zip(["HOST", "PORT", "TOKEN"], [host, port, token])]
-        
+
+        # Setup Password
         self.client.username_pw_set(token)
+        
+        # Log out        
+        dict_printer(
+            title='Init iCAP Handler:', 
+            data={
+                "host": host,
+                "port": port,
+                "token ( pw )": token
+            }
+        )
+        
         self.client.connect_async(str(host), int(port), keepalive=60, bind_address="")
 
     # Basic
@@ -70,7 +100,7 @@ class ICAP_HANDLER():
 
     def __del__(self):
         self.release()
-   
+
     # Private Event
 
     def _attr_deploy_event(self, data):
@@ -130,25 +160,30 @@ class ICAP_HANDLER():
             Send attributes with ivitUrl and ivitTask if success
         """
         if rc == 0:
+            logging.info('ICAP_HANDLER Connected successfully')
             
-            logging.info('MQTT Connected successfully')
+            # Define Topics
+            topics = {
+                "Receive Attributes": ICAP_CONF["TOPIC_REC_ATTR"],
+                "Receive RPC Command": ICAP_CONF["TOPIC_REC_RPC"],
+                "Send Attributes": ICAP_CONF["TOPIC_SND_ATTR"]
+            }
 
-            # For Basic
-            for topic in [ ICAP_CONF["TOPIC_REC_ATTR"] ]:
-                client.subscribe(topic) # subscribe topic
-                logging.info('  - Subscribed: {}'.format(topic))
+            # Subscribe topic
+            [ client.subscribe(t) for t in topics.values() ]
 
-            # For Receive Command From RPC, and Send Attribute
-            for topic in [ ICAP_CONF["TOPIC_REC_RPC"], ICAP_CONF["TOPIC_SND_ATTR"] ]:
-                _topic = topic + "+"
-                client.subscribe(_topic)
-                logging.info('  - Subcribe: {}'.format(_topic))
+            dict_printer(title='Subscribe Topics:', data=topics) 
 
             # Send Shared Attribute to iCAP
-            self.send_attr(data = {
+            basic_attr = {
                     "ivitUrl": get_address(),
                     "ivitTask": task_handler.get_task_info()
-            })
+            }
+            self.send_attr(data = basic_attr)
+            
+            dict_printer(
+                title='Send basic attributes:', 
+                data=basic_attr)
 
         # Connect Failed
         else: logging.error('MQTT Got Bad connection. Code:', rc)
@@ -305,7 +340,7 @@ def resp_to_json(resp):
 # --------------------------------------------------------
 # Send Request Function
 
-def send_post_api(trg_url, data, h_type='json', timeout=10, stderr=True):
+def send_post_api(trg_url, data, h_type='json', timeout=5, stderr=True):
     """ Using request to simulate POST method """
     
     try:
@@ -316,11 +351,11 @@ def send_post_api(trg_url, data, h_type='json', timeout=10, stderr=True):
         return request_exception(exception=e, calling_api=trg_url) 
 
 
-def send_get_api(trg_url, h_type='json', timeout=10):
+def send_get_api(trg_url, h_type='json', timeout=5):
     """ Using request to simulate GET method """
 
     try:
-        resp = requests.get(trg_url, headers=HEAD_MAP[h_type], timeout=10)
+        resp = requests.get(trg_url, headers=HEAD_MAP[h_type], timeout=timeout)
         return resp_to_json(resp)
     
     except Exception as e:
@@ -364,6 +399,7 @@ def register_tb_device(tb_url):
     dev_name = "{}-{}".format(dev_type, dev_tail)
     dev_alias = dev_name
     
+    # Get send data
     send_data = { 
         TB_KEY_NAME  : dev_name,
         TB_KEY_TYPE  : dev_type,
@@ -371,21 +407,24 @@ def register_tb_device(tb_url):
         TB_KEY_MODEL : platform 
     }
     
+    # Make sure http is in the header
     header = "http://"
     if ( not header in tb_url ): tb_url = header + tb_url
 
-    timeout = 3
-    # logging.warning("[ iCAP ] Register Thingsboard Device ... ( Time Out: {}s ) \n{}".format(timeout, send_data))
-    logging.info('Register iCAP with: {}'.format(send_data))
+    # Register via HTTP
+    timeout = 5
+    dict_printer(title='Registering iCAP with data', data=send_data)
     ret, data = send_post_api(tb_url, send_data, timeout=timeout, stderr=False)
 
     # Register failed
     if not ret:
-        logging.warning("[ iCAP ] Register Thingsboard Device ... Failed !")
-        logging.warning("Send Request: {}".format(send_data))    
-        logging.warning("   - URL: {}".format(tb_url))
-        logging.warning("   - TOKEN: {}".format( TB_KEY_TOKEN ))
-        logging.warning("   - Response: {}".format(data))
+        dict_printer(
+            title='Registering iCAP ... Failed !',
+            data={  "URL": tb_url,
+                    "TOKEN": TB_KEY_TOKEN,
+                    "Response": data },
+            level='warn')
+        
         return False, data
     
     # Register sucess
@@ -401,9 +440,8 @@ def register_tb_device(tb_url):
     ICAP_CONF.update(send_data)
     ICAP_CONF.update(receive_data)
 
-    logging.info("[ iCAP ] Register Thingsboard Device ... Pass !")
-    for key, val in receive_data.items():
-        logging.info(f"  - {key}: {val}")
+    dict_printer(   title="Registering iCAP ... Pass !",
+                    data=receive_data)
 
     return True, data
 
@@ -430,8 +468,6 @@ def init_icap():
 
         SERV_CONF.update({"ICAP":icap_handler})
         logging.info("Update ICAP Object into {}".format(SERV_CONF.get_name))
-    else:
-        log.error('Register iCAP Failed')
 
 # --------------------------------------------------------
 # Send Basic Attribute
