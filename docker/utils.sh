@@ -147,7 +147,5 @@ function check_config(){
 	if [[ -z $FLAG ]];then 
 		printd "Couldn't find configuration (${CONF})" Cy; 
 		exit
-	else 
-		printd "Detected configuration (${CONF})" Cy; 
 	fi
 }
