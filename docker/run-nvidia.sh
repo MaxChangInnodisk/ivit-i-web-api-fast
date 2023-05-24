@@ -1,8 +1,3 @@
-# Copyright (c) 2023 Innodisk Corporation
-# 
-# This software is released under the MIT License.
-# https://opensource.org/licenses/MIT
-
 #!/bin/bash
 # Copyright (c) 2023 Innodisk Corporation
 # 
@@ -34,34 +29,43 @@ PLATFORM=$(cat ${CONF} | jq -r '.PLATFORM')
 TAG=$(cat "${CONF}" | jq -r '.TAG')
 
 # ========================================================
-# Get Option
+# Parse information from configuration
+check_jq
+PROJECT=$(cat "${CONF}" | jq -r '.PROJECT')
+VERSION=$(cat "${CONF}" | jq -r '.VERSION')
+PLATFORM=$(cat "${CONF}" | jq -r '.PLATFORM')
+TAG=$(cat "${CONF}" | jq -r '.TAG')
 
+# ========================================================
+# Set the default value of the getopts variable 
 INTERATIVE=true
+RUN_SERVICE=true
 QUICK=false
-GPU="all"
+
 # Help
 function help(){
 	echo "Run the iVIT-I environment."
 	echo
-	echo "Syntax: scriptTemplate [-bqh]"
+	echo "Syntax: scriptTemplate [-bcpqh]"
 	echo "options:"
-	echo "b		Run in background"
-	echo "q		Qucik launch iVIT-I"
+	echo "b		Run in background."
+	echo "c		Run command line mode."
+	echo "q		Qucik start."
 	echo "h		help."
 }
 
 # Get information from argument
-while getopts "bqh:" option; do
+while getopts "bcqh" option; do
 	case $option in
 		b )
 			INTERATIVE=false ;;
+		c )
+			RUN_SERVICE=false ;;
 		q )
 			QUICK=true ;;
 		h )
 			help; exit ;;
 		\? )
-			help; exit ;;
-		* )
 			help; exit ;;
 	esac
 done
@@ -81,7 +85,9 @@ SET_TIME="-v /etc/localtime:/etc/localtime:ro"
 SET_NETS="--net=host"
 
 # [DEFINE COMMAND]
-RUN_CMD="bash"
+RUN_CMD=""
+CLI_CMD="bash"
+WEB_CMD="python3 main.py"
 
 # [PLACEHOLDER]
 SET_CONTAINER_MODE="-it"
@@ -91,11 +97,23 @@ MOUNT_CAM="-v /dev:/dev"
 SET_MEM="--ipc=host"
 
 # ========================================================
+# [COMMAND] Checking Docker Command
+
+# Checking Run CLI or Web
+if [[ ${RUN_SERVICE} = true ]]; then 
+	RUN_CMD="${RUN_CMD} ${WEB_CMD}"
+	printd " * Run Web API Directly" R
+else 
+	RUN_CMD="${RUN_CMD} ${CLI_CMD}"
+	printd " * Run Command Line Interface" R
+fi
+
+# ========================================================
 
 # [ACCELERATOR]
 MOUNT_ACCELERATOR="--device /dev/dri --device-cgroup-rule='c 189:* rmw'"
 MOUNT_GPU="--gpus"
-MOUNT_GPU="${MOUNT_GPU} device=${GPU}"
+MOUNT_GPU="${MOUNT_GPU} device=all"
 
 # [VISION] Set up Vision option for docker if need
 if [[ ! -z $(echo ${DISPLAY}) ]];then
