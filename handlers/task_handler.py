@@ -485,41 +485,65 @@ class FakeDisplayer:
 
 
 class AsyncInference:
-    """ Async Inference """
 
     def __init__(   self, 
                     imodel:iModel,
-                    pool_maximum:int=2) -> None:
-        self.imodel = imodel
-        self.is_ready = True
-        self.is_stop = False
+                    pool_maximum:int=2,
+                    exec_freq:float=0.033) -> None:
+        """Asynchorize Inference Object
 
-        self.frame = None
+        Args:
+            imodel (iModel): the iModel object for inference
+            pool_maximum (int, optional): the maximum number of the thread. Defaults to 2.
+            exec_freq (float, optional): the freqency of the inference. Defaults to 0.033.
+        """
+        self.imodel = imodel
         self.results = []
 
         self.pool_maximum = pool_maximum
         self.pool = ThreadPool(self.pool_maximum)
+        
+        self.exec_pools = []
+        self.exec_time = time.time()
+        self.exec_freq = exec_freq
 
-        self.exec_pool = []
-        self.exec_freq = time.time()
+    def infer_callback(self, result):
+        """Callback function for threading pool
 
-    def _inference_wrapper(self, frame):
-        return self.imodel.inference(frame) 
+        Args:
+            result (_type_): the result of the model inference.
+        
+        Workflow:
 
-    def custom_callback(self, result):
+            1. Update `self.results`.
+            2. Pop out the first one in `self.exec_pools`.
+            3. Update timestamp `exec_freq`.
+        """
         self.results = result
-        self.exec_pool.pop(0)
-        self.exec_freq = time.time()
+        self.exec_pools.pop(0)
+        self.exec_time = time.time()
 
-    def submit_data(self, frame:np.ndarray):        
-        if len(self.exec_pool) > 2 or time.time()-self.exec_freq <= 0.033:
-            return
+    def submit_data(self, frame:np.ndarray):
+        """Create a threading for inference
 
-        self.exec_pool.append(
-            self.pool.apply_async(self.imodel.inference, (frame, ), callback=self.custom_callback)
+        Args:
+            frame (np.ndarray): the input image
+        """
+        
+        full_pool = (len(self.exec_pools) > self.pool_maximum)
+        too_fast = (time.time()-self.exec_time <= self.exec_freq)
+        if full_pool or too_fast: return
+
+        self.exec_pools.append(
+            self.pool.apply_async(self.imodel.inference, (frame, ), callback=self.infer_callback)
         )
     
     def get_results(self) -> list:
+        """Get results
+
+        Returns:
+            list: the results of ai inference
+        """
         return self.results
 
 
@@ -576,7 +600,8 @@ class InferenceLoop:
                 for key in [ "draw_bbox", "draw_result", "draw_area", "draw_tracking", "draw_line" ] \
                     if getattr(data, key, None) is not None
             }
-            self.app.set_draw(app_setup)
+            if app_setup:
+                self.app.set_draw(app_setup)
 
             # AI Model Threshold
             thres = getattr(data, 'thres', None)
