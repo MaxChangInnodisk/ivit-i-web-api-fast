@@ -42,6 +42,13 @@ class TaskActionData(BaseModel):
     cv_display: Optional[bool]
     area: Optional[list]
     palette: Optional[dict]
+    thres: Optional[float]
+    draw_bbox: Optional[bool]
+    draw_result: Optional[bool]
+    draw_area: Optional[bool]
+    draw_tracking: Optional[bool]
+    draw_line: Optional[bool]
+    
 
 
 class TaskAction(BaseModel):
