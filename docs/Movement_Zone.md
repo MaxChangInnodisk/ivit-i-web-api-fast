@@ -255,7 +255,7 @@ You need to use [app_config](#setting-app-config) and label path to create insta
                 draw_area : bool , # Control detection zone whether draw or not draw.
                 draw_tracking : bool, # Control tracking tag whether draw or not draw.
                 draw_line : bool , # Control line that use to decide flow about object whether draw or not draw.
-                palette: list:[ turple:( label:str , color:turple ) ] # change color for specific object.
+                palette : (dict) { label(str) : color(Union[tuple, list]) }  # change color for specific object.
             }
 
     ```
@@ -270,7 +270,9 @@ You need to use [app_config](#setting-app-config) and label path to create insta
             "draw_area": True, 
             "draw_tracking" : True,
             "draw_line" : True,
-            "palette": [ ( "car" , (255,0,166) ) ] 
+            "palette":{
+                "car":(100,25,60)
+                } 
         } 
         
         #step 2 : call set_draw()

@@ -122,8 +122,8 @@ You need to use [app_config](#setting-app-config) and label path to create insta
 
         data:dict = {  
                 draw_bbox : bool ,  # Control bounding box whether draw or not draw.
-                draw_result : bool ,# Control result box whether draw or not draw.
-                palette: list:[ turple:( label:str , color:turple ) ]# change color for specific object.
+                draw_result : bool , # Control result box whether draw or not draw.
+                palette : (dict) { label(str) : color(Union[tuple, list]) } # change color for specific object.
             }
 
     ```
@@ -135,7 +135,9 @@ You need to use [app_config](#setting-app-config) and label path to create insta
         data = {  
             "draw_bbox" : True ,    
             "draw_result" : True ,  
-            "palette": [ ( "car" , (255,0,166) ) ] 
+            "palette":{
+                "car":(100,25,60)
+                } 
         } 
         
         #step 2 : call set_draw()
