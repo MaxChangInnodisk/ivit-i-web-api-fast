@@ -97,7 +97,18 @@ You need to use [app_config](#setting-app-config) and label path to create insta
     from apps import Tracking_Zone
 
     app = Tracking_Zone( app_config, label_path )
+
+
+
+
+    #If you want to change the folder name of saving event image.
+    from apps import Tracking_Zone 
+
+    app = Tracking_Zone( app_config , label_path ,event_save_folder="test")  
+
    ``` 
+  
+   
 ## Format of input parameter
 * Input parameters are the result of model predict, and the result must packed like below.
 
