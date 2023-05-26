@@ -4,13 +4,16 @@
 the faster web api for iVIT-I
 
 # Outline
-* [Requirements](#requirements)
-* [Quick Start](#quick-start)
-* [About Configuration](#about-configuration)
-* [About Scripts](#about-scripts)
-* [Web API Documentation](#web-api-documentation)
-* [Reference](#reference)
-* [Troubleshooting](#troubleshooting)
+- [iVIT-I-WebAPI-Fast](#ivit-i-webapi-fast)
+- [Outline](#outline)
+- [Requirements](#requirements)
+- [Quick Start](#quick-start)
+- [About Configuration](#about-configuration)
+- [About Scripts](#about-scripts)
+- [Web API Documentation](#web-api-documentation)
+- [Reference](#reference)
+- [Troubleshooting](#troubleshooting)
+- [Developement](#developement)
 
 
 # Requirements
@@ -121,3 +124,17 @@ the faster web api for iVIT-I
             }
         }
         ```
+
+
+# Developement
+* Add new platform
+   1. Modify ivit-i.json
+      * `PLATFORM` & `FRAMEWORK`
+   2. Build docker image.
+   3. Add a run script that should name with `run-{platform}.sh`
+   4. Add samples: `./samples/{platform}_sample.py`
+      * Update the zip file on the AI Model Zoo which must include a configuration file.
+      * Add classification sample
+      * Add object detection sample
+   5. Verify classification sample
+   6. Verify object detection sample

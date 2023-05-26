@@ -7,6 +7,8 @@ import threading, time, sqlite3, copy
 import logging as log
 import asyncio
 from typing import Union
+import numpy as np
+from multiprocessing.pool import ThreadPool
 
 # Custom
 try:
@@ -16,7 +18,7 @@ except:
     from common import SERV_CONF, RT_CONF, WS_CONF
     from utils import gen_uid, json_to_str
 
-from .ai_handler import get_ivit_api
+from .ai_handler import get_ivit_api, iModel
 from .io_handler import (
     create_displayer, 
     create_source, 
@@ -482,6 +484,69 @@ class FakeDisplayer:
     release = lambda: log.warning('Release Fake Displayer')
 
 
+class AsyncInference:
+
+    def __init__(   self, 
+                    imodel:iModel,
+                    pool_maximum:int=2,
+                    exec_freq:float=0.033) -> None:
+        """Asynchorize Inference Object
+
+        Args:
+            imodel (iModel): the iModel object for inference
+            pool_maximum (int, optional): the maximum number of the thread. Defaults to 2.
+            exec_freq (float, optional): the freqency of the inference. Defaults to 0.033.
+        """
+        self.imodel = imodel
+        self.results = []
+
+        self.pool_maximum = pool_maximum
+        self.pool = ThreadPool(self.pool_maximum)
+        
+        self.exec_pools = []
+        self.exec_time = time.time()
+        self.exec_freq = exec_freq
+
+    def infer_callback(self, result):
+        """Callback function for threading pool
+
+        Args:
+            result (_type_): the result of the model inference.
+        
+        Workflow:
+
+            1. Update `self.results`.
+            2. Pop out the first one in `self.exec_pools`.
+            3. Update timestamp `exec_freq`.
+        """
+        self.results = result
+        self.exec_pools.pop(0)
+        self.exec_time = time.time()
+
+    def submit_data(self, frame:np.ndarray):
+        """Create a threading for inference
+
+        Args:
+            frame (np.ndarray): the input image
+        """
+        
+        full_pool = (len(self.exec_pools) > self.pool_maximum)
+        too_fast = (time.time()-self.exec_time <= self.exec_freq)
+        if full_pool or too_fast: return
+
+        self.exec_pools.append(
+            self.pool.apply_async(self.imodel.inference, (frame, ), callback=self.infer_callback)
+        )
+    
+    def get_results(self) -> list:
+        """Get results
+
+        Returns:
+            list: the results of ai inference
+        """
+        return self.results
+
+
 class InferenceLoop:
     """ Inference Thread Helper """
 
@@ -506,41 +571,60 @@ class InferenceLoop:
 
         self.icap_alive = 'ICAP' in SERV_CONF and not (SERV_CONF['ICAP'] is None)
         
+        self.async_infer = AsyncInference( imodel=self.model, pool_maximum=1)
+        
         log.warning('Create a InferenceLoop')
 
     def create_thread(self) -> threading.Thread:
         return threading.Thread(target=self._inference_thread, daemon=True)
 
-    def _dynamic_change_app(self):
-        """ Dynamic Modify Varaible of the Application """
-
-        # Return: No dynamic variable setting
-        if getattr(RT_CONF[self.uid], 'DATA', {}):
-            return
-        
+    def _app_setup_event(self, data):
         # Debug: with raise key
-        if getattr(RT_CONF[self.uid]['DATA'], 'raise', False):
+        if getattr(data, 'raise', False):
             raise RuntimeError('Raise Testing when AI Task Running')
 
         try:
+            print(data)
             # Area Event: Color, ... etc
-            palette = getattr(RT_CONF[self.uid]['DATA'], 'palette', None)
+            palette = getattr(data, 'palette', None)
             if palette:
                 for key, val in palette.items():
-                    self.app.palette[key] = val
                     try:
-                        self.app.set_color(key,val)
+                        self.app.palette[key] = val
                         log.warning('Update Color Successed ( {} -> {} )'.format(key, val))
-                    except: 
-                        log.warning('Update Color Failed')
+                    except Exception as e: 
+                        log.warning('Update Color Failed ... {}'.format(handle_exception(e)))
+
+            # Draw Something
+            app_setup = { key:getattr(data, key) \
+                for key in [ "draw_bbox", "draw_result", "draw_area", "draw_tracking", "draw_line" ] \
+                    if getattr(data, key, None) is not None
+            }
+            if app_setup:
+                self.app.set_draw(app_setup)
+
+            # AI Model Threshold
+            thres = getattr(data, 'thres', None)
+            if thres:
+                self.model.set_thres(thres)
+                log.warning('Set threshold')
 
         except Exception as e:
-            log.error('Setting Area Failed')
+            log.error('Setting Parameters ... Failed')
             log.exception(e)
         
         finally:
             # Clear DATA
             RT_CONF[self.uid]['DATA'] = {}
+            log.warning('App Setup Finished')
+
+    def _dynamic_change_app_setup_event(self):
+        """ Dynamic Modify Varaible of the Application """
+
+        # Return: No dynamic variable setting
+        data = RT_CONF[self.uid]['DATA']
+        if data=={}: return
+        t = threading.Thread(target=self._app_setup_event, args=(data, ), daemon=True).start()
 
     def _inference_thread(self):
         
@@ -562,22 +646,26 @@ class InferenceLoop:
                 self.metric.update()
 
                 # Setting Dynamic Variable
-                self._dynamic_change_app()
+                self._dynamic_change_app_setup_event()
  
                 # Get data        
                 ret, frame = self.src.read()
 
-                # Do Sync Inference
-                cur_data = self.model.inference(frame)
+                # # Do Sync Inference
+                # cur_data = self.model.inference(frame)
 
-                # Run Application
+                # Do Async Inference
+                self.async_infer.submit_data(frame=frame)
+
+                cur_data = self.async_infer.get_results()
+
                 self.draw, self.results, self.event = self.app(frame, cur_data, draw=True)
-            
+
                 # Display
                 self.dpr.show(self.draw)
 
                 # Log
-                log.debug(cur_data)
+                # log.debug(cur_data)
 
                 # Send Data
                 self.results.update({
@@ -589,6 +677,8 @@ class InferenceLoop:
                 # Calculate FPS and Update spped_limitor
                 self.metric.update()
                 self.latency_limitor.update()
+
+                time.sleep(1e-5)
 
             # Check is error from source or not
             if (not self.src.is_ready) and len(self.src.errors) > 0:
@@ -639,13 +729,4 @@ class InferenceLoop:
         self.stop()
         del self.thread_object
         self.thread_object = None
-        
-
-
-
-
-
-
-
-
 

@@ -26,6 +26,8 @@ def extract_file(zip_path:str, folder_name:str=None):
     with zipfile.ZipFile(zip_path, 'r') as zf:
         zf.extractall(path=folder_name)
 
+    os.remove(zip_path)
+
 def download_file(file_path, file_url):
     check_data = file_path
     if os.path.splitext(file_path)[1] == '.zip':
