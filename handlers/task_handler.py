@@ -571,7 +571,7 @@ class InferenceLoop:
 
         self.icap_alive = 'ICAP' in SERV_CONF and not (SERV_CONF['ICAP'] is None)
         
-        self.async_infer = AsyncInference(self.model)
+        self.async_infer = AsyncInference( imodel=self.model, pool_maximum=1)
         
         log.warning('Create a InferenceLoop')
 
@@ -729,13 +729,4 @@ class InferenceLoop:
         self.stop()
         del self.thread_object
         self.thread_object = None
-        
-
-
-
-
-
-
-
-
 
