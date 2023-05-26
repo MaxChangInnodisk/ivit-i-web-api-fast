@@ -72,8 +72,43 @@ def ivit_i_dgpu():
     pass
 
 # Hailo
-def ivit_i_hailo():
-    pass
+def ivit_i_hailo(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
+    """Initialize iVIT-I Hailo Function
+
+    Args:
+        type (Literal[&quot;CLS&quot;, &quot;OBJ&quot;, &quot;SEG&quot;]): the model type
+        params (dict): the model setting
+
+    Raises:
+        InvalidModelTypeError: get unexpected model type
+
+    Returns:
+        iModel: return model which inherit iModel
+    """
+    if type == CLS:
+        from ivit_i.core.models import iClassification
+        print(params)
+        model = iClassification(
+            model_path = params['model_path'],
+            label_path = params['label_path'],
+            device = params['device'],
+            confidence_threshold = params['confidence_threshold'],
+            topk = params.get('topk', 1),
+        )
+    elif type == OBJ:
+        from ivit_i.core.models import iDetection
+        model = iDetection(
+            model_path = params["model_path"],
+            label_path = params["label_path"],
+            device = params["device"],
+            architecture_type = params["arch"],
+            anchors = params["anchors"],
+            confidence_threshold = params["confidence_threshold"]
+        )
+    else:
+        raise InvalidModelTypeError('Unexpect Type: {}'.format(type))
+    
+    return model
 
 # Xilinx
 def ivit_i_xlnx(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:

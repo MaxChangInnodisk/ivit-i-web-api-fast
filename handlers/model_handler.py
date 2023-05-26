@@ -306,8 +306,8 @@ def parse_model_folder(model_dir):
     }
 
     # Double Check
-    model_exts = [ MODEL_CONF["TRT_MODEL_EXT"], MODEL_CONF["IR_MODEL_EXT"], MODEL_CONF["XLNX_MODEL_EXT"] ]
-    framework = [ MODEL_CONF["NV"], MODEL_CONF["INTEL"], MODEL_CONF["XLNX"]  ]
+    model_exts = [ MODEL_CONF["TRT_MODEL_EXT"], MODEL_CONF["IR_MODEL_EXT"], MODEL_CONF["XLNX_MODEL_EXT"], MODEL_CONF["HAI_MODEL_EXT"] ]
+    framework = [ MODEL_CONF["NV"], MODEL_CONF["INTEL"], MODEL_CONF["XLNX"], MODEL_CONF["HAILO"] ]
     assert len(framework)==len(model_exts), "Code Error, Make sure the length of model_exts and framework is the same "
 
     # Get Name
@@ -340,19 +340,28 @@ def parse_model_folder(model_dir):
             with open(fpath, newline='') as jsonfile:
                 train_config = json.load(jsonfile)
                 arch = train_config['model_config']['arch']
-                ret['arch'] = 'yolo' if 'v3' in arch else arch  
+                
+                if SERV_CONF['PLATFORM'] == 'intel':
+                    ret['arch'] = 'yolo' if 'v3' in arch else arch
+                else:
+                    ret['arch'] = arch
+
                 ret['type'] = get_model_tag_from_arch( ret['arch'] )  
                 
                 # Basic Parameters
                 ret['input_size'] = train_config['model_config']["input_shape"]
-                ret['preprocess'] = train_config['train_config']['datagenerator'].get("preprocess")
+                ret['preprocess'] = train_config['train_config']['datagenerator'].get("preprocess_mode")
                 
-                # INTEL 
-                if 'anchors' in train_config:
-                    ret['anchors'] = [ int(val.strip()) \
-                        for val in train_config['anchors'].strip().split(',')
+                # Parsing Anchors
+                anchors = train_config.get('anchors', None)
+                if anchors is None:
+                    ret['anchors'] = anchors
+                else:
+                    ret['anchors'] = [ int(float(val.strip())) \
+                        for val in anchors.strip().split(',')
                     ]
 
+                
         elif ext in [ MODEL_CONF["DARK_CFG_EXT"] ]:
             # print("\t- Detected {}: {}".format("Config", fpath))
             ret['config_path']= fpath
