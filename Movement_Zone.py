@@ -10,7 +10,7 @@ from apps.palette import palette
 from ivit_i.common.app import iAPP_OBJ
 
 class event_handle(threading.Thread):
-    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int):
+    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int,event_save_folder:str):
         threading.Thread.__init__(self)
         self.operator = operator
         self.thres = thres
@@ -24,7 +24,9 @@ class event_handle(threading.Thread):
         self.trigger_time=datetime.now()
         
         self.info =" "
-     
+        self.event_save_folder=event_save_folder
+
+
     def get_logic_event(self, operator):
         """ Define the logic event """
         greater = lambda x,y: x>y
@@ -65,10 +67,10 @@ class event_handle(threading.Thread):
             self.eventflag=True
             self.trigger_time=datetime.now()
             self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))
-            uid=str(uuid.uuid4())[:9]
-            path='./'+str(uid)+'/'
+            uid=str(uuid.uuid4())[:8]
+            path='./'+self.event_save_folder+'/'+str(uid)+'/'
             if not os.path.isdir(path):
-                os.mkdir(path)
+                os.makedirs(path)
             cv2.imwrite(path+str(self.trigger_time)+'.jpg', frame)
             cv2.imwrite(path+str(self.trigger_time)+"_org"+'.jpg', ori_frame)
             self.event_output.update({"uuid":uid,"title":self.event_title[area_id],"areas":app_output["areas"][area_id],"timesamp":self.trigger_time,"screenshot":{"overlay": path+str(self.trigger_time)+'.jpg',
@@ -434,7 +436,7 @@ class app_common_handle(threading.Thread):
 
 class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
 
-    def __init__(self, params=None, label=None, palette=palette, log=True):
+    def __init__(self, params=None, label=None,event_save_folder:str="event", palette=palette, log=True):
     
         
         self.params = params  
@@ -473,6 +475,8 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.model_label = label
         self.model_label_list =[]
 
+
+        self.event_save_folder=event_save_folder
         # self.pool = ThreadPool(os.cpu_count() )
     
         self.init_palette(palette)
@@ -752,7 +756,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
   
     def init_event_object(self):
         for i , v   in self.operator.items():
-            event_obj = event_handle(self.operator,self.thres,self.cooldown_time,self.event_title ,i) 
+            event_obj = event_handle(self.operator,self.thres,self.cooldown_time,self.event_title ,i,self.event_save_folder) 
             self.event_handler.update( { i: event_obj }  )        
     
     def init_scale(self,frame):
@@ -970,7 +974,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
             draw_result : bool ,
             draw_tracking : bool ,
             draw_line : bool ,
-            palette: list[ tuple:( label:str , color:Union[tuple , list] ) ]
+            palette (dict) { label(str) : color(Union[tuple, list]) },
         }
         
         Args:
@@ -1012,13 +1016,13 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
             logging.error("draw_line type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_line', self.is_draw_line))))
 
         palette = params.get('palette', None)
-        if isinstance(palette, list):
+        if isinstance(palette, dict):
             if len(palette)==0:
                 logging.warning("Not set palette!")
                 pass
             else:
-                for info in palette:
-                    (label , color) = info
+                for label,color in palette.items():
+
                     if isinstance(label, str) and isinstance(color, get_args(color_support_type)):
                         if self.palette.__contains__(label):
                            self.palette.update({label:color})
@@ -1293,7 +1297,6 @@ if __name__=='__main__':
             
             results = model.inference(frame=frame)
             frame , app_output , event_output =app(frame,results)
-           
                 
             infer_metrx.paint_metrics(frame)
 
