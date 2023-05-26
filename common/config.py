@@ -90,6 +90,7 @@ MODEL_CONF = ConfigWrapper(
     JETSON = 'jetson',
     INTEL = 'intel',
     XLNX = 'xilinx',
+    HAILO = 'hailo',
     
     # Model Type,
     CLS = 'CLS',
@@ -108,6 +109,7 @@ MODEL_CONF = ConfigWrapper(
     XLNX_MODEL_EXT  = ".xmodel",
     IR_MODEL_EXT    = ".xml",
     IR_MODEL_EXTS   = [ ".bin", ".mapping", ".xml" ],
+    HAI_MODEL_EXT = ".hef"
 )
 
 
