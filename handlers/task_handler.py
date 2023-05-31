@@ -155,10 +155,28 @@ def verify_task_exist(uid):
     return task[0]
 
 
-def verify_duplicate_task(task_name):
-    # Check exist AI Task
+def verify_duplicate_task(task_name:str):
+    """Check duplicate AI task.
+
+    Args:
+        task_name (str): the ai task name
+        edit_mode (bool, optional): if is edit mode. Defaults to False.
+
+    Raises:
+        NameError: if ai task is already exist.
+    """
+    # Calculate duplicate nums
+    duplicate_nums = 0
+
+    # Checking
     for uid, name in select_data(table='task', data=['uid','name']):
-        if task_name in name:
+        
+        # if duplicate then add 1
+        if task_name == name:
+            duplicate_nums += 1
+
+        # more than 2 task name then raise error
+        if duplicate_nums >=2:
             raise NameError('AI Task is already exist ( {}: {} )'.format(uid, name))
 
 
@@ -338,6 +356,9 @@ def add_ai_task(add_data):
     errors = {}
     task_uid = app_uid = gen_uid()
 
+    if add_data.task_name == "":
+        raise NameError("AI task name is empty !!!")
+
     try:
         # Check Database Data
         con, cur = connect_db()
@@ -488,24 +509,34 @@ class AsyncInference:
 
     def __init__(   self, 
                     imodel:iModel,
-                    pool_maximum:int=2,
-                    exec_freq:float=0.033) -> None:
+                    workers:int=1,
+                    freqency:float=0.066) -> None:
         """Asynchorize Inference Object
 
         Args:
             imodel (iModel): the iModel object for inference
-            pool_maximum (int, optional): the maximum number of the thread. Defaults to 2.
-            exec_freq (float, optional): the freqency of the inference. Defaults to 0.033.
+            workers (int, optional): the maximum number of the thread. Defaults to 2.
+            freqency (float, optional): the freqency of the inference. Defaults to 0.033.
         """
         self.imodel = imodel
         self.results = []
 
-        self.pool_maximum = pool_maximum
-        self.pool = ThreadPool(self.pool_maximum)
+        self.workers = workers
+        self.pool = ThreadPool(self.workers)
         
-        self.exec_pools = []
+        self.pools = []
         self.exec_time = time.time()
-        self.exec_freq = exec_freq
+        self.freqency = freqency
+
+        self.lock = threading.RLock()
+
+    def _is_too_fast(self):
+        """too fast"""
+        return ( time.time() - self.exec_time) <= self.freqency
+
+    def _is_full_pool(self):
+        """full pool"""
+        return (len(self.pools) > self.workers)
 
     def infer_callback(self, result):
         """Callback function for threading pool
@@ -516,12 +547,21 @@ class AsyncInference:
         Workflow:
 
             1. Update `self.results`.
-            2. Pop out the first one in `self.exec_pools`.
-            3. Update timestamp `exec_freq`.
+            2. Pop out the first one in `self.workers`.
+            3. Update timestamp `freqency`.
         """
-        self.results = result
-        self.exec_pools.pop(0)
+        
+        # Has results then update self.results
+        if len(result) != 0:
+            self.lock.acquire()
+            self.results = result
+            self.lock.release()
+
+        # Keep update exec_time
         self.exec_time = time.time()
+
+        # Pop out first exec
+        self.pools.pop(0)
 
     def submit_data(self, frame:np.ndarray):
         """Create a threading for inference
@@ -530,14 +570,15 @@ class AsyncInference:
             frame (np.ndarray): the input image
         """
         
-        full_pool = (len(self.exec_pools) > self.pool_maximum)
-        too_fast = (time.time()-self.exec_time <= self.exec_freq)
-        if full_pool or too_fast: return
+        if self._is_full_pool() or self._is_too_fast():
+            return
 
-        self.exec_pools.append(
-            self.pool.apply_async(self.imodel.inference, (frame, ), callback=self.infer_callback)
-        )
-    
+        self.pools.append(
+            self.pool.apply_async(
+                func = self.imodel.inference, 
+                args = (frame, ), 
+                callback = self.infer_callback) )
+
     def get_results(self) -> list:
         """Get results
 
@@ -567,16 +608,19 @@ class InferenceLoop:
         self.metric = Metric()
         self.latency_limitor = Metric()
 
-        self.minimum_latency = 1/self.src.get_fps()
+        self.display_latency = 1/30
 
         self.icap_alive = 'ICAP' in SERV_CONF and not (SERV_CONF['ICAP'] is None)
         
-        self.async_infer = AsyncInference( imodel=self.model, pool_maximum=1)
+        self.async_infer = AsyncInference( 
+            imodel=self.model, 
+            workers=1,
+            freqency=0.077)
         
         log.warning('Create a InferenceLoop')
 
     def create_thread(self) -> threading.Thread:
-        return threading.Thread(target=self._inference_thread, daemon=True)
+        return threading.Thread(target=self._infer_thread, daemon=True)
 
     def _app_setup_event(self, data):
         # Debug: with raise key
@@ -584,7 +628,6 @@ class InferenceLoop:
             raise RuntimeError('Raise Testing when AI Task Running')
 
         try:
-            print(data)
             # Area Event: Color, ... etc
             palette = getattr(data, 'palette', None)
             if palette:
@@ -614,78 +657,82 @@ class InferenceLoop:
             log.exception(e)
         
         finally:
-            # Clear DATA
-            RT_CONF[self.uid]['DATA'] = {}
             log.warning('App Setup Finished')
 
     def _dynamic_change_app_setup_event(self):
         """ Dynamic Modify Varaible of the Application """
 
         # Return: No dynamic variable setting
-        data = RT_CONF[self.uid]['DATA']
-        if data=={}: return
-        t = threading.Thread(target=self._app_setup_event, args=(data, ), daemon=True).start()
-
-    def _inference_thread(self):
+        if RT_CONF[self.uid]['DATA']=={}: return
         
-        prev_data, cur_data = None, None
+        # Copy a data
+        data = copy.deepcopy(RT_CONF[self.uid]['DATA'])
+        
+        # Create a thread to update task value 
+        threading.Thread(target=self._app_setup_event, args=(data, ), daemon=True).start()
+        
+        # Clear dara
+        RT_CONF[self.uid]['DATA']={}
 
+    def _infer_loop(self):
+
+        log.warning('Start AI Task Inference Stream')
+        self.prev_time = time.time()
+        update_task_status(self.uid, 'running')
+
+        # Make sure source is ready
+        while( self.is_ready and self.src.is_ready):
+
+            # Ready to calculate performance
+            self.metric.update(); self.latency_limitor.update()
+            
+            # Setting Dynamic Variable ( thread )
+            self._dynamic_change_app_setup_event()
+
+            # Get data        
+            ret, frame = self.src.read()
+
+            # Do Async Inference
+            self.async_infer.submit_data(frame=frame)
+            cur_data = self.async_infer.get_results()
+
+            # Application
+            self.draw, self.results, self.event = self.app(frame, cur_data, draw=True)
+
+            # Display
+            self.dpr.show(copy.deepcopy(self.draw))
+
+            # Log
+            # log.debug(cur_data)
+
+            # Send Data
+            self.results.update({
+                "fps": self.metric.get_fps(),
+                "live_time": self.metric.get_exec_time()
+            })
+            WS_CONF.update({ self.uid: self.results })
+
+            # Limit FPS
+            cur_latency = self.latency_limitor.update()
+            t_delay = self.display_latency - cur_latency
+            if 1 > t_delay > 0:
+                # Sleep for correct FPS
+                time.sleep(t_delay )
+            
+            # Calculate FPS and Update spped_limitor
+            self.metric.update()
+
+        # Check is error from source or not
+        if (not self.src.is_ready) and len(self.src.errors) > 0:
+            raise self.src.errors[-1]
+
+        # Update Task Status to Stop
+        update_task_status(self.uid, 'stop')
+    
+    def _infer_thread(self):
+        
         try:
-            log.warning('Start AI Task Inference Stream')
-            self.prev_time = time.time()
-            update_task_status(self.uid, 'running')
-
-            # Make sure source is ready
-            while( self.is_ready and self.src.is_ready):
-                
-                # Limit Speed to fit FPS
-                if self.minimum_latency < self.latency_limitor.update():
-                    time.sleep(1e-3); continue
-                
-                # Ready to calculate performance
-                self.metric.update()
-
-                # Setting Dynamic Variable
-                self._dynamic_change_app_setup_event()
- 
-                # Get data        
-                ret, frame = self.src.read()
-
-                # # Do Sync Inference
-                # cur_data = self.model.inference(frame)
-
-                # Do Async Inference
-                self.async_infer.submit_data(frame=frame)
-
-                cur_data = self.async_infer.get_results()
-
-                self.draw, self.results, self.event = self.app(frame, cur_data, draw=True)
-
-                # Display
-                self.dpr.show(self.draw)
-
-                # Log
-                # log.debug(cur_data)
-
-                # Send Data
-                self.results.update({
-                    "fps": self.metric.get_fps(),
-                    "live_time": self.metric.get_exec_time()
-                })
-                WS_CONF.update({ self.uid: self.results })
-
-                # Calculate FPS and Update spped_limitor
-                self.metric.update()
-                self.latency_limitor.update()
-
-                time.sleep(1e-5)
-
-            # Check is error from source or not
-            if (not self.src.is_ready) and len(self.src.errors) > 0:
-                raise self.src.errors[-1]
-
-            # Update Task Status to Stop
-            update_task_status(self.uid, 'stop')
+            self._infer_loop()
 
         # If Get Exception
         except Exception as e:
