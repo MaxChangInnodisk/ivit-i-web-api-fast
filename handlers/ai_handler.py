@@ -56,7 +56,7 @@ def ivit_i_intel(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
             device = params["device"],
             architecture_type = params["arch"],
             anchors = params["anchors"],
-            confidence_threshold = params["confidence_threshold"]
+            confidence_threshold = float(params["confidence_threshold"])
         )
     else:
         raise InvalidModelTypeError('Unexpect Type: {}'.format(type))
@@ -68,8 +68,43 @@ def ivit_i_jetson():
     pass
 
 # dGPU
-def ivit_i_dgpu():
-    pass
+def ivit_i_dgpu(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
+    """Initialize iVIT-I NVIDIA Function
+
+    Args:
+        type (Literal[&quot;CLS&quot;, &quot;OBJ&quot;, &quot;SEG&quot;]): the model type
+        params (dict): the model setting
+
+    Raises:
+        InvalidModelTypeError: get unexpected model type
+
+    Returns:
+        iModel: return model which inherit iModel
+    """
+    if type == CLS:
+        from ivit_i.core.models import iClassification
+        print(params)
+        model = iClassification(
+            model_path = params['model_path'],
+            label_path = params['label_path'],
+            device = int(params['device']),
+            confidence_threshold = float(params['confidence_threshold']),
+            topk = params.get('topk', 1),
+        )
+    elif type == OBJ:
+        from ivit_i.core.models import iDetection
+        model = iDetection(
+            model_path = params["model_path"],
+            label_path = params["label_path"],
+            device = int(params["device"]),
+            architecture_type = params["arch"],
+            anchors = params["anchors"],
+            confidence_threshold = float(params["confidence_threshold"])
+        )
+    else:
+        raise InvalidModelTypeError('Unexpect Type: {}'.format(type))
+
+    return model
 
 # Hailo
 def ivit_i_hailo(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
@@ -103,7 +138,7 @@ def ivit_i_hailo(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
             device = params["device"],
             architecture_type = params["arch"],
             anchors = params["anchors"],
-            confidence_threshold = params["confidence_threshold"]
+            confidence_threshold = float(params["confidence_threshold"])
         )
     else:
         raise InvalidModelTypeError('Unexpect Type: {}'.format(type))
@@ -141,7 +176,7 @@ def ivit_i_xlnx(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
             # device = params["device"],
             # architecture_type = params["arch"],
             anchors = params["anchors"],
-            confidence_threshold = params["confidence_threshold"]
+            confidence_threshold = float(params["confidence_threshold"])
         )
     else:
         raise InvalidModelTypeError('Unexpect Type: {}'.format(type))
@@ -161,7 +196,7 @@ def get_ivit_api(framework:Literal["openvino", "tensorrt", "jetson", "vitis-ai",
     """
     map = {
         "openvino": ivit_i_intel,
-        "tensorrt": ivit_i_jetson,
+        "tensorrt": ivit_i_dgpu,
         "vitis-ai": ivit_i_xlnx,
         "hailort": ivit_i_hailo
     }
