@@ -56,19 +56,31 @@ def get_src_info(uid: str=None):
     return ret
 
 
-def is_source_using(source_uid) -> Tuple[bool, str]:
-    flag, mesg = True, ""
-    data = select_data(table='task', data=['uid', 'status'], condition=f"WHERE source_uid='{source_uid}'")
+def is_source_using(source_uid:str) -> Tuple[bool, str]:
+    """If source is using or not.
+
+    Args:
+        source_uid (str): the source uuid.
+
+    Returns:
+        Tuple[bool, str]: if source is using or not.
+    """
+
+    flag, mesg = True, "No one using this source"
+    data = select_data(
+        table='task',
+        data=['uid', 'status'],
+        condition=f"WHERE source_uid='{source_uid}'" )
+
     if is_list_empty(data):
-        mesg = "No one using this source"
-    
-    else:
-        using_tasks = [ uid for uid, status in data if status == 'running' ]
+        return (flag, mesg)
 
-        flag = (len(using_tasks)>1)
-        if flag:
-            mesg = "The source is still used by {}".format(", ".join(using_tasks))
+    using_tasks = [ uid for uid, status in data if status == 'running' ]
+    flag = (len(using_tasks)>=1)
+    if not flag:
+        return (flag, mesg)
 
+    mesg = "The source is still used by {}".format(", ".join(using_tasks))
     log.warning(mesg)
     return (flag, mesg)
 
