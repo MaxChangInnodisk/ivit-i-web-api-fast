@@ -10,11 +10,11 @@ import os
 try:
     from .imagenet import IMAGE_NET_LABEL
     from .coco import COCO_LABEL
-    from .utils import download_data, download_model, convert_model
+    from .utils import download_data, download_model
 except:
     from imagenet import IMAGE_NET_LABEL
     from coco import COCO_LABEL
-    from utils import download_data, download_model, convert_model
+    from utils import download_data, download_model
 
 try:
     from ..common import SERV_CONF
