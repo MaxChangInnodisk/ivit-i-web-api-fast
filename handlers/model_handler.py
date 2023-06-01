@@ -11,6 +11,7 @@
 import sys, os, time, json, re, shutil, zipfile, abc, wget
 import asyncio, threading
 import requests
+import subprocess as sp
 
 import logging as log
 from fastapi import File
@@ -24,6 +25,7 @@ except:
 
 from .db_handler import select_data, insert_data, update_data, delete_data
 from .mesg_handler import handle_exception, simple_exception, ws_msg
+
 
 # Model Deployer
 
@@ -65,6 +67,12 @@ class ModelDeployerWrapper(abc.ABC):
         self.file_path = ""
         self.model_name = self.file_folder = ""
 
+        # Model Type
+        self.model_type = ""
+        
+        # Convert Process
+        self.process = None
+
         # Benchmark
         self.performance = {
             "download": None,
@@ -98,7 +106,7 @@ class ModelDeployerWrapper(abc.ABC):
         """
 
         if WS_CONF.get("WS") is None:
-            print(SERV_CONF["PROC"])
+            print(SERV_CONF["PROC"][self.uid]['message'])
             return
         
         asyncio.run( WS_CONF["WS"].send_json( ws_msg(type="PROC", content=SERV_CONF["PROC"])) )
@@ -128,10 +136,23 @@ class ModelDeployerWrapper(abc.ABC):
         t_convert_start = time.time()
 
         # Check Platform
-        if not ( self.platform in [ 'nvidia', 'intel' ]):
+        if not ( self.platform in [ 'nvidia', 'jetson' ]):
             return
         
         # Do Convert
+        process = convert_model(self.file_folder, background=True)
+
+        # Capture process
+        for line in iter(process.stdout.readline, b''): 
+                            
+            if process.poll() != None:
+                break
+
+            line = line.rstrip().decode()
+            
+            self.update_status(
+                status=self.S_CONV,
+                message=line)
 
         self.t_convert = time.time() - t_convert_start
 
@@ -158,22 +179,26 @@ class ModelDeployerWrapper(abc.ABC):
     def deploy_event(self):
         try:
             t_down = time.time()
+            log.info('Start download')
             self.update_status(self.S_DOWN)
             self.download_event()
             self.performance['download'] = time.time() - t_down
 
             t_parse = time.time()
+            log.info('Start parse zip file')
             self.update_status(self.S_PARS)
             self.parse_event()
             self.performance['parse'] = time.time() - t_parse
 
             t_convert = time.time()
+            log.info('Start convert')
             self.update_status(self.S_CONV)
             self.convert_event()
             self.performance['convert'] = time.time() - t_convert
 
             self.finished_event()
             self.update_status(self.S_FINISH)  
+            log.info('Finish')
 
         except Exception as e:
             log.exception(e)
@@ -243,11 +268,17 @@ class URL_DEPLOYER(ModelDeployerWrapper):
         
         SERV_CONF["PROC"][self.uid]["name"] = os.path.basename(self.file_folder)
 
-
-
 # Helper Function
 
-def parse_model_data(data: dict):
+def parse_model_data(data: dict) -> dict:
+    """Parse model data from database
+
+    Args:
+        data (dict): data from database
+
+    Returns:
+        dict: the model data
+    """
     return {
         "uid": data[0],
         "name": data[1],
@@ -271,12 +302,11 @@ def get_model_info(uid: str=None):
         uid = str(uid.strip())
         data = select_data(table='model', data="*", condition=f"WHERE uid='{uid}'")
     
-    print(uid, data)
     ret = [ parse_model_data(model) for model in data ]
     return ret
 
 
-def get_model_tag_from_arch(arch):
+def get_model_type_from_arch(arch):
     """ Get type ( [ CLS, OBJ, SEG ] ) from training configuration which provided by iVIT-T """
 
     if "yolo" in arch:
@@ -284,7 +314,21 @@ def get_model_tag_from_arch(arch):
 
     elif "resnet" in arch or "vgg" in arch or "mobile" in arch:
         return MODEL_CONF["CLS"]
-         
+
+def get_mdoel_type_from_json(json_path:str)-> str:
+    """Get model type from json file
+
+    Args:
+        json_path (str): path to json configuration
+
+    Returns:
+        str: model type
+    """
+    with open(json_path, newline='') as jsonfile:
+        train_config = json.load(jsonfile)
+        arch = train_config['model_config']['arch']
+        model_type = get_model_type_from_arch(arch) # CLS, OBJ
+    return model_type
 
 def parse_model_folder(model_dir):
     """ Parsing Model folder which extracted from ZIP File """
@@ -346,7 +390,7 @@ def parse_model_folder(model_dir):
                 else:
                     ret['arch'] = arch
 
-                ret['type'] = get_model_tag_from_arch( ret['arch'] )  
+                ret['type'] = get_model_type_from_arch( ret['arch'] )  
                 
                 # Basic Parameters
                 ret['input_size'] = train_config['model_config']["input_shape"]
@@ -461,6 +505,7 @@ def add_model_into_db(models_information:dict, db_path:str=SERV_CONF["DB_PATH"])
     
     return model_db_data
 
+
 def add_model(file:File, url:str):
     """ Add AI Model With AddModelHelper """
     
@@ -494,11 +539,95 @@ def delete_model(uid:str):
     delete_data(table='model', condition=f"WHERE uid='{uid}'")
 
 
-if __name__ == "__main__":
-    log.basicConfig(level=log.DEBUG)
+def converting_process(model_path:str, model_type:str) -> sp.Popen:
+    """Do convert process
 
-    models_information = init_db_model( model_dir="./model" )
+    Args:
+        model_path (str): path to model, should be [.onnx, .weight]
+        model_type (str): the model type
 
-    add_model_into_db(models_information)
-
+    Returns:
+        sp.Popen: the process object
+    """
     
+    # Get pure model name 
+    model_name, model_ext = os.path.splitext(model_path)
+
+    # Combine tensorrt engine path
+    trg_model_path = model_name + '.trt'
+
+    # Get correct command line
+    if model_type == "CLS":
+        # Classification
+        cmd = [ 
+            "/usr/src/tensorrt/bin/trtexec", 
+            f"--onnx={model_path}", 
+            f"--saveEngine={os.path.realpath(trg_model_path)}" ]
+    else:
+        cmd = [ "yolo-converter", f"{model_name}" ]
+
+    process_id = sp.Popen(args=cmd, stdout=sp.PIPE, stderr=sp.PIPE)
+    log.warning(f"Run Convert Process ( { process_id } ): {' '.join(cmd)}")
+    return process_id
+
+
+def convert_model(model_folder_path:str, background=False) -> sp.Popen:
+    """A workflow for Cconvert TensorRT model 
+
+    Args:
+        model_folder_path (str): path to model folder.
+
+    Workflow:
+        1. Check the framework is tensorrt or not
+        2. Parsing each file in `model_folder_path`
+            * Model File ( .onnx, .weights )
+            * Json File ( .json )
+        3. Get model type from json file.
+        4. Start converting.
+        5. If run in background then return process, if not then wait for it.
+
+    Returns:
+        sp.Popen: the process object
+    """
+
+    # Double check
+    if SERV_CONF['FRAMEWORK'] != 'tensorrt':
+        log.warning('No need to convert ...')
+        return
+
+    # Parse data
+    model_path, json_path = "", ""
+    for file in os.listdir(model_folder_path):
+        ext = os.path.splitext(file)[1]
+        trg_path = os.path.join(model_folder_path, file)
+
+        if ext in [ '.onnx', '.weights', '.wts' ]:
+            model_path = trg_path
+        elif ext in [ '.json' ]:
+            json_path = trg_path
+
+    # Check data
+    if model_path == "":
+        raise RuntimeError("Could not find model.")
+    elif json_path == "":
+        raise RuntimeError("Could not find configuration.")
+
+    # Get model type from arch
+    model_type = get_mdoel_type_from_json(json_path)
+
+    # Start convert
+    process = converting_process(
+        model_path=model_path,
+        model_type=model_type
+    )
+
+    # If not runing in background
+    if not background:
+        log.warning('Waitting for converting ...')
+        for line in iter(process.stdout.readline, b''): 
+            if process.poll() != None: break
+            print(line.rstrip().decode())
+            
+        log.info('Converted model !')
+        
+    return process
