@@ -13,9 +13,11 @@ from .ivit_handler import iModel
 
 try:
     from ..common import init_ivit_env
+    from ..common import SERV_CONF
 except:
     from common import init_ivit_env
-    
+    from common import SERV_CONF
+
 CLS = "CLS"
 OBJ = "OBJ"
 SEG = "SEG"
@@ -81,13 +83,16 @@ def ivit_i_dgpu(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
     Returns:
         iModel: return model which inherit iModel
     """
+
+    info = SERV_CONF['IDEV'].get_device_info( [ str(params['device']) ] )
+    dev = int([ val['id'] for val in info.values() ][0])
+
     if type == CLS:
         from ivit_i.core.models import iClassification
-        print(params)
         model = iClassification(
             model_path = params['model_path'],
             label_path = params['label_path'],
-            device = int(params['device']),
+            device = dev,
             confidence_threshold = float(params['confidence_threshold']),
             topk = params.get('topk', 1),
         )
@@ -96,7 +101,7 @@ def ivit_i_dgpu(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
         model = iDetection(
             model_path = params["model_path"],
             label_path = params["label_path"],
-            device = int(params["device"]),
+            device = dev,
             architecture_type = params["arch"],
             anchors = params["anchors"],
             confidence_threshold = float(params["confidence_threshold"])
