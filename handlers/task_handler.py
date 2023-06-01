@@ -45,6 +45,7 @@ from .db_handler import (
     select_column_by_uid,
     update_column_by_uid
 )
+
 from .ivit_handler import Metric
 
 # --------------------------------------------------------
@@ -611,12 +612,12 @@ class InferenceLoop:
         self.display_latency = 1/30
 
         self.icap_alive = 'ICAP' in SERV_CONF and not (SERV_CONF['ICAP'] is None)
-        
+
         self.async_infer = AsyncInference( 
             imodel=self.model, 
             workers=1,
             freqency=0.077)
-        
+
         log.warning('Create a InferenceLoop')
 
     def create_thread(self) -> threading.Thread:
@@ -752,9 +753,12 @@ class InferenceLoop:
 
             self.model.release()
             self.dpr.release()
-            if self.icap_alive:
-                SERV_CONF['ICAP'].send_attr(data=task_handler.get_task_info())
 
+            if self.icap_alive:  
+                SERV_CONF['ICAP'].send_attr(data={
+                    'ivitTask': task_handler.get_task_info()
+            })
+                
         log.warning('InferenceLoop ({}) is Stop'.format(self.uid))
 
     def get_results(self):
