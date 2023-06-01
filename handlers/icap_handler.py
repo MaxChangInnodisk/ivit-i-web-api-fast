@@ -68,21 +68,19 @@ class ICAP_HANDLER():
     def __init__(self, host:str, port:Union[str, int], token:str ):
         self.client = mqtt.Client(client_id="", clean_session=True, userdata=None, transport="tcp")
         self.client.on_connect = self.on_connect
+        self.client.on_disconnect = self.on_disconnect
         self.client.on_message = self.on_message
         self.client.on_publish = self.on_publish
 
         # Setup Password
         self.client.username_pw_set(token)
         
-        # Log out        
-        dict_printer(
+        # Log out
+        dict_printer(   
             title='Init iCAP Handler:', 
-            data={
-                "host": host,
-                "port": port,
-                "token ( pw )": token
-            }
-        )
+            data={ "host": host,
+                   "port": port,
+                   "token ( pw )": token } )
         
         self.client.connect_async(str(host), int(port), keepalive=60, bind_address="")
 
@@ -152,6 +150,9 @@ class ICAP_HANDLER():
 
     # MQTT Event
 
+    def on_disconnect(self, client, userdata, rc):
+        logging.warning('MQTT Closed!')
+
     def on_connect(self, client, userdata, flags, rc):
         """Connect to MQTT Method
 
@@ -159,14 +160,15 @@ class ICAP_HANDLER():
             Connect to MQTT
             Send attributes with ivitUrl and ivitTask if success
         """
+
         if rc == 0:
             logging.info('ICAP_HANDLER Connected successfully')
             
             # Define Topics
             topics = {
-                "Receive Attributes": ICAP_CONF["TOPIC_REC_ATTR"],
-                "Receive RPC Command": ICAP_CONF["TOPIC_REC_RPC"],
-                "Send Attributes": ICAP_CONF["TOPIC_SND_ATTR"]
+                "Send Attributes": ICAP_CONF["TOPIC_SND_ATTR"],
+                "Receive Attributes": ICAP_CONF["TOPIC_REC_ATTR"]+'+',
+                "Receive RPC Command": ICAP_CONF["TOPIC_REC_RPC"]+'+'
             }
 
             # Subscribe topic
@@ -217,10 +219,10 @@ class ICAP_HANDLER():
         self.client.publish(topic, json.dumps(data))
 
     def send_attr(self, data: dict, topic:str=ICAP_CONF["TOPIC_SND_ATTR"]):
-        self.client.publish(topic, json.dumps(data))
+        self.client.publish(topic, json.dumps(data), retain=False)
 
     def send_tele(self, data: dict, topic:str=ICAP_CONF["TOPIC_SND_TEL"]):
-        self.client.publish(topic, json.dumps(data))
+        self.client.publish(topic, json.dumps(data), retain=False)
 
 # --------------------------------------------------------
 # DEPLOYER
@@ -475,7 +477,12 @@ def init_icap():
 def send_basic_attr():
     try:
         if ('ICAP' in SERV_CONF) and not (SERV_CONF['ICAP'] is None):
-            SERV_CONF['ICAP'].send_attr(data=task_handler.get_task_info())
+            
+            SERV_CONF['ICAP'].send_attr(data={
+                'ivitTask': task_handler.get_task_info()
+            })
+        else:
+            log.warning('MQTT not setup ...')
     except Exception as e:
         log.warning(handle_exception(e))
 
