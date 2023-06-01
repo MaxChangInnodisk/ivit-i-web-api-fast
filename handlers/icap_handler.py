@@ -113,7 +113,7 @@ class ICAP_HANDLER():
             log.warning('Detected url from iCAP, start to deploy ...')
             self._attr_deploy_event(data)
         else:
-            log.warning('Unexpected key')
+            log.warning('Unexpected key ... {}'.format(data))
 
     def _rpc_event(self, request_idx, data):
         """ Receive RPC Event """
@@ -207,7 +207,7 @@ class ICAP_HANDLER():
             request_idx = topic.split('/')[-1]
             self._rpc_event(request_idx, data)
 
-        elif ICAP_CONF["TOPIC_REC_ATTR"] in topic:
+        elif ICAP_CONF["TOPIC_SND_ATTR"] in topic:
             self._attr_event(data)
 
     def on_publish(self, client, userdata, result):
@@ -262,7 +262,7 @@ class ICAP_DEPLOYER(URL_DEPLOYER):
         self.update_status(self.S_DOWN)
         self.file_name = wget.download( self.url,self.file_path, bar=self._download_progress_event)
         self.file_folder =  os.path.splitext( self.file_path )[0]
-        SERV_CONF["MODEL"][self.uid]["name"] = os.path.basename(self.file_folder)
+        SERV_CONF["PROC"][self.uid]["name"] = os.path.basename(self.file_folder)
 
     def finished_event(self):
         super().finished_event()
@@ -272,17 +272,30 @@ class ICAP_DEPLOYER(URL_DEPLOYER):
         """ Not only push websocket but also push to mqtt for iCAP ( Thingboard ) """
 
         assert not (SERV_CONF.get("ICAP") is None), "Make sure iCAP is already register"
-        
+
         # WebSocket
         super().push_mesg()
         
         # MQTT
+
+        # Check status
+        stats = SERV_CONF['PROC'][self.uid]['status']
+        
+        # Check message
+        run_mesg, err_mesg = SERV_CONF['PROC'][self.uid]['message'], ""
+        if stats == self.S_FAIL:
+            err_mesg = run_mesg
+            run_mesg = ""
+
+        # Conbine data
         icap_data = {
-            "sw_state": SERV_CONF['MODEL'][self.uid]['status'],
-            "sw_error": SERV_CONF['MODEL'][self.uid]['message'],
+            "sw_state": stats,
+            "sw_error": err_mesg,
+            "sw_message": run_mesg,
             "sw_package_id": self.package_id
         }
         
+        # Finish
         if self.is_finish:
             icap_data.update({
                 "current_sw_title": self.title,
