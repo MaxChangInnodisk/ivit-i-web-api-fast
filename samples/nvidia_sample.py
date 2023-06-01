@@ -25,8 +25,10 @@ except:
     from utils import gen_uid, json_to_str
     from handlers import db_handler
 
+from ivit_i.utils import iDevice
+
 # Parameters
-DEV = 0
+DEV = iDevice().get_available_device()[0]
 
 def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
     """ Add intel sample information into database 
