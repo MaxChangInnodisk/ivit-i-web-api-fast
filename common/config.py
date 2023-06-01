@@ -120,8 +120,8 @@ ICAP_CONF = ConfigWrapper(
     API_REG_DEVICE  = "/api/v1/devices",
     TOPIC_REC_RPC   = "v1/devices/me/rpc/request/",          # +
     TOPIC_SND_RPC   = "v1/devices/me/rpc/response/",         # {n}
-    TOPIC_REC_ATTR  = "v1/devices/me/attributes",
-    TOPIC_SND_ATTR  = "v1/devices/me/attributes/response/",  # +
+    TOPIC_SND_ATTR  = "v1/devices/me/attributes",
+    TOPIC_REC_ATTR  = "v1/devices/me/attributes/response/",  # +
     TOPIC_SND_TEL   = "v1/devices/me/telemetry",
 
     MQTT_PORT = "1883",
