@@ -3,7 +3,7 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-import requests, json, logging, os, sys, hashlib, time, wget, shutil
+import requests, json, os, sys, hashlib, time, wget, shutil
 import logging as log
 import paho.mqtt.client as mqtt
 from typing import Union
@@ -43,10 +43,10 @@ TB_KEY_TOKEN        = "accessToken"
 def dict_printer(title:str, data:dict, content_maximum:int = 50, level:str='info'):
     
     log_wrapper = {
-        'debug': logging.debug,
-        'info': logging.info,
-        'warn': logging.warning,
-        'warning': logging.warning,
+        'debug': log.debug,
+        'info': log.info,
+        'warn': log.warning,
+        'warning': log.warning,
     }
 
     _logger = log_wrapper[level]
@@ -110,10 +110,10 @@ class ICAP_HANDLER():
         """ Attribute Event """
         keys = data.keys()
         if 'sw_description' in keys:    
-            logging.warning('Detected url from iCAP, start to deploy ...')
+            log.warning('Detected url from iCAP, start to deploy ...')
             self._attr_deploy_event(data)
         else:
-            logging.warning('Unexpected key')
+            log.warning('Unexpected key')
 
     def _rpc_event(self, request_idx, data):
         """ Receive RPC Event """
@@ -151,7 +151,7 @@ class ICAP_HANDLER():
     # MQTT Event
 
     def on_disconnect(self, client, userdata, rc):
-        logging.warning('MQTT Closed!')
+        log.warning('MQTT Closed!')
 
     def on_connect(self, client, userdata, flags, rc):
         """Connect to MQTT Method
@@ -162,7 +162,7 @@ class ICAP_HANDLER():
         """
 
         if rc == 0:
-            logging.info('ICAP_HANDLER Connected successfully')
+            log.info('ICAP_HANDLER Connected successfully')
             
             # Define Topics
             topics = {
@@ -188,7 +188,7 @@ class ICAP_HANDLER():
                 data=basic_attr)
 
         # Connect Failed
-        else: logging.error('MQTT Got Bad connection. Code:', rc)
+        else: log.error('MQTT Got Bad connection. Code:', rc)
      
     def on_message(self,client, userdata, msg):
         
@@ -332,7 +332,7 @@ def resp_to_json(resp):
         resp_data = resp.text
 
     if isinstance(resp_data, str):
-        logging.warning('Convert string response to json with key `data`')
+        log.warning('Convert string response to json with key `data`')
         resp_data = { KEY_RESP_DATA: resp_data }
     
     # Merge data  
@@ -469,7 +469,7 @@ def init_icap():
         icap_handler.start()
 
         SERV_CONF.update({"ICAP":icap_handler})
-        logging.info("Update ICAP Object into {}".format(SERV_CONF.get_name))
+        log.info("Update ICAP Object into {}".format(SERV_CONF.get_name))
 
 # --------------------------------------------------------
 # Send Basic Attribute
