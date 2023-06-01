@@ -23,3 +23,6 @@ services:
       - API_PORT=819
       - RTC_PORT=8083
       - WEB_PORT=4999
+  website:
+    image: jordan007/iviti-wa:v013
+    network_mode: host
