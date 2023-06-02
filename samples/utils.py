@@ -47,10 +47,16 @@ def download_file(file_path, file_url):
     gdown.download(url=file_url, output=file_path, quiet=False, fuzzy=True)
 
 def download_model(file_name, file_url):
-    ext = '.zip'
-    if not ext in file_name:
-        file_name += ext
+
     file_path = os.path.join(SERV_CONF["MODEL_DIR"], file_name)
+
+    if os.path.exists(file_path):
+        log.warning(f'Model exists ({file_path})')
+        return
+
+    ext = '.zip'
+    if not ext in file_path:
+        file_path += ext
     download_file(file_path, file_url)
     extract_file(file_path)
     model_folder_path = os.path.splitext(file_path)[0]
