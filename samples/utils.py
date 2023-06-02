@@ -18,6 +18,11 @@ except:
     from common import SERV_CONF
     from handlers import model_handler
 
+"""
+This is a utils for samples
+Use gdown to download ai model and testing data.
+"""
+
 def extract_file(zip_path:str, folder_name:str=None):
     
     if not os.path.exists(zip_path):
@@ -26,7 +31,6 @@ def extract_file(zip_path:str, folder_name:str=None):
     if not folder_name:
         folder_name = os.path.splitext(zip_path)[0]
 
-    print(zip_path, folder_name)
     with zipfile.ZipFile(zip_path, 'r') as zf:
         zf.extractall(path=folder_name)
 
