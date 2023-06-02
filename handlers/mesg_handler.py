@@ -37,10 +37,29 @@ def json_exception(content) -> dict:
         K_TYPE: err_type 
     }
 
+def http_msg_formatter(content: Union[dict, str, Exception], status_code:int=200) -> dict:
+    """HTTP response handler
 
-def http_msg_formatter(content, status_code:int=200):
-    """ HTTP response handler """
+    Args:
+        content (Union[dict, str, Exception]): _description_
+        status_code (int, optional): _description_. Defaults to 200.
 
+    Raises:
+        TypeError: _description_
+
+    Returns:
+        dict: a dictionaray with `status_code`, `data`, `message`, `type`.
+
+    Samples:
+        ```python
+        {
+            status_code: status_code,
+            data: {},
+            message: "",
+            type: ""
+        }
+        ```
+    """
     # Checking Input Type
     if not isinstance(status_code, int):
         raise TypeError(f"Status Code should be integer, but got {type(status_code)}")
@@ -68,9 +87,26 @@ def http_msg_formatter(content, status_code:int=200):
     
     return ret
 
-def ws_msg(content:Union[str, dict], type:Literal["UID","ERROR","TEMP", "PROC"]) -> dict:
-    """ Web Socket response handler """
-    
+def ws_msg(content: Union[dict, str, Exception], type:Literal["UID", "ERROR", "TEMP", "PROC"]) -> dict:
+    """Return a WebSocket Message
+
+    Args:
+        content (Union[dict, str, Exception]): message
+        type (Literal[&quot;UID&quot;,&quot;ERROR&quot;,&quot;TEMP&quot;, &quot;PROC&quot;]): websocket message type
+
+    Returns:
+        dict: websocket message
+
+    Samples:
+        ```
+        {
+            data: {},
+            message: "",
+            type: ""
+        }
+        ```
+    """
+
     # Use Http Formatter
     ret = http_msg_formatter(content=content)
 
@@ -83,11 +119,29 @@ def ws_msg(content:Union[str, dict], type:Literal["UID","ERROR","TEMP", "PROC"])
     
     return ret
 
-def http_msg(content, status_code:int=200, media_type:str="application/json"):
-    """ HTTP response handler """
+def http_msg(content: Union[dict, str, Exception], status_code:int=200, media_type:str="application/json") -> Response:
+    """Return a HTTP Message
 
+    Args:
+        content (Union[dict, str, Exception]): message
+        status_code (int, optional): the response status code. Defaults to 200.
+        media_type (str, optional): the metdia type. Defaults to "application/json".
+
+    Returns:
+        Response: the response format from `fastapi`.
+
+    Samples:
+        ```python
+        {
+            status_code: status_code,
+            data: {},
+            message: "",
+            type: ""
+        }
+        ```
+    """
     ret = http_msg_formatter(content=content, status_code=status_code)
     
-    return Response(    
+    return Response(
         content = json.dumps(ret), 
         status_code = status_code, media_type=media_type )
