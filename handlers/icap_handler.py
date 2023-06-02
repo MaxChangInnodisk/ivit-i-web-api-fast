@@ -113,7 +113,7 @@ class ICAP_HANDLER():
             log.warning('Detected url from iCAP, start to deploy ...')
             self._attr_deploy_event(data)
         else:
-            log.warning('Unexpected key ... {}'.format(data))
+            log.warning('Unexpected key ... {}'.format(', '.join(keys)))
 
     def _rpc_event(self, request_idx, data):
         """ Receive RPC Event """
@@ -244,7 +244,7 @@ class ICAP_DEPLOYER(URL_DEPLOYER):
         self.package_id     = data.get("sw_package_id", "None")    
         
         # Get Description Data
-        self.platform = self.descr.get("applyProductionModel")
+        self.platform       = self.descr.get("applyProductionModel")
         self.project_name   = self.descr["project_name"]
         self.file_name      = self.descr["file_id"]
         self.file_size      = self.descr["file_size"]
@@ -269,13 +269,13 @@ class ICAP_DEPLOYER(URL_DEPLOYER):
         self.is_finish = True
 
     def push_mesg(self):
-        """ Not only push websocket but also push to mqtt for iCAP ( Thingboard ) """
+        """Not only push websocket but also push to mqtt for iCAP ( Thingboard ) """
 
-        assert not (SERV_CONF.get("ICAP") is None), "Make sure iCAP is already register"
-
+        # =============================
         # WebSocket
         super().push_mesg()
         
+        # =============================
         # MQTT
 
         # Check status
@@ -291,9 +291,8 @@ class ICAP_DEPLOYER(URL_DEPLOYER):
         icap_data = {
             "sw_state": stats,
             "sw_error": err_mesg,
-            "sw_message": run_mesg,
-            "sw_package_id": self.package_id
-        }
+            "sw_message": run_mesg,     # Not a standard key
+            "sw_package_id": self.package_id }
         
         # Finish
         if self.is_finish:
