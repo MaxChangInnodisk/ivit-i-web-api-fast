@@ -19,18 +19,18 @@ except:
 try:
     from ..common import SERV_CONF
     from ..utils import gen_uid, json_to_str
-    from ..handlers import db_handler
+    from ..handlers import db_handler, model_handler
 except:
     from common import SERV_CONF
     from utils import gen_uid, json_to_str
-    from handlers import db_handler
+    from handlers import db_handler, model_handler
 
 from ivit_i.utils import iDevice
 
 # Parameters
 DEV = iDevice().get_available_device()[0]
 
-def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
+def nv_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
     """ Add intel sample information into database 
     ---
     1. Download Data from Google Drive, and Update into Database
@@ -130,7 +130,7 @@ def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
     )
 
 
-def intel_sample_obj(db_path: str = SERV_CONF["DB_PATH"]):
+def nv_sample_obj(db_path: str = SERV_CONF["DB_PATH"]):
     """ Add intel sample information into database 
     ---
     1. Download Data from Google Drive, and Update into Database
@@ -225,7 +225,7 @@ def intel_sample_obj(db_path: str = SERV_CONF["DB_PATH"]):
     )
 
 
-def intel_sample_obj_yolov4_tiny(db_path: str = SERV_CONF["DB_PATH"]):
+def nv_sample_obj_yolov4_tiny(db_path: str = SERV_CONF["DB_PATH"]):
     """ Add intel sample information into database 
     ---
     1. Download Data from Google Drive, and Update into Database
@@ -320,7 +320,7 @@ def intel_sample_obj_yolov4_tiny(db_path: str = SERV_CONF["DB_PATH"]):
     )
 
 
-def intel_sample_obj_yolov4(db_path: str = SERV_CONF["DB_PATH"]):
+def nv_sample_obj_yolov4(db_path: str = SERV_CONF["DB_PATH"]):
     """ Add intel sample information into database 
     ---
     1. Download Data from Google Drive, and Update into Database
@@ -416,13 +416,13 @@ def intel_sample_obj_yolov4(db_path: str = SERV_CONF["DB_PATH"]):
 
 
 def init_nvidia_samples():
-    # intel_sample_cls()
-    # intel_sample_obj()
-    intel_sample_obj_yolov4_tiny()
-    intel_sample_obj_yolov4()
+    # nv_sample_cls()
+    # nv_sample_obj()
+    nv_sample_obj_yolov4_tiny()
+    nv_sample_obj_yolov4()
 
 
 if __name__ == "__main__":
     db_handler.init_sqlite()
-    intel_sample_cls()
-    intel_sample_obj()
+    nv_sample_cls()
+    nv_sample_obj()
