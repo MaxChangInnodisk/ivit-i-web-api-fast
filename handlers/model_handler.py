@@ -98,18 +98,21 @@ class ModelDeployerWrapper(abc.ABC):
                     "name": self.model_name
                 }
             })
-    
+
     def push_mesg(self):
-        """ Push message up to front end, 
-        default is websocket.
-        You can modify by yourself 
+        """ Push message
+
+        - Workflow
+            1. Print Status
+            2. If WebSocket exists then push message via `WS_CONF["WS"].send_json()`
         """
 
-        if WS_CONF.get("WS") is None:
-            print(SERV_CONF["PROC"][self.uid]['message'])
-            return
-        
-        asyncio.run( WS_CONF["WS"].send_json( ws_msg(type="PROC", content=SERV_CONF["PROC"])) )
+        print(' '*80, end='\r') # Clear console
+        print(SERV_CONF["PROC"][self.uid]['status'], end='\r')
+
+        if WS_CONF.get("WS") is None: return
+        asyncio.run( WS_CONF["WS"].send_json( 
+            ws_msg(type="PROC", content=SERV_CONF["PROC"])) )
 
     def update_status(self, status:str, message: str="", push_mesg:bool=True):
         """ Update Status and push message to front end """
@@ -136,28 +139,72 @@ class ModelDeployerWrapper(abc.ABC):
         t_convert_start = time.time()
 
         # Check Platform
-        if not ( self.platform in [ 'nvidia', 'jetson' ]):
+        if not ( self.platform in [ 'nvidia', 'jetson' ] or SERV_CONF['FRAMEWORK'] == 'tensorrt'):
             return
         
-        # Do Convert
-        process = convert_model(self.file_folder, background=True)
+        # Parse data
+        info = parse_model_folder(self.file_folder)
+        model_type = info.get("type")
+        json_path  = info.get('json_path', "")
+        model_name = get_onnx_and_darknet_path(info.get('meta_data'))
+        model_path = os.path.join(self.file_folder, model_name)
+
+        # Check data
+        if model_path == "":
+            raise FileNotFoundError("Could not find model.")
+        elif json_path == "":
+            raise FileNotFoundError("Could not find configuration.")
+
+        # Define keywords
+        keywords = {
+            "CLS": {
+                "&&&& RUNNING": 10,
+                "Finish parsing network model": 20,
+                "Total Activation Memory": 50,
+                "Engine built in": 80,
+                "Starting inference": 90,
+                "PASSED TensorRT.trtexec": 100 },
+            "OBJ": {
+                "Darknet plugins are ready": 10,
+                "Saving ONNX file...": 20,
+                "Building ONNX graph...": 30,
+                "Saving ONNX file": 40,
+                "Building the TensorRT engine": 80,
+                "ONNX 2 TensorRT ... Done": 100, } }
+
+        # Start convert
+        process = converting_process( model_path, model_type )
 
         # Capture process
         for line in iter(process.stdout.readline, b''): 
-                            
-            if process.poll() != None:
-                break
-
-            line = line.rstrip().decode()
             
-            self.update_status(
-                status=self.S_CONV,
-                message=line)
+            # Finish
+            if process.poll() != None: break
+
+            # Decode and record
+            line = line.rstrip().decode()
+            line = ' '.join(line.split(' ')[2:])
+            log.debug(line)
+
+            # Check keyword and percentage
+            for keyword, percentage in keywords[model_type].items():
+                
+                if not (keyword in line): continue
+
+                current_status = f"{self.S_CONV} ( {percentage}% )"
+                self.update_status(
+                    status=current_status,
+                    message=line)
 
         self.t_convert = time.time() - t_convert_start
 
     def parse_event(self):
-        """ Parse ZIP File """
+        """Parsing Event
+        
+        - Workflow
+            1. Extract ZIP.
+            2. Remove ZIP.
+        """
 
         # Extract
         with zipfile.ZipFile(self.file_path, 'r') as zip_ref:
@@ -167,7 +214,13 @@ class ModelDeployerWrapper(abc.ABC):
         os.remove(self.file_path)
 
     def finished_event(self):
-        """ Finish Event """
+        """Finish Event 
+        
+        - Workflow
+            1. Parse model folder again.
+            2. Add model information into database
+            3. Update model data into `SERV_CONF["PROC"][{uid}]["data"]` 
+        """
         
         model_info = parse_model_folder(model_dir=self.file_folder)
         model_data = add_model_into_db(models_information={
@@ -179,26 +232,26 @@ class ModelDeployerWrapper(abc.ABC):
     def deploy_event(self):
         try:
             t_down = time.time()
-            log.info('Start download')
+            log.info('Downloading')
             self.update_status(self.S_DOWN)
             self.download_event()
             self.performance['download'] = time.time() - t_down
 
             t_parse = time.time()
-            log.info('Start parse zip file')
+            log.info('Parsing')
             self.update_status(self.S_PARS)
             self.parse_event()
             self.performance['parse'] = time.time() - t_parse
 
             t_convert = time.time()
-            log.info('Start convert')
+            log.info('Converting')
             self.update_status(self.S_CONV)
             self.convert_event()
             self.performance['convert'] = time.time() - t_convert
 
             self.finished_event()
             self.update_status(self.S_FINISH)  
-            log.info('Finish')
+            log.info('Finished !!!')
 
         except Exception as e:
             log.exception(e)
@@ -268,6 +321,7 @@ class URL_DEPLOYER(ModelDeployerWrapper):
         
         SERV_CONF["PROC"][self.uid]["name"] = os.path.basename(self.file_folder)
 
+
 # Helper Function
 
 def parse_model_data(data: dict) -> dict:
@@ -315,6 +369,7 @@ def get_model_type_from_arch(arch):
     elif "resnet" in arch or "vgg" in arch or "mobile" in arch:
         return MODEL_CONF["CLS"]
 
+
 def get_mdoel_type_from_json(json_path:str)-> str:
     """Get model type from json file
 
@@ -330,8 +385,31 @@ def get_mdoel_type_from_json(json_path:str)-> str:
         model_type = get_model_type_from_arch(arch) # CLS, OBJ
     return model_type
 
+
 def parse_model_folder(model_dir):
-    """ Parsing Model folder which extracted from ZIP File """
+    """ Parsing Model folder which extracted from ZIP File
+    
+    Samples
+        * Notice: `.onnx` and `.weights` will store at meta_data.
+
+            ```json
+            {
+                'type': '',
+                'name': '',
+                'arch': '',
+                'framework': '',
+                'model_dir': model_dir,
+                'model_path': '',
+                'label_path': '',
+                'json_path': '',
+                'config_path': '',
+                'meta_data': [],
+                'anchors': [],
+                'input_size': '',
+                'preprocess': None
+            }
+            ```
+    """
 
     ret = {
         'type': '',
@@ -350,8 +428,16 @@ def parse_model_folder(model_dir):
     }
 
     # Double Check
-    model_exts = [ MODEL_CONF["TRT_MODEL_EXT"], MODEL_CONF["IR_MODEL_EXT"], MODEL_CONF["XLNX_MODEL_EXT"], MODEL_CONF["HAI_MODEL_EXT"] ]
-    framework = [ MODEL_CONF["NV"], MODEL_CONF["INTEL"], MODEL_CONF["XLNX"], MODEL_CONF["HAILO"] ]
+    model_exts = [ 
+        MODEL_CONF["TRT_MODEL_EXT"], 
+        MODEL_CONF["IR_MODEL_EXT"], 
+        MODEL_CONF["XLNX_MODEL_EXT"], 
+        MODEL_CONF["HAI_MODEL_EXT"] ]
+    framework = [ 
+        MODEL_CONF["NV"], 
+        MODEL_CONF["INTEL"], 
+        MODEL_CONF["XLNX"], 
+        MODEL_CONF["HAILO"] ]
     assert len(framework)==len(model_exts), "Code Error, Make sure the length of model_exts and framework is the same "
 
     # Get Name
@@ -404,8 +490,7 @@ def parse_model_folder(model_dir):
                     ret['anchors'] = [ int(float(val.strip())) \
                         for val in anchors.strip().split(',')
                     ]
-
-                
+        
         elif ext in [ MODEL_CONF["DARK_CFG_EXT"] ]:
             # print("\t- Detected {}: {}".format("Config", fpath))
             ret['config_path']= fpath
@@ -424,7 +509,7 @@ def parse_model_folder(model_dir):
             # print("\t- Detected {}: {}".format("Meta Data", fpath))
             ret['meta_data'].append(fpath)
 
-    if "" in [ ret['json_path'] or ret['model_path'] ]:
+    if ret['json_path'] == "":
         log.error("[{}] Can not find JSON Configuration".format(model_dir))
 
     return ret
@@ -570,6 +655,23 @@ def converting_process(model_path:str, model_type:str) -> sp.Popen:
     log.warning(f"Run Convert Process ( { process_id } ): {' '.join(cmd)}")
     return process_id
 
+def get_onnx_and_darknet_path(meta_data:list) -> str:
+    """Help to find the onnx or darkent file.
+
+    Args:
+        meta_data (list): meta_data is get from `parse_model_folder` function.
+
+    Raises:
+        FileNotFoundError: if not find target model then raise error.
+
+    Returns:
+        str: file name ( relatived path )
+    """
+    for file_name in meta_data:
+        ext = os.path.splitext(file_name)[1]
+        if ext in [ '.onnx', '.weights' ]:
+            return file_name
+    raise FileNotFoundError("Could not find onnx or weight file.")
 
 def convert_model(model_folder_path:str, background=False) -> sp.Popen:
     """A workflow for Cconvert TensorRT model 
@@ -596,24 +698,19 @@ def convert_model(model_folder_path:str, background=False) -> sp.Popen:
         return
 
     # Parse data
-    model_path, json_path = "", ""
-    for file in os.listdir(model_folder_path):
-        ext = os.path.splitext(file)[1]
-        trg_path = os.path.join(model_folder_path, file)
+    info = parse_model_folder(model_folder_path)
 
-        if ext in [ '.onnx', '.weights', '.wts' ]:
-            model_path = trg_path
-        elif ext in [ '.json' ]:
-            json_path = trg_path
+    model_type = info.get("type")
+    json_path  = info.get('json_path', "")
+    
+    model_name = get_onnx_and_darknet_path(info.get('meta_data'))
+    model_path = os.path.join(model_folder_path, model_name)
 
     # Check data
     if model_path == "":
         raise RuntimeError("Could not find model.")
     elif json_path == "":
         raise RuntimeError("Could not find configuration.")
-
-    # Get model type from arch
-    model_type = get_mdoel_type_from_json(json_path)
 
     # Start convert
     process = converting_process(
