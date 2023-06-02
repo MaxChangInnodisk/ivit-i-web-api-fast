@@ -1,7 +1,6 @@
 {
     "PROJECT": "ivit-i",
     "PLATFORM": "intel",
-    "FRAMEWORK": "openvino",
     "VERSION": "v1.1",
     "TAG": "service",
     "SERVICE": {

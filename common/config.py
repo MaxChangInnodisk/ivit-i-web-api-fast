@@ -62,6 +62,18 @@ def update_service_config_at_first(config_path:str='ivit-i.json'):
             trg_conf[sub_key] = sub_val                        
             log.info('({}) Update {}: {}'.format( trg_conf.get_name, sub_key, sub_val))
 
+    # Update FRAMEWORK
+    pla_frm_mapping = {
+        "intel": "openvino",
+        "nvidia": "tensorrt",
+        "jetson": "tensorrt",
+        "xilinx": "vitis-ai",
+        "hailo": "hailort"
+    }
+    pla = SERV_CONF["PLATFORM"]
+    SERV_CONF["FRAMEWORK"] = pla_frm_mapping[pla]
+    log.warning('Update `FRAMEWORK` in `SERV_CONF` ( {} )'.format(SERV_CONF["FRAMEWORK"]))
+
     first_update_flag = False
     log.info('Initailized iVIT-I Config')
 
