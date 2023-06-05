@@ -418,7 +418,7 @@ def nv_sample_obj_yolov4(db_path: str = SERV_CONF["DB_PATH"]):
 def init_nvidia_samples():
     global DEV
     DEV = iDevice().get_available_device()[0]
-    # nv_sample_cls()
+    nv_sample_cls()
     # nv_sample_obj()
     nv_sample_obj_yolov4_tiny()
     nv_sample_obj_yolov4()
