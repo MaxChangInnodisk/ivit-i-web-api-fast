@@ -102,7 +102,6 @@ def ivit_i_dgpu(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
             model_path = params["model_path"],
             label_path = params["label_path"],
             device = dev,
-            architecture_type = params["arch"],
             anchors = params["anchors"],
             confidence_threshold = float(params["confidence_threshold"])
         )
