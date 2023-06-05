@@ -6,6 +6,7 @@ the faster web api for iVIT-I
 # Outline
 - [iVIT-I-WebAPI-Fast](#ivit-i-webapi-fast)
 - [Outline](#outline)
+- [iVIT-I](#ivit-i)
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
 - [About Configuration](#about-configuration)
@@ -15,6 +16,8 @@ the faster web api for iVIT-I
 - [Troubleshooting](#troubleshooting)
 - [Developement](#developement)
 
+# iVIT-I
+iVIT (Vision Intelligence Toolkit) is an AI suite software. you can use iVIT-T to train a custom AI model and deploy to iVIT-I, iVIT-I provides a simpler AI framework and integrate with iCAP. 
 
 # Requirements
 * [Docker 20.10 + ](https://docs.docker.com/engine/install/ubuntu/)
@@ -30,14 +33,7 @@ the faster web api for iVIT-I
     git clone -b r1.1 --recurse-submodules https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
     ```
 * Choose a platform you want
-    * Modify `PLATFORM` and `FRAMEWORK` in `ivit-i.json`. 
-        | PLATFORM  |   FRAMEWORK
-        |   ---     |   ---
-        | intel     |   openvino
-        | xilinx    |   vitis-ai
-        | hailo     |   hailort
-        | nvidia    |   tensorrt
-        | jetson    |   tensorrt
+    * Modify `PLATFORM` in `ivit-i.json`. we support `intel`, `xilinx`, `hailo`, `nvidia`, `jetson` now.
 
 * Run `iVIT-I-Web-Api`
     ```bash
