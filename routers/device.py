@@ -24,6 +24,9 @@ async def get_platform():
 
 @device_router.get("/devices")
 def get_device():
-    data = SERV_CONF["IDEV"].get_device_info()
-    # print(data)
-    return http_msg( content=data, status_code=200)
+    try:
+        data = SERV_CONF["IDEV"].get_device_info()
+        # print(data)
+        return http_msg( content=data, status_code=200)
+    except Exception as e:
+        return http_msg( content=e, status_code=500)
