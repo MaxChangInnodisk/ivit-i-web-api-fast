@@ -109,6 +109,18 @@ the faster web api for iVIT-I
 * [deepch/RTSPtoWeb](https://github.com/deepch/RTSPtoWeb)
 * [nginx](https://www.nginx.com/)
 
+# Build Web Site for ARM
+Only `aarch64` have to rebuild website service, like `xilinx`, `jetson` platform. More detail please visit [iviti-wa](https://github.com/Jordan00000007/iviti-wa)
+    
+1. Download repository
+    ```bash
+    git clone -b v1.0.3 https://github.com/Jordan00000007/iviti-wa && cd iviti-wa
+    ```
+2. Rebuild docker image
+    ```bash
+    docker-compose -f ./docker-compose-pro.yml build
+    ```
+
 # Troubleshooting
 1. Keep re-connect to MQTT ( iCAP ).
     * Issue
