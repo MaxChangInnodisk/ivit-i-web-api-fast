@@ -36,7 +36,7 @@ server {
     }
     
     location /icap/ {
-        proxy_pass http://127.0.0.1:${API_PORT}/icap/;
+        proxy_pass http://127.0.0.1:${API_PORT}/v1/icap/;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;      
