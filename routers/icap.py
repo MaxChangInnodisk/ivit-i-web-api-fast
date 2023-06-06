@@ -69,3 +69,11 @@ async def set_icap_address(data: ResetFormat):
     except Exception as e:
         SERV_CONF["ICAP"] = None
         return http_msg(content=e, status_code=500)
+
+@icap_router.get("/icap/device/id")
+async def get_device_id():
+    return http_msg({"device_id": ICAP_CONF["DEVICE_ID"]}, 200 )
+
+@icap_router.get("/icap/device/type")
+async def get_device_id():
+    return http_msg({"device_type": ICAP_CONF["DEVICE_TYPE"]}, 200 )

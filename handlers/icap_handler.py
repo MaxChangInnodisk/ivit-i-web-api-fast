@@ -447,7 +447,8 @@ def register_tb_device(tb_url):
         "STATUS": True,
         "CREATE_TIME": data[TB_KEY_TIME],
         "DEVICE_ID": data[TB_KEY_ID],
-        "ACCESS_TOKEN": data[TB_KEY_TOKEN]
+        "ACCESS_TOKEN": data[TB_KEY_TOKEN],
+        "DEVICE_TYPE": dev_type
     }
 
     # Update to ICAP_CONF
