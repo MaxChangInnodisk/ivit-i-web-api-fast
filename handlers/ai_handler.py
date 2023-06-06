@@ -126,7 +126,6 @@ def ivit_i_hailo(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
     """
     if type == CLS:
         from ivit_i.core.models import iClassification
-        print(params)
         model = iClassification(
             model_path = params['model_path'],
             label_path = params['label_path'],
