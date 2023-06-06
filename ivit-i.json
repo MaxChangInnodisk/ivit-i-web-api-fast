@@ -10,7 +10,7 @@
     "ICAP": {
         "HOST": "10.204.16.115",
         "PORT": 3000,
-        "DEVICE_NAME": "R1.1-Test"
+        "DEVICE_NAME": "R1.1"
     },
     "NGINX": {
         "PORT": 6632
