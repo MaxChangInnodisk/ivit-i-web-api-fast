@@ -35,6 +35,17 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
     
+    location /icap/ {
+        proxy_pass http://127.0.0.1:${API_PORT}/icap/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;      
+        proxy_set_header Host $host:$server_port;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Real-PORT $remote_port;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+    
     #error_page  404              /404.html;
 
     # redirect server error pages to the static page /50x.html
