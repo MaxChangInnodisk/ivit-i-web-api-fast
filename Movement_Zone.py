@@ -101,7 +101,7 @@ class app_common_handle(threading.Thread):
         self.track_object={}
         self.tracking_distance=tracking_distance
         self.total_object={}
-        self.object_id=int
+        self.object_id={}
         self.object_buffer={}
         # self.line_point=line_point
         self.line_relationship=line_relationship
@@ -129,6 +129,7 @@ class app_common_handle(threading.Thread):
                 self.object_buffer.update({i:{}})
                
                 self.total_object.update({i:0})
+                self.object_id.update({i:0})
         if self.app_output.__contains__("areas")==False:
             self.app_output.update({"areas": []})
         if len(self.app_output["areas"])==area_id:
@@ -239,7 +240,7 @@ class app_common_handle(threading.Thread):
             return True
         return False
     
-    def update_object_point(self,frame,xmin,xmax,ymin,ymax,area_id,line_point):
+    def update_object_point(self,frame,label,xmin,xmax,ymin,ymax,area_id,line_point):
         temp_xy = self.tracking_distance
         
         tracked = 0
@@ -276,7 +277,7 @@ class app_common_handle(threading.Thread):
                 # keep update minimum distance
                 
                 temp_xy = self.cal_distance(object_value['x'],object_value['y'],(xmin+xmax)//2,(ymin+ymax)//2)
-                self.object_id = object_id
+                self.object_id[area_id] = object_id
                 
                 temp_last_point=[object_value['x'],object_value['y']]
                 tracked = 1
@@ -285,36 +286,37 @@ class app_common_handle(threading.Thread):
             self.total_object[area_id]=self.total_object[area_id]+1
             
             self.track_object[area_id].update({self.total_object[area_id]:{'x':(xmin+xmax)//2,'y':(ymin+ymax)//2,'frame_time':time.time(),'torch_line':{}}})    
-            self.show_object_info="Area{}: {}".format(str(area_id),str(self.object_id))
+            # self.show_object_info="Area{}: {}".format(str(area_id),str(self.object_id))
+            self.show_object_info="{}:{}".format(label,str(self.object_id[area_id]))
             return temp_direction , tracked
         else:
             
-            temp_torch_line=self.track_object[area_id][self.object_id]['torch_line']
+            temp_torch_line=self.track_object[area_id][self.object_id[area_id]]['torch_line']
             
-            self.track_object[area_id].update({self.object_id:{'name':str(),'x':(xmin+xmax)//2,'y':(ymin+ymax)//2,'frame_time':time.time() ,'torch_line':temp_torch_line}}) 
+            self.track_object[area_id].update({self.object_id[area_id]:{'name':str(),'x':(xmin+xmax)//2,'y':(ymin+ymax)//2,'frame_time':time.time() ,'torch_line':temp_torch_line}}) 
         # self.show_object_info="Area{}: {}".format(str(area_id),str(self.object_id))
-        self.show_object_info="{}".format(str(self.object_id))
+        self.show_object_info="{}:{}".format(label,str(self.object_id[area_id]))
         
         
         check_is_cross, temp_cross_line =self.is_point_cross_trigger_line(temp_last_point,[(xmin+xmax)//2,(ymin+ymax)//2],line_point,area_id)
         if not check_is_cross: return temp_direction , tracked 
 
-        if len(self.track_object[area_id][self.object_id]['torch_line'])==0:
-            self.track_object[area_id][self.object_id]['torch_line'].update({1:temp_cross_line})
+        if len(self.track_object[area_id][self.object_id[area_id]]['torch_line'])==0:
+            self.track_object[area_id][self.object_id[area_id]]['torch_line'].update({1:temp_cross_line})
         else:    
             
             # check object is tarch the line
-            if self.check_tarch_the_line(self.track_object[area_id][self.object_id]['torch_line'][len(self.track_object[area_id][self.object_id]['torch_line'])],temp_cross_line):
-                self.track_object[area_id][self.object_id]['torch_line'].update({len(self.track_object[area_id][self.object_id]['torch_line'])+1:temp_cross_line})
+            if self.check_tarch_the_line(self.track_object[area_id][self.object_id[area_id]]['torch_line'][len(self.track_object[area_id][self.object_id[area_id]]['torch_line'])],temp_cross_line):
+                self.track_object[area_id][self.object_id[area_id]]['torch_line'].update({len(self.track_object[area_id][self.object_id[area_id]]['torch_line'])+1:temp_cross_line})
             # print("temp id {} ,update {}:".format(temp_id,self.track_object[temp_id]['torch_line']))
         
         # chaeck have direction info
-        if self.check_object_have_direction_info(self.track_object[area_id][self.object_id]['torch_line']):
+        if self.check_object_have_direction_info(self.track_object[area_id][self.object_id[area_id]]['torch_line']):
             
-            temp_direction=self.map_line_relationship(area_id,self.track_object[area_id][self.object_id]['torch_line'])
+            temp_direction=self.map_line_relationship(area_id,self.track_object[area_id][self.object_id[area_id]]['torch_line'])
             
-            del self.track_object[area_id][self.object_id]['torch_line']
-            self.track_object[area_id][self.object_id].update({'torch_line':{}})
+            del self.track_object[area_id][self.object_id[area_id]]['torch_line']
+            self.track_object[area_id][self.object_id[area_id]].update({'torch_line':{}})
             # print(" Objecdt:{} is {} .".format(temp_id,temp_direction))
         
         
@@ -381,7 +383,7 @@ class app_common_handle(threading.Thread):
             if label in self.depend_on[area_id]:  
                 
      
-                direction , new_object_detection =self.update_object_point(frame,xmin,xmax,ymin,ymax,area_id,line_point)  
+                direction , new_object_detection =self.update_object_point(frame,label,xmin,xmax,ymin,ymax,area_id,line_point)  
                   
                 if self.check_direction_result(direction):
                     self.update_object_number_this_frame(area_id)
@@ -401,14 +403,14 @@ class app_common_handle(threading.Thread):
                             
                 if self.show_object==[]:
                     self.is_draw=True
-                elif self.object_id in self.show_object:
+                elif self.object_id[area_id] in self.show_object:
                     self.is_draw=False  
                 else :
                     self.is_draw=True      
                 # print(self.app_output,'\n')    
         else:
 
-            direction , new_object_detection =self.update_object_point(frame,xmin,xmax,ymin,ymax,area_id,line_point)
+            direction , new_object_detection =self.update_object_point(frame,label,xmin,xmax,ymin,ymax,area_id,line_point)
 
             if self.check_direction_result(direction):
                 
@@ -429,7 +431,7 @@ class app_common_handle(threading.Thread):
                         self.app_output["areas"][area_id]["data"][d].update({"num":_})
             if self.show_object==[]:
                 self.is_draw=True
-            elif self.object_id in self.show_object:
+            elif self.object_id[area_id] in self.show_object:
                 self.is_draw=False  
             else :
                 self.is_draw=True  
@@ -924,6 +926,23 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         )
 
     def draw_direction_result(self,direction_result,outer_clor,font_color,frame):
+        
+        if len(direction_result)==0:
+            id =0
+            temp_direction_result="There are {} object {}".format(str(0),"pass trigger line!")
+            
+            
+            (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
+            
+            t_xmin, t_ymin, t_xmax, t_ymax = 10, 10*id+(id*(t_hei+t_base)), 10+t_wid, 10*id+((id+1)*(t_hei+t_base))
+            
+            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
+            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
+            cv2.putText(
+                frame, temp_direction_result, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
+                self.font_size, font_color, self.font_thick, cv2.LINE_AA
+            )
+
         for id in  range(len(direction_result)):
             temp_direction_result="There are {} object {}.".format(str(direction_result[id]["num"]),direction_result[id]["label"])
             
@@ -1078,10 +1097,7 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
                     font_color = (255,255,255)
                     self.draw_tag(self.app_thread.show_object_info, xmin, ymin, xmax, ymax,outer_clor ,font_color,frame)
                     
-                    outer_clor = (0,255,255)
-                    font_color = (0,0,0)
                     
-                    self.draw_direction_result(self.app_thread.app_output["areas"][i]["data"],outer_clor,font_color,frame)
                 
                     frame = self.custom_function(
                             frame = frame,
@@ -1092,6 +1108,11 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
                             right_down = (xmax, ymax)
                         ) 
                     self.app_thread.show_object.append(self.app_thread.object_id) 
+                
+                outer_clor = (0,255,255)
+                font_color = (0,0,0)
+                
+                self.draw_direction_result(self.app_thread.app_output["areas"][i]["data"],outer_clor,font_color,frame)
 
                 self.app_thread.is_draw=False
 
@@ -1195,25 +1216,56 @@ if __name__=='__main__':
     # 6. Setting iApp
     app_config = {
             "application": {
+                 "palette": {
+                    "car": [
+                        105,
+                        125,
+                        105
+                    ],
+                    "truck": [
+                        125,
+                        115,
+                        105
+                    ]
+                },
                 "areas": [
                     {
-                        "name": "area",
+                        "name": "Area0",
                         "depend_on": [
+                            'car', 'truck'
+                        ],
+                        "area_point": [
+                            [
+                                0.256,
+                                0.583
+                            ],
+                            [
+                                0.658,
+                                0.503
+                            ],
+                            [
+                                0.848,
+                                0.712
+                            ],
+                            [
+                                0.356,
+                                0.812
+                            ]
                         ],
                         "line_point": {
                             "line_1": [
                                 [
-                                    0.16666666666,
-                                    0.74074074074
+                                    0.36666666666,
+                                    0.64074074074
                                 ],
                                 [
-                                    0.57291666666,
-                                    0.62962962963
+                                    0.67291666666,
+                                    0.52962962963
                                 ]
                             ],
                             "line_2": [
                                 [
-                                    0.26041666666,
+                                    0.36041666666,
                                     0.83333333333
                                 ],
                                 [
@@ -1224,68 +1276,75 @@ if __name__=='__main__':
                         },
                         "line_relation": [
                             {
-                                "name": "Wrong Direction",
+                                "name": "to Taipei",
                                 "start": "line_2",
                                 "end": "line_1"
+                            },
+                            {
+                                "name": "To Keelung",
+                                "start": "line_1",
+                                "end": "line_2"
                             }
                         ],
                     },
-                    {
-                                "name": "second area",
-                                "depend_on": [
-                                    "car",
-                                ],
-                                "area_point": [
-                                     [
-                            0.468,
-                            0.592
-                        ],
+                    # {
+                    #             "name": "second area",
+                    #             "depend_on": [
+                    #                 "car",
+                    #             ],
+                    #             "area_point": [
+                    #                  [
+                    #         0.468,
+                    #         0.592
+                    #     ],
                         
-                        [
-                            0.468,
-                            0.203
-                        ],
+                    #     [
+                    #         0.468,
+                    #         0.203
+                    #     ],
                         
-                        [
-                            0.156,
-                            0.592
-                        ],
-                        [
-                            0.156,
-                            0.203
-                        ]
-                                ],
-                                "line_point": {
-                            "line_1": [
-                                [
-                                    0.16666666666,
-                                    0.74074074074
-                                ],
-                                [
-                                    0.57291666666,
-                                    0.62962962963
-                                ]
-                            ],
-                            "line_2": [
-                                [
-                                    0.26041666666,
-                                    0.83333333333
-                                ],
-                                [
-                                    0.72916666666,
-                                    0.62962962963
-                                ]
-                            ],
-                        },
-                        "line_relation": [
-                            {
-                                "name": "Wrong Direction",
-                                "start": "line_2",
-                                "end": "line_1"
-                            }
-                        ],
-                            }
-                ]
+                    #     [
+                    #         0.156,
+                    #         0.592
+                    #     ],
+                    #     [
+                    #         0.156,
+                    #         0.203
+                    #     ]
+                    #             ],
+                    #             "line_point": {
+                    #         "line_1": [
+                    #             [
+                    #                 0.16666666666,
+                    #                 0.74074074074
+                    #             ],
+                    #             [
+                    #                 0.57291666666,
+                    #                 0.62962962963
+                    #             ]
+                    #         ],
+                    #         "line_2": [
+                    #             [
+                    #                 0.26041666666,
+                    #                 0.83333333333
+                    #             ],
+                    #             [
+                    #                 0.72916666666,
+                    #                 0.62962962963
+                    #             ]
+                    #         ],
+                    #     },
+                    #     "line_relation": [
+                    #         {
+                    #             "name": "Wrong Direction",
+                    #             "start": "line_2",
+                    #             "end": "line_1"
+                    #         }
+                    #     ],
+                    #         }
+                ],
+                "draw_result":False,
+                "draw_bbox":False
             }
         }
     app = Movement_Zone(app_config ,args.label)
@@ -1299,7 +1358,7 @@ if __name__=='__main__':
             results = model.inference(frame=frame)
             frame , app_output , event_output =app(frame,results)
                 
-            infer_metrx.paint_metrics(frame)
+            # infer_metrx.paint_metrics(frame)
 
             # Draw FPS: default is left-top                     
             dpr.show(frame=frame)
