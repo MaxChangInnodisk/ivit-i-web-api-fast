@@ -76,11 +76,7 @@ def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
             "areas": [
                 {
                     "name": "default",
-                    "depend_on": IMAGE_NET_LABEL,
-                    "palette": {
-                        "airplane": [255, 255, 255],
-                        "warpalne": [0, 0, 0],
-                    }
+                    "depend_on": IMAGE_NET_LABEL
                 }
             ]
         }
@@ -267,48 +263,42 @@ def intel_sample_detection_zone(db_path: str = SERV_CONF["DB_PATH"]):
     app_uid = task_uid
     app_setting = {
         "application": {
-            "palette": {
-                "car": [
-                    0,
-                    255,
-                    0
-                ],
-                "truck": [
-                    0,
-                    255,
-                    0
-                ]
-            },
+						"palette": {
+                        "car": [
+                            105,
+                            125,
+                            105
+                        ],
+                        "truck": [
+                            125,
+                            115,
+                            105
+                        ]
+                    },
             "areas": [
                 {
-                    "name": "The intersection of Datong Rd",
+                    "name": "Area0",
                     "depend_on": [
                         "car",
-                        "truck"
                     ],
                     "area_point": [
                         [
-                            0.156,
-                            0.203
+                            0.256,
+                            0.583
                         ],
                         [
-                            0.468,
-                            0.203
+                            0.658,
+                            0.503
                         ],
                         [
-                            0.468,
-                            0.592
+                            0.848,
+                            0.712
                         ],
                         [
-                            0.156,
-                            0.592
+                            0.356,
+                            0.812
                         ]
-                    ],
-                    "events": {
-                        "title": "Traffic is very heavy",
-                        "logic_operator": ">",
-                        "logic_value": 100,
-                    }
+                    ]
                 }
             ]
         }
@@ -402,45 +392,40 @@ def intel_sample_tracking_zone(db_path: str = SERV_CONF["DB_PATH"]):
         "application": {
                     "palette": {
                         "car": [
-                            0,
-                            255,
-                            0
+                            105,
+                            125,
+                            105
                         ],
                         "truck": [
-                            0,
-                            255,
-                            0
+                            125,
+                            115,
+                            105
                         ]
                     },
             "areas": [
                 {
-                    "name": "Datong Rd",
+                    "name": "Area0",
                     "depend_on": [ 'car', 'truck'
                     ],
                     "area_point": [
                         [
-                            0.156,
-                            0.203
+                            0.256,
+                            0.583
                         ],
                         [
-                            0.468,
-                            0.203
+                            0.658,
+                            0.503
                         ],
                         [
-                            0.468,
-                            0.592
+                            0.848,
+                            0.712
                         ],
                         [
-                            0.156,
-                            0.592
+                            0.356,
+                            0.812
                         ]
-                    ],
-                    "events": {
-                        "title": "The daily traffic is over 2",
-                        "logic_operator": ">",
-                        "logic_value": 100,
-                    }
-                },
+                    ]
+                }
             ],
             "draw_result":False,
             "draw_bbox":False
@@ -492,7 +477,6 @@ def intel_sample_tracking_zone(db_path: str = SERV_CONF["DB_PATH"]):
     )
 
 
-
 def intel_sample_movement_zone(db_path: str = SERV_CONF["DB_PATH"]):
     """ Add intel sample information into database 
     ---
@@ -535,67 +519,66 @@ def intel_sample_movement_zone(db_path: str = SERV_CONF["DB_PATH"]):
     app_setting = {
         "application": {
             "palette": {
-                        "car": [
-                            0,
-                            255,
-                            0
-                        ],
-                        "truck": [
-                            0,
-                            255,
-                            0
-                        ]
-                        },
+                "car": [
+                    105,
+                    125,
+                    105
+                ],
+                "truck": [
+                    125,
+                    115,
+                    105
+                ]
+            },
             "areas": [
                 {
-                    "name": "area",
+                    "name": "Area0",
                     "depend_on": [
-                        "car",
-                        "truck"
+                        'car', 'truck'
                     ],
                     "area_point": [
                         [
-                            0.156,
-                            0.203
+                            0.256,
+                            0.583
                         ],
                         [
-                            0.468,
-                            0.203
+                            0.658,
+                            0.503
                         ],
                         [
-                            0.468,
-                            0.592
+                            0.848,
+                            0.712
                         ],
                         [
-                            0.156,
-                            0.592
+                            0.356,
+                            0.812
                         ]
                     ],
                     "line_point": {
                         "line_1": [
                             [
-                                0.14666666666,
-                                0.45074074074
+                                0.36666666666,
+                                0.64074074074
                             ],
                             [
-                                0.40291666666,
-                                0.35962962963
+                                0.67291666666,
+                                0.52962962963
                             ]
                         ],
                         "line_2": [
                             [
-                                0.14666666666,
-                                0.55074074074
+                                0.36041666666,
+                                0.83333333333
                             ],
                             [
-                                0.50291666666,
-                                0.45962962963
+                                0.72916666666,
+                                0.62962962963
                             ]
                         ],
                     },
                     "line_relation": [
                         {
-                            "name": "To Taipei",
+                            "name": "to Taipei",
                             "start": "line_2",
                             "end": "line_1"
                         },
@@ -605,12 +588,7 @@ def intel_sample_movement_zone(db_path: str = SERV_CONF["DB_PATH"]):
                             "end": "line_2"
                         }
                     ],
-                    "events": {
-                        "title": "Detect the traffic flow between Taipei and Keelung ",
-                        "logic_operator": ">",
-                        "logic_value": 2,
-                    },
-                }
+                },
             ],
             "draw_result":False,
             "draw_bbox":False
