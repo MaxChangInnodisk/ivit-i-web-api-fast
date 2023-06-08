@@ -292,7 +292,8 @@ class app_common_handle(threading.Thread):
             temp_torch_line=self.track_object[area_id][self.object_id]['torch_line']
             
             self.track_object[area_id].update({self.object_id:{'name':str(),'x':(xmin+xmax)//2,'y':(ymin+ymax)//2,'frame_time':time.time() ,'torch_line':temp_torch_line}}) 
-        self.show_object_info="Area{}: {}".format(str(area_id),str(self.object_id))
+        # self.show_object_info="Area{}: {}".format(str(area_id),str(self.object_id))
+        self.show_object_info="{}".format(str(self.object_id))
         
         
         check_is_cross, temp_cross_line =self.is_point_cross_trigger_line(temp_last_point,[(xmin+xmax)//2,(ymin+ymax)//2],line_point,area_id)

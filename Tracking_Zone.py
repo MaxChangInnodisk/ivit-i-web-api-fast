@@ -241,7 +241,8 @@ class app_common_handle(threading.Thread):
                     'y': (ymin+ymax)//2,
                     'frame_time': time.time() }})
         
-        self.show_object_info="Area{}: {}".format(str(area_id),str(self.object_id))
+        # self.show_object_info="Area{}: {}".format(str(area_id),str(self.object_id))
+        self.show_object_info="{}".format(str(self.object_id))
 
         return tracked
   
