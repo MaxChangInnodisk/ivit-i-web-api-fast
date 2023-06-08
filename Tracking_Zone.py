@@ -386,7 +386,7 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
 
 
         self.track_object={}
-        self.tracking_distance=90
+        self.tracking_distance=60
         self.total_object=0
 
         self.model_label = label
