@@ -578,11 +578,11 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.font_size  = None
         self.font_thick = None
         self.thick      = None
-        self.draw_result =True
+        self.draw_result =False
         self.draw_tracking = True
         #for draw area
         self.area_name={}
-        self.draw_bbox =True
+        self.draw_bbox =False
         self.draw_area=True
         self.is_draw_line = True
         self.area_opacity=None
@@ -616,8 +616,8 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.font_size = BASE_FONT_SIZE + ( scale*FONT_SCALE )
         # self.draw_result = self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else True
         # self.draw_bbox = self.params['application']['draw_bbox'] if self.params['application'].__contains__('draw_bbox') else True
-        self.draw_result = self.params['application'].get('draw_result',True)
-        self.draw_bbox = self.params['application'].get('draw_bbox',True)
+        self.draw_result = self.params['application'].get('draw_result',False)
+        self.draw_bbox = self.params['application'].get('draw_bbox',False)
         self.area_color=[0,0,255]
         self.area_opacity=0.2
         for i in range(len(self.params['application']['areas'])):
