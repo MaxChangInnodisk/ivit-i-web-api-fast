@@ -452,11 +452,11 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
         self.font_size  = None
         self.font_thick = None
         self.thick      = None
-        self.draw_result =self.params['application'].get('draw_result',True)
+        self.draw_result =self.params['application'].get('draw_result',False)
 
         #for draw area
         self.area_name={}
-        self.draw_bbox =self.params['application'].get('draw_bbox',True)
+        self.draw_bbox =self.params['application'].get('draw_bbox',False)
         self.draw_tracking = True
         self.draw_area= True
         self.area_opacity=None
