@@ -10,7 +10,7 @@ import math
 from ivit_i.common.app import iAPP_OBJ
 
 class event_handle(threading.Thread):
-    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int):
+    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int ,event_save_folder:str):
         threading.Thread.__init__(self)
         self.operator = operator
         self.thres = thres
@@ -22,7 +22,8 @@ class event_handle(threading.Thread):
         self.event_time=datetime.now()
         self.trigger_time=datetime
         self.info =" "
-  
+        self.event_save_folder=event_save_folder
+
     def get_logic_event(self, operator):
         """ Define the logic event """
         greater = lambda x,y: x>y
@@ -63,10 +64,10 @@ class event_handle(threading.Thread):
             self.eventflag=True
             self.trigger_time=datetime.now()
             self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))
-            uid=str(uuid.uuid4())[:9]
-            path='./'+str(uid)+'/'
+            uid=str(uuid.uuid4())[:8]
+            path='./'+self.event_save_folder+'/'+str(uid)+'/'
             if not os.path.isdir(path):
-                os.mkdir(path)
+                os.makedirs(path)
             cv2.imwrite(path+str(self.trigger_time)+'.jpg', frame)
             cv2.imwrite(path+str(self.trigger_time)+"_org"+'.jpg', ori_frame)
             self.event_output.update({"uuid":uid,"title":self.event_title[area_id],"areas":app_output["areas"][area_id],"timesamp":self.trigger_time,"screenshot":{"overlay": path+str(self.trigger_time)+'.jpg',
@@ -219,7 +220,7 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
             2. get info from config.
             3. draw Area and label.
     """
-    def __init__(self, params=None, label=None, palette=palette, log=True):
+    def __init__(self, params=None, label=None,event_save_folder:str="event", palette=palette, log=True):
         """ 
             Init params.
         """   
@@ -261,7 +262,8 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
 
         self.model_label = label
         self.model_label_list =[]
-
+        
+        self.event_save_folder=event_save_folder
 
         # self.pool = ThreadPool(os.cpu_count() )
         self.init_palette(palette)
@@ -392,7 +394,7 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
 
     def init_event_object(self):
         for i , v   in self.operator.items():
-            event_obj = event_handle(self.operator,self.thres,self.cooldown_time,self.event_title,i) 
+            event_obj = event_handle(self.operator,self.thres,self.cooldown_time,self.event_title,i,self.event_save_folder) 
             self.event_handler.update( { i: event_obj }  )        
         
     def init_area_mask(self,frame):
@@ -523,12 +525,46 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         if  data is None   : return False 
         return True                      
 
+    def draw_direction_result(self,result,outer_clor,font_color,frame):
+        
+        if len(result)==0:
+            id =0
+            temp_direction_result="There are {} object in area.".format(str(0))
+            
+            
+            (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
+            
+            t_xmin, t_ymin, t_xmax, t_ymax = 10, 10*id+(id*(t_hei+t_base)), 10+t_wid, 10*id+((id+1)*(t_hei+t_base))
+            
+            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
+            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
+            cv2.putText(
+                frame, temp_direction_result, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
+                self.font_size, font_color, self.font_thick, cv2.LINE_AA
+            )
+
+        for id,val in result.items():
+            
+            temp_direction_result="There are {} object in area {}.".format(str(val),str(id))
+            
+            
+            (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
+            
+            t_xmin, t_ymin, t_xmax, t_ymax = 10, 10*id+(id*(t_hei+t_base)), 10+t_wid, 10*id+((id+1)*(t_hei+t_base))
+            
+            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
+            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
+            cv2.putText(
+                frame, temp_direction_result, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
+                self.font_size, font_color, self.font_thick, cv2.LINE_AA
+            )
 
     def custom_function(self, frame, color:tuple, label,score, left_top:tuple, right_down:tuple,draw_bbox=True,draw_result=True):
         """ The draw method customize by user 
         """
         (xmin, ymin), (xmax, ymax) = left_top, right_down
-        info = '{} {:.1%}'.format(label, score)
+        # info = '{} {:.1%}'.format(label, score)
+        info = '{}'.format(label)
         # Draw bounding box
         draw_bbox = self.draw_bbox if self.draw_bbox is not None else draw_bbox
         if draw_bbox:
@@ -567,7 +603,7 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
             draw_area : bool , 
             draw_bbox : bool ,
             draw_result : bool ,
-            palette: list[ tuple:( label:str , color:Union[tuple , list] ) ]
+            palette (dict) { label(str) : color(Union[tuple, list]) },
         }
         
         Args:
@@ -598,13 +634,13 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         
 
         palette = params.get('palette', None)
-        if isinstance(palette, list):
+        if isinstance(palette, dict):
             if len(palette)==0:
                 logging.warning("Not set palette!")
                 pass
             else:
-                for info in palette:
-                    (label , color) = info
+                for label,color in palette.items():
+
                     if isinstance(label, str) and isinstance(color, get_args(color_support_type)):
                         if self.palette.__contains__(label):
                            self.palette.update({label:color})
@@ -657,6 +693,9 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
                         ) 
                 self.app_thread.is_draw=False
                 
+                outer_clor = (0,255,255)
+                font_color = (0,0,0)
+                self.draw_direction_result(self.app_thread.total,outer_clor,font_color,frame)
 
                 if self.event_handler.__contains__(i)==False:
                     continue
@@ -753,41 +792,39 @@ if __name__=='__main__':
         "application": {
 						"palette": {
                         "car": [
-                            0,
-                            255,
-                            0
+                            105,
+                            125,
+                            105
                         ],
                         "truck": [
-                            0,
-                            255,
-                            0
+                            125,
+                            115,
+                            105
                         ]
                     },
             "areas": [
+            
                 {
-                    "name": "The intersection of Datong Rd",
+                    "name": "Area0",
                     "depend_on": [
                         "car",
-                        "truck"
                     ],
                     "area_point": [
                         [
-                            0.468,
-                            0.592
-                        ],
-                        
-                        [
-                            0.468,
-                            0.203
-                        ],
-                        
-                        [
-                            0.156,
-                            0.592
+                            0.256,
+                            0.583
                         ],
                         [
-                            0.156,
-                            0.203
+                            0.658,
+                            0.503
+                        ],
+                        [
+                            0.848,
+                            0.712
+                        ],
+                        [
+                            0.356,
+                            0.812
                         ]
                     ],
                     "events": {
@@ -795,33 +832,7 @@ if __name__=='__main__':
                         "logic_operator": ">",
                         "logic_value": 100,
                     }
-                },
-                {
-                                "name": "second area",
-                                "depend_on": [
-                                    "car",
-                                ],
-                                "area_point": [
-                                    [
-                                        0.668,
-                                        0.403
-                                    ],
-                                    [
-                                        0.356,
-                                        0.403
-                                    ],
-                                    
-                                    
-                                    [
-                                        0.356,
-                                        0.792
-                                    ],
-                                    [
-                                        0.868,
-                                        0.792
-                                    ]
-                                ],
-                            }
+                }
             ]
         }
     }
@@ -835,9 +846,8 @@ if __name__=='__main__':
             
             results = model.inference(frame=frame)
             frame , app_output , event_output =app(frame,results)
-           
                 
-            infer_metrx.paint_metrics(frame)
+            # infer_metrx.paint_metrics(frame)
 
             # Draw FPS: default is left-top                     
             dpr.show(frame=frame)

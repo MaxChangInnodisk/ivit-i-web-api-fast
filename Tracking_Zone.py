@@ -9,7 +9,7 @@ from datetime import datetime
 from apps.palette import palette
 from ivit_i.common.app import iAPP_OBJ
 class event_handle(threading.Thread):
-    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int):
+    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int,event_save_folder:str):
         threading.Thread.__init__(self)
         self.operator = operator
         self.thres = thres
@@ -21,7 +21,8 @@ class event_handle(threading.Thread):
         self.event_time=datetime.now()
         self.trigger_time=datetime.now()        
         self.info =" "
-       
+        self.event_save_folder=event_save_folder
+
     def get_logic_event(self, operator):
         """ Define the logic event """
         greater = lambda x,y: x>y
@@ -62,10 +63,10 @@ class event_handle(threading.Thread):
             self.eventflag=True
             self.trigger_time=datetime.now()
             self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))
-            uid=str(uuid.uuid4())[:9]
-            path='./'+str(uid)+'/'
+            uid=str(uuid.uuid4())[:8]
+            path='./'+self.event_save_folder+'/'+str(uid)+'/'
             if not os.path.isdir(path):
-                os.mkdir(path)
+                os.makedirs(path)
             cv2.imwrite(path+str(self.trigger_time)+'.jpg', frame)
             cv2.imwrite(path+str(self.trigger_time)+"_org"+'.jpg', ori_frame)
             self.event_output.update({"uuid":uid,"title":self.event_title[area_id],"areas":app_output["areas"][area_id],"timesamp":self.trigger_time,"screenshot":{"overlay": path+str(self.trigger_time)+'.jpg',
@@ -93,7 +94,7 @@ class app_common_handle(threading.Thread):
         self.track_object={}
         self.tracking_distance=tracking_distance
         self.total_object={}
-        self.object_id=int
+        self.object_id={}
         self.object_buffer={}
         self.is_draw=False
         self.show_object_info=""
@@ -116,17 +117,19 @@ class app_common_handle(threading.Thread):
     def init_tracking(self,xmin,xmax,ymin,ymax,area_id): 
         
         if len(self.track_object)!=len(self.depend_on):
+            
             for i in range(len(self.depend_on)):
                 center_x,center_y=(xmin+xmax)//2,(ymin+ymax)//2
                 self.track_object.update({i:{0:{'x':center_x,'y':center_y,'frame_time':time.time()}}})
                 self.object_buffer.update({i:{}})
-                self.total_object.update({i:0})
+                self.total_object.update({i:{}})
+                self.object_id.update({i:0})
         if self.app_output.__contains__("areas")==False:
             self.app_output.update({"areas": []})
             
         if len(self.app_output["areas"])==area_id:
             self.app_output["areas"].append({"id":area_id,"name":self.area_name2[area_id],"data":[]}) 
-
+        
     def inpolygon_mask(self,left_up:list,right_down:list,area_id,frame):
         """
         mapping algorithm : Determine the object is in the area.
@@ -197,12 +200,20 @@ class app_common_handle(threading.Thread):
         
             del self.track_object[area_id][temp_id]
  
-    def update_object_point(self,frame,xmin,xmax,ymin,ymax,area_id):
+    def update_object_point(self,frame,label,xmin,xmax,ymin,ymax,area_id):
         
+        # if area_id==0:
+        #     self.tracking_distance=60
+        # else:
+        #     self.tracking_distance=30
         temp_xy = self.tracking_distance
         tracked = 0
         buffer_distance=60
+
+        
+        
         coby_track_object=self.track_object[area_id].copy()
+        
         coby_track_object_buffer=self.object_buffer[area_id].copy()
         for i , v in coby_track_object_buffer.items():
             # print(coby_track_object_buffer)
@@ -224,23 +235,26 @@ class app_common_handle(threading.Thread):
             if temp_xy > self.cal_distance(object_value['x'],object_value['y'],(xmin+xmax)//2,(ymin+ymax)//2):
                 # keep update minimum distance
                 temp_xy = self.cal_distance(object_value['x'],object_value['y'],(xmin+xmax)//2,(ymin+ymax)//2)
-                self.object_id = object_id
+                self.object_id[area_id] = object_id
                 tracked = 1
-
-       
+        
+        if not self.total_object[area_id].__contains__(label):
+            self.total_object[area_id].update({label:0})
+        
         if not tracked:
             
-            self.total_object[area_id]+=1
-            self.object_id = self.total_object[area_id]
+            self.total_object[area_id][label]+=1
+            self.object_id[area_id] = self.total_object[area_id][label]
         
         self.track_object[area_id].update({ 
-            self.object_id: { 
+            self.object_id[area_id]: { 
                     
                     'x': (xmin+xmax)//2,
                     'y': (ymin+ymax)//2,
                     'frame_time': time.time() }})
         
-        self.show_object_info="Area{}: {}".format(str(area_id),str(self.object_id))
+        # self.show_object_info="Area{}: {}".format(str(area_id),str(self.object_id))
+        self.show_object_info="{}:{}".format(label,str(self.object_id[area_id]))
 
         return tracked
   
@@ -306,7 +320,7 @@ class app_common_handle(threading.Thread):
                         self.app_output["areas"][area_id]["data"].append({"label":key,"num":0})
                 
                 # is new object have detection  
-                if self.update_object_point(frame,xmin,xmax,ymin,ymax,area_id): 
+                if self.update_object_point(frame,label,xmin,xmax,ymin,ymax,area_id): 
                     self.update_object_number_this_frame(area_id)
 
                 
@@ -314,13 +328,13 @@ class app_common_handle(threading.Thread):
                     if self.app_output["areas"][area_id]["data"][d]["label"]==label:
 
                         if self.total.__contains__(area_id): 
-                            self.app_output["areas"][area_id]["data"][d].update({"num":self.total_object[area_id]+1})
+                            self.app_output["areas"][area_id]["data"][d].update({"num":self.total_object[area_id][label]+1})
                 
                 
                 if self.show_object==[]:
                     
                     self.is_draw=True
-                elif self.object_id in self.show_object:
+                elif self.object_id[area_id] in self.show_object:
                     self.is_draw=False  
                 else :
                     self.is_draw=True      
@@ -334,7 +348,7 @@ class app_common_handle(threading.Thread):
 
             
             
-            if self.update_object_point(frame,xmin,xmax,ymin,ymax,area_id): 
+            if self.update_object_point(frame,label,xmin,xmax,ymin,ymax,area_id): 
                 self.update_object_number_this_frame(area_id)
                 for d in range(len(self.app_output["areas"][area_id]["data"])): 
                         
@@ -351,7 +365,7 @@ class app_common_handle(threading.Thread):
                  
 
 class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
-    def __init__(self, params=None, label=None, palette=palette, log=True):
+    def __init__(self, params=None, label=None,event_save_folder:str="event", palette=palette, log=True):
         
         self.params = params
         self.check_params()
@@ -372,11 +386,14 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
 
 
         self.track_object={}
-        self.tracking_distance=60
+        self.tracking_distance=90
         self.total_object=0
 
         self.model_label = label
         self.model_label_list =[]
+
+        self._total=None
+        self.event_save_folder = event_save_folder
 
         # self.pool = ThreadPool(os.cpu_count() )
         self.init_palette(palette)
@@ -554,7 +571,7 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
   
     def init_event_object(self):
         for i , v   in self.operator.items():
-            event_obj = event_handle(self.operator,self.thres,self.cooldown_time,self.event_title,i) 
+            event_obj = event_handle(self.operator,self.thres,self.cooldown_time,self.event_title,i,self.event_save_folder) 
             self.event_handler.update( { i: event_obj }  )        
     
     def init_scale(self,frame):
@@ -681,6 +698,27 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
         
         return cv2.addWeighted( frame, 1-area_opacity, overlay, area_opacity, 0 )   
 
+    def draw_total_result(self,result,outer_clor,font_color,frame):
+        sort_id=0
+
+        for area ,data in result.items():
+            # print(result)
+            for label ,num in data.items():
+                temp_direction_result="{}:{} in area {}.".format(str(label),str(num),str(area))
+                
+                
+                (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
+                
+                t_xmin, t_ymin, t_xmax, t_ymax = 10, 10*sort_id+(sort_id*(t_hei+t_base)), 10+t_wid, 10*sort_id+((sort_id+1)*(t_hei+t_base))
+                
+                cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
+                cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
+                cv2.putText(
+                    frame, temp_direction_result, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
+                    self.font_size, font_color, self.font_thick, cv2.LINE_AA
+                )
+                sort_id=sort_id+1
+
     def custom_function(self, frame, color:tuple, label,score, left_top:tuple, right_down:tuple,draw_bbox=True,draw_result=True):
         """ The draw method customize by user 
         """
@@ -756,7 +794,7 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
             draw_bbox : bool ,
             draw_result : bool ,
             draw_tracking : bool ,
-            palette: list[ tuple:( label:str , color:Union[tuple , list] ) ]
+            palette (dict) { label(str) : color(Union[tuple, list]) },
         }
         
         Args:
@@ -792,13 +830,13 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
             logging.error("draw_tracking type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_tracking', self.draw_tracking))))
 
         palette = params.get('palette', None)
-        if isinstance(palette, list):
+        if isinstance(palette, dict):
             if len(palette)==0:
                 logging.warning("Not set palette!")
                 pass
             else:
-                for info in palette:
-                    (label , color) = info
+                for label,color in palette.items():
+
                     if isinstance(label, str) and isinstance(color, get_args(color_support_type)):
                         if self.palette.__contains__(label):
                            self.palette.update({label:color})
@@ -865,6 +903,10 @@ class Tracking_Zone(iAPP_OBJ,event_handle,app_common_handle ):
                     self.app_thread.show_object.append(self.app_thread.object_id) 
                     self.app_thread.is_draw=False
 
+                
+                outer_clor = (0,255,255)
+                font_color = (0,0,0)
+                self.draw_total_result(self.app_thread.total_object,outer_clor,font_color,frame)
 
                 #if the area don't have set event. 
                 if self.event_handler.__contains__(i)==False: continue
@@ -964,37 +1006,33 @@ if __name__=='__main__':
                 "application": {
                             "palette": {
                                 "car": [
-                                    0,
-                                    255,
-                                    0
-                                ],
-                                "truck": [
-                                    0,
-                                    255,
-                                    0
+                                    105,
+                                    125,
+                                    105
                                 ]
+                                
                             },
                     "areas": [
                         {
-                            "name": "Datong Rd",
-                            "depend_on": [ 'car', 'truck'
+                            "name": "Area0",
+                            "depend_on": [ 'car'
                             ],
                             "area_point": [
                                 [
-                                    0.156,
-                                    0.203
+                                    0.256,
+                                    0.583
                                 ],
                                 [
-                                    0.468,
-                                    0.203
+                                    0.658,
+                                    0.503
                                 ],
                                 [
-                                    0.468,
-                                    0.592
+                                    0.848,
+                                    0.712
                                 ],
                                 [
-                                    0.156,
-                                    0.592
+                                    0.356,
+                                    0.812
                                 ]
                             ],
                             "events": {
@@ -1003,33 +1041,33 @@ if __name__=='__main__':
                                 "logic_value": 100,
                             }
                         },
-                        {
-                                "name": "second area",
-                                "depend_on": [
-                                    "car",
-                                ],
-                                "area_point": [
-                                    [
-                                        0.356,
-                                        0.403
-                                    ],
-                                    [
-                                        0.668,
-                                        0.403
-                                    ],
-                                    [
-                                        0.868,
-                                        0.792
-                                    ],
-                                    [
-                                        0.356,
-                                        0.792
-                                    ]
-                                ],
-                            }
+                        # {
+                        #         "name": "Area1",
+                        #         "depend_on": [
+                        #             "car",
+                        #         ],
+                        #         "area_point": [
+                        #             [
+                        #                 0.256,
+                        #                 0.303
+                        #             ],
+                        #             [
+                        #                 0.468,
+                        #                 0.203
+                        #             ],
+                        #             [
+                        #                 0.268,
+                        #                 0.392
+                        #             ],
+                        #             [
+                        #                 0.456,
+                        #                 0.392
+                        #             ]
+                        #         ],
+                        #     }
                     ],
-                    "draw_result":True,
-                    "draw_bbox":True
+                    "draw_result":False,
+                    "draw_bbox":False
                 }
             }
     app = Tracking_Zone(app_config ,args.label)
@@ -1042,9 +1080,8 @@ if __name__=='__main__':
             
             results = model.inference(frame=frame)
             frame , app_output , event_output =app(frame,results)
-           
                 
-            infer_metrx.paint_metrics(frame)
+            # infer_metrx.paint_metrics(frame)
 
             # Draw FPS: default is left-top                     
             dpr.show(frame=frame)

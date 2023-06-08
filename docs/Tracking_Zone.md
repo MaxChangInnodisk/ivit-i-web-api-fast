@@ -97,7 +97,18 @@ You need to use [app_config](#setting-app-config) and label path to create insta
     from apps import Tracking_Zone
 
     app = Tracking_Zone( app_config, label_path )
+
+
+
+
+    #If you want to change the folder name of saving event image.
+    from apps import Tracking_Zone 
+
+    app = Tracking_Zone( app_config , label_path ,event_save_folder="test")  
+
    ``` 
+  
+   
 ## Format of input parameter
 * Input parameters are the result of model predict, and the result must packed like below.
 
@@ -186,7 +197,7 @@ You need to use [app_config](#setting-app-config) and label path to create insta
                 draw_result : bool , # Control result box whether draw or not draw.
                 draw_area : bool , # Control detection zone whether draw or not draw.
                 draw_tracking : bool, # Control tracking tag whether draw or not draw.
-                palette: list:[ turple:( label:str , color:turple ) ] # change color for specific object.
+                palette : (dict) { label(str) : color(Union[tuple, list]) }  # change color for specific object.
             }
 
     ```
@@ -200,7 +211,9 @@ You need to use [app_config](#setting-app-config) and label path to create insta
             "draw_result" : True , 
             "draw_area": True, 
             "draw_tracking" : True,
-            "palette": [ ( "car" , (255,0,166) ) ] 
+            "palette":{
+                "car":(100,25,60)
+                } 
         } 
         
         #step 2 : call set_draw()

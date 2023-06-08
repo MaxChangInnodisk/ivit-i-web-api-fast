@@ -122,9 +122,9 @@ class Basic_Object_Detection(iAPP_OBJ):
         Which params you can contral :
 
         {  
-            draw_bbox : bool ,
-            draw_result : bool ,
-            palette:list[ tuple:( label:str , color:Union[tuple , list]  ) ]
+            draw_bbox (bool) ,
+            draw_result (bool) ,
+            palette (dict) { label(str) : color(Union[tuple, list]) },
         }
         
         Args:
@@ -149,13 +149,13 @@ class Basic_Object_Detection(iAPP_OBJ):
         
 
         palette = params.get('palette', None)
-        if isinstance(palette, list):
+        if isinstance(palette, dict):
             if len(palette)==0:
                 logging.warning("Not set palette!")
                 pass
             else:
-                for info in palette:
-                    (label , color) = info
+                for label,color in palette.items():
+
                     if isinstance(label, str) and isinstance(color, get_args(color_support_type)):
                         if self.palette.__contains__(label):
                            self.palette.update({label:color})
@@ -321,10 +321,9 @@ if __name__=='__main__':
             
             results = model.inference(frame=frame)
             frame , app_output , event_output =app(frame,results)
-           
-                
-            infer_metrx.paint_metrics(frame)
 
+            infer_metrx.paint_metrics(frame)
+            
             # Draw FPS: default is left-top                     
             dpr.show(frame=frame)
 
