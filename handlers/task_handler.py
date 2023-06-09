@@ -39,6 +39,7 @@ from .db_handler import (
     parse_task_data,
     parse_model_data,
     db_to_list,
+    is_db_empty,
     is_list_empty,
     connect_db,
     close_db,
@@ -68,9 +69,14 @@ def get_task_info(uid:str=None):
             else """SELECT * FROM task WHERE uid=\"{}\"""".format(uid)
     ))
 
+    # Check BD is any task exist
+    if is_db_empty(SERV_CONF["DB_PATH"]):
+        return "No task setup"
+
     # Check DB Data
     if is_list_empty(results):
         raise InvalidUidError("Got invalid task uid: {}".format(uid))
+    
     
     # Get Data
     for info in map(parse_task_data, results):
