@@ -111,8 +111,11 @@ class ModelDeployerWrapper(abc.ABC):
         print(SERV_CONF["PROC"][self.uid]['status'], end='\r')
 
         if WS_CONF.get("WS") is None: return
-        asyncio.run( WS_CONF["WS"].send_json( 
-            ws_msg(type="PROC", content=SERV_CONF["PROC"])) )
+        try:
+            asyncio.run( WS_CONF["WS"].send_json( 
+                ws_msg(type="PROC", content=SERV_CONF["PROC"])) )
+        except Exception as e:
+            log.exception(e)
 
     def update_status(self, status:str, message: str="", push_mesg:bool=True):
         """ Update Status and push message to front end """
