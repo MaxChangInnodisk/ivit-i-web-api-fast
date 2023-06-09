@@ -49,13 +49,28 @@ check_config ${CONF}
 # Split Platform and Other option
 check_jq
 
+# Array
 OPT_ARR=(${*})
+if [[ ${#OPT_ARR[@]} -eq 1 ]];then
+    echo "Not detect platform !!!!"
+    echo "Usage     : run.sh [PLATFORM] [OPTION]"
+    echo "Example   : run.sh intel -q"
+    exit
+fi
+
+# Get platform
 PLATFORM=${OPT_ARR[0]}
 
 unset OPT_ARR[0]
 OPTS=${OPT_ARR[@]}
 
 jq --arg a "${PLATFORM}" '.PLATFORM = $a' ${CONF} > ${TEMP} && mv ${TEMP} ${CONF} 
+
+# ========================================================
+
+cd apps
+git submodule update --init
+cd ..
 
 # ========================================================
 # Switcher
