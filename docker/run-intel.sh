@@ -43,7 +43,6 @@ function help(){
 	echo "options:"
 	echo "b		Run in background."
 	echo "c		Run command line mode."
-	echo "p		Select a platform to run ( the priority is higher than ivit-i.json ). support in [ 'intel', 'xilinx' ]"
 	echo "q		Qucik start."
 	echo "h		help."
 }
