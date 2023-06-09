@@ -22,8 +22,7 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. you can use iVIT-T t
 - [Requirements](#requirements)
 - [Quick Start](#quick-start)
   - [Prepare Repository](#prepare-repository)
-  - [Choose a platform you want](#choose-a-platform-you-want)
-  - [Run `service` quickly.](#run-service-quickly)
+  - [Run `service` quickly with platform.](#run-service-quickly-with-platform)
 - [Configuration](#configuration)
 - [About Running Scripts](#about-running-scripts)
 - [Web API Documentation](#web-api-documentation)
@@ -43,23 +42,15 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. you can use iVIT-T t
 
 # Quick Start
 ## Prepare Repository
-**NOTICE**: 
-Make sure the command includes `--recurse-submodules` or you gonna lose submodules
 ```bash
-git clone -b r1.1 --recurse-submodules https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
+git clone -b r1.1 https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
 ```
 
-
-## Choose a platform you want
-Modify `PLATFORM` in [ivit-i.json](ivit-i.json). we support `intel`, `xilinx`, `hailo`, `nvidia`, `jetson` now.
-```json
-"PLATFORM": "xilinx"
-```
-
-## Run `service` quickly.
+## Run `service` quickly with platform.
 ```bash
-sudo ./docker/run.sh -q
+sudo ./docker/run.sh intel -q
 ```
+* We support `intel`, `xilinx`, `hailo`, `nvidia`, `jetson` now.
 
 
 # Configuration
@@ -76,7 +67,7 @@ You can modify the configuration file ( [`ivit-i.json`](ivit-i.json) ) to change
 * Enter docker container with interative mode.
     ```bash
     # Enter with command line mode
-    sudo ./docker/run.sh -qc
+    sudo ./docker/run.sh intel -qc
 
     # Run fastapi
     python3 main.py
@@ -84,7 +75,7 @@ You can modify the configuration file ( [`ivit-i.json`](ivit-i.json) ) to change
 * Run in background
     ```bash
     # Background mode
-    sudo ./docker/run.sh -qb
+    sudo ./docker/run.sh intel -qb
 
     # Close with another script 
     sudo ./docker/stop.sh
@@ -97,7 +88,6 @@ You can modify the configuration file ( [`ivit-i.json`](ivit-i.json) ) to change
     options:
     b               Run in background.
     c               Run command line mode.
-    p               Select a platform to run ( the priority is higher than ivit-i.json ). support in [ 'intel', 'xilinx' ]
     q               Qucik start.
     h               help.
     ```
