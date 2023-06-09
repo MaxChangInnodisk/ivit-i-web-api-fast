@@ -67,10 +67,7 @@ OPTS=${OPT_ARR[@]}
 jq --arg a "${PLATFORM}" '.PLATFORM = $a' ${CONF} > ${TEMP} && mv ${TEMP} ${CONF} 
 
 # ========================================================
-
-cd apps
 git submodule update --init
-cd ..
 
 # ========================================================
 # Switcher
