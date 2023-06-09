@@ -25,6 +25,7 @@ check_config ${CONF}
 check_jq
 PROJECT=$(cat "${CONF}" | jq -r '.PROJECT')
 VERSION=$(cat "${CONF}" | jq -r '.VERSION')
+IVIT_VERSION=$(cat "${CONF}" | jq -r '.IVIT_VERSION')
 PLATFORM=$(cat "${CONF}" | jq -r '.PLATFORM')
 TAG=$(cat "${CONF}" | jq -r '.TAG')
 
@@ -32,7 +33,7 @@ TAG=$(cat "${CONF}" | jq -r '.TAG')
 # Execution
 
 # Concatenate Name
-SRC_IMAGE="${DOCKER_USER}/${PROJECT}-${PLATFORM}:${VERSION}-runtime"
+SRC_IMAGE="${DOCKER_USER}/${PROJECT}-${PLATFORM}:${IVIT_VERSION}-runtime"
 TRG_IMAGE="${DOCKER_USER}/${PROJECT}-${PLATFORM}:${VERSION}-${TAG}"
 
 # Build the docker image
