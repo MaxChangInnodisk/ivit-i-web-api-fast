@@ -81,6 +81,7 @@ def startup_event():
 
 @app.on_event("shutdown")
 def shutdown_event():
+    db_handler.reset_db()
     log.warning('Stop service ...')
 
 
