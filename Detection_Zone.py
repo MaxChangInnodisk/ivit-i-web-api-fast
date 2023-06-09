@@ -324,6 +324,7 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
                 if self.params['application']['areas'][i]['area_point']!=[]:
                     self.normalize_area_pts.update({i:self.params['application']['areas'][i]['area_point']})
                     self.area_name.update({i:self.params['application']['areas'][i]['name']})
+
                     # self.area_color.update({i:[random.randint(0,255),random.randint(0,255),random.randint(0,255)]})
                 else:
                     self.normalize_area_pts.update({i:[[0,0],[1,0],[1,1],[0,1]]})
@@ -545,8 +546,7 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
 
         for id,val in result.items():
             
-            temp_direction_result="There are {} object in area {}.".format(str(val),str(id))
-            
+            temp_direction_result="There are {} object in {}.".format(str(val),self.area_name[id])
             
             (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
             
