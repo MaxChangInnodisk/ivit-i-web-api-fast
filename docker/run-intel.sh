@@ -15,7 +15,7 @@ source "${ROOT}/utils.sh"
 # Basic Parameters
 CONF="ivit-i.json"
 DOCKER_USER="maxchanginnodisk"
-DOCKER_COMPOSE="docker/docker-compose.yml"
+DOCKER_COMPOSE="docker/compose.yml"
 
 # ========================================================
 # Check configuration is exit
