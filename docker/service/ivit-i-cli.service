@@ -1,0 +1,10 @@
+[Unit]
+Description=Stop iVIT-I Web Service
+
+[Service]
+Type=simple
+ExecStart=
+ExecStop=
+
+[Install]
+WantedBy=default.target
