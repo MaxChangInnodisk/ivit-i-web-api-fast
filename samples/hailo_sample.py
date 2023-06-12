@@ -76,7 +76,7 @@ def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
             "areas": [
                 {
                     "name": "default",
-                    "depend_on": IMAGE_NET_LABEL,
+                    "depend_on": [ "cat", "dog" ],
                     "palette": {
                         "airplane": [255, 255, 255],
                         "warpalne": [0, 0, 0],
