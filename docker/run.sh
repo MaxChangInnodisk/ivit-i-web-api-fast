@@ -70,7 +70,7 @@ jq --arg a "${PLATFORM}" '.PLATFORM = $a' ${CONF} > ${TEMP} && mv -f ${TEMP} ${C
 
 # ========================================================
 # Download submodule
-git submodule update --init
+git submodule update --init || echo "Already initailized."
 
 # ========================================================
 # Switcher
