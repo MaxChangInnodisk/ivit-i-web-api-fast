@@ -12,6 +12,10 @@ ROOT=$(dirname "${FILE}")
 source "${ROOT}/utils.sh"
 
 # ========================================================
+# Move to correct path
+cd $(dirname ${ROOT})
+
+# ========================================================
 # Basic Parameters
 CONF="ivit-i.json"
 DOCKER_USER="maxchanginnodisk"
@@ -36,5 +40,6 @@ DOCKER_NAME="${PROJECT}-${PLATFORM}-${VERSION}-${TAG}"
 
 # ========================================================
 # Stop
-docker stop ${DOCKER_NAME}
-docker compose -f ${DOCKER_COMPOSE} -p ${TAG} down 
+docker compose -f ${DOCKER_COMPOSE} -p ${TAG} down || echo "Stop relatived service failed."
+
+docker stop ${DOCKER_NAME} || echo "Stop iVIT-I service failed."
