@@ -251,7 +251,7 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         #for draw area
         self.area_name={}
         self.draw_bbox = self.params['application'].get('draw_bbox',True)
-        self.draw_area= 1
+        self.draw_area= False
         self.area_opacity=None
         self.area_color=None
         self.area_pts = {}

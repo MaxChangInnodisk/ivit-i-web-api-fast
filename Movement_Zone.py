@@ -583,8 +583,8 @@ class Movement_Zone(iAPP_OBJ,event_handle,app_common_handle):
         #for draw area
         self.area_name={}
         self.draw_bbox =False
-        self.draw_area=True
-        self.is_draw_line = True
+        self.draw_area=False
+        self.is_draw_line = False
         self.area_opacity=None
         self.area_color=None
         self.area_pts = {}
