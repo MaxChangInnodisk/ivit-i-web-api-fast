@@ -12,6 +12,10 @@ ROOT=$(dirname "${FILE}")
 source "${ROOT}/utils.sh"
 
 # ========================================================
+# Move to correct path
+cd $(dirname ${ROOT})
+
+# ========================================================
 # Basic Parameters
 CONF="ivit-i.json"
 DOCKER_USER="maxchanginnodisk"
