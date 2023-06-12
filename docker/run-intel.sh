@@ -5,12 +5,12 @@
 # https://opensource.org/licenses/MIT
 
 
+
 # ========================================================
 # Store the utilities
 FILE=$(realpath "$0")
-DOCKER_ROOT=$(dirname "${FILE}")
-ROOT=$(dirname ${DOCKER_ROOT})
-source "${DOCKER_ROOT}/utils.sh"
+ROOT=$(dirname "${FILE}")
+source "${ROOT}/utils.sh"
 
 # ========================================================
 # Move to correct path
