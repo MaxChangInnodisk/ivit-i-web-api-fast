@@ -77,3 +77,7 @@ async def get_device_id():
 @icap_router.get("/icap/device/type")
 async def get_device_id():
     return http_msg({"device_type": ICAP_CONF["DEVICE_TYPE"]}, 200 )
+
+@icap_router.get("/icap/device/name")
+async def get_device_id():
+    return http_msg({"device_type": ICAP_CONF["DEVICE_NAME"]}, 200 )

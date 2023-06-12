@@ -10,11 +10,11 @@ from typing import Union
 
 try:
     from ..common import SERV_CONF, ICAP_CONF
-    from ..utils import get_mac_address, get_address
+    from ..utils import get_mac_address, get_address, gen_uid
 
 except:
     from common import SERV_CONF, ICAP_CONF
-    from utils import get_mac_address, get_address
+    from utils import get_mac_address, get_address, gen_uid
 
 from .mesg_handler import handle_exception, http_msg_formatter
 from .model_handler import ModelDeployerWrapper, URL_DEPLOYER
@@ -409,9 +409,28 @@ def register_tb_device(tb_url):
     
     dev_type = "iVIT-I"
     dev_tail = ICAP_CONF.get("DEVICE_NAME", "")
-    dev_tail = dev_tail if dev_tail != "" else get_mac_address()
+
+    if dev_tail == "":
+        log.info('Generate UUID')
+
+        # Gen uuid for iCAP device
+        dev_tail = gen_uid()
+        
+        # Read config content
+        with open(SERV_CONF["CONFIG_PATH"], "r") as f:
+            config = json.load(f)
+
+        # Update config 
+        config["ICAP"]["DEVICE_NAME"] = dev_tail
+        with open(SERV_CONF["CONFIG_PATH"], "w") as f:
+            json.dump(config, f, indent=4)
+
+    # Concate Name    
     dev_name = "{}-{}".format(dev_type, dev_tail)
     dev_alias = dev_name
+    
+    # Update DEVICE
+    ICAP_CONF["DEVICE_NAME"] = dev_name
     
     # Get send data
     send_data = { 
