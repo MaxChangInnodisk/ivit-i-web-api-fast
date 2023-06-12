@@ -640,6 +640,7 @@ class InferenceLoop:
             if palette:
                 for key, val in palette.items():
                     try:
+                        key = key.strip()
                         self.app.palette[key] = val
                         log.warning('Update Color Successed ( {} -> {} )'.format(key, val))
                     except Exception as e: 
