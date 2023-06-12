@@ -84,6 +84,7 @@ SERV_CONF = ConfigWrapper(
         PORT = '819',
         ORIGINS = "*",
         DB_PATH = 'ivit_i.sqlite',
+        CONFIG_PATH = '/workspace/ivit-i.json',
         APP_DIR = 'apps',
         DATA_DIR = 'data',
         MODEL_DIR = 'model',
