@@ -12,11 +12,12 @@ class Basic_Object_Detection(iAPP_OBJ):
     def __init__(self, params=None, label=None, palette=palette,log=True):
         self.app_type = 'obj'
         self.params = params
-        
-        if self.params:
-            self.depend_on =self.params['application']['areas'][0]['depend_on']
 
         self.depend_on = []
+        if self.params:
+            self.depend_on =self.params['application']['areas'][0]['depend_on']
+            logging.warning(self.depend_on)
+
         self.palette={}
         self.model_label = label
         self.model_label_list =[]
