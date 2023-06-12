@@ -81,16 +81,26 @@ You can modify the configuration file ( [`ivit-i.json`](ivit-i.json) ) to change
     sudo ./docker/stop.sh
     ```
 * More Options
-    ```bash
-    Run the iVIT-I environment.
+    * Entrance Usage
+        ```bash
+        Not detect platform !!!!
+        Usage     : run.sh [PLATFORM] [OPTION]
+        Example   : run.sh intel -q
+        ```
 
-    Syntax: scriptTemplate [-bcpqh]
-    options:
-    b               Run in background.
-    c               Run command line mode.
-    q               Qucik start.
-    h               help.
-    ```
+    * Each Platform Usage
+        ```bash
+        $ sudo ./docker/run.sh intel -h
+        
+        Run the iVIT-I environment.
+
+        Syntax: scriptTemplate [-bcpqh]
+        options:
+        b               Run in background.
+        c               Run command line mode.
+        q               Qucik start.
+        h               help.
+        ```
 
 # Web API Documentation
 *** *Make sure the web API service has already been launched.* ***
