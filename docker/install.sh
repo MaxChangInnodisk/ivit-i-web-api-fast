@@ -11,7 +11,6 @@ CLI_SERV="ivit-i-cli.service"
 GUI_SERV="ivit-i-gui.service"
 EXEC_CMD=""
 OPTS="-q"
-# OPTS=""
 
 # Double Check
 if [[ -z ${PLATFORM} || ${PLATFORM} = "-h" || ${PLATFORM} = "--help" ]]; then
@@ -73,6 +72,3 @@ sudo systemctl start ${SERVICE}
 
 # Enable Service when startup
 sudo systemctl enable ${SERVICE}
-
-# Disable Service when startup
-# sudo systemctl disable ${SERVICE}
