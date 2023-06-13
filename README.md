@@ -23,6 +23,7 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. you can use iVIT-T t
 - [Quick Start](#quick-start)
   - [Prepare Repository](#prepare-repository)
   - [Run `service` quickly with platform.](#run-service-quickly-with-platform)
+- [Install Service](#install-service)
 - [Configuration](#configuration)
 - [About Running Scripts](#about-running-scripts)
 - [Web API Documentation](#web-api-documentation)
@@ -52,6 +53,19 @@ sudo ./docker/run.sh intel -q
 ```
 * We support `intel`, `xilinx`, `hailo`, `nvidia`, `jetson` now.
 
+# Install Service
+We also support sysytemctl to launch iVIT-I when boot. if your system doesn't have gui then you can select `cli` mode.
+* Usage
+    ```bash
+    Usage:  install.sh [PLATFORM] [MODE].
+
+        - PLATFORM: support intel, xilinx, nvidia, jetson, hailo.
+        - MODE: support cli, gui. default is gui.
+    ```
+* Sample
+  ```bash
+  sudo ./docker/install.sh intel gui
+  ```
 
 # Configuration
 You can modify the configuration file ( [`ivit-i.json`](ivit-i.json) ) to change the port number you want, `SERVICE.PORT` for web service, `NGINX.PORT` for nginx agent, etc.
