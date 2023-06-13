@@ -269,7 +269,7 @@ class ModelDeployerWrapper(abc.ABC):
         self.deploy_thread.start()
 
 
-class ZIP_DEPLOYER(ModelDeployerWrapper):
+class MODEL_ZIP_DEPLOYER(ModelDeployerWrapper):
     """ Deployer for ZIP Model """
     def __init__(self, file:File) -> None:
         super().__init__()
@@ -293,7 +293,7 @@ class ZIP_DEPLOYER(ModelDeployerWrapper):
         SERV_CONF["PROC"][self.uid]["name"] = os.path.basename(self.file_folder)
 
 
-class URL_DEPLOYER(ModelDeployerWrapper):
+class MODEL_URL_DEPLOYER(ModelDeployerWrapper):
     """ Deployer for URL Model """
     def __init__(self, url:str) -> None:
         super().__init__()
@@ -598,9 +598,9 @@ def add_model(file:File, url:str):
     """ Add AI Model With AddModelHelper """
     
     if (url == "") or (url is None):
-        deployer = ZIP_DEPLOYER(file=file)
+        deployer = MODEL_ZIP_DEPLOYER(file=file)
     else:
-        deployer = URL_DEPLOYER(url=url)
+        deployer = MODEL_URL_DEPLOYER(url=url)
 
     deployer.start_deploy()
 
