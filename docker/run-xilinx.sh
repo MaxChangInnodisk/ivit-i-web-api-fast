@@ -123,7 +123,12 @@ fi
 # ========================================================
 # [Basckground] Update background option
 if [[ ${INTERATIVE} = true ]]; then 
-	SET_CONTAINER_MODE="-it"
+
+	if [[ ${RUN_SERVICE} = true ]];then
+		SET_CONTAINER_MODE="-i"
+	else
+		SET_CONTAINER_MODE="-it"
+	fi
 	printd " * Run Interative Terminal Mode" R
 else
 	SET_CONTAINER_MODE="-dt"; 
