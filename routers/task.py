@@ -6,10 +6,11 @@
 # Basic
 import json, threading, time, sys, os, re
 import logging as log
-from fastapi import APIRouter,status
-from fastapi.responses import Response
+from fastapi import APIRouter,File, Form, UploadFile
+from fastapi.responses import Response, FileResponse
 from typing import Optional, Dict, List
 from pydantic import BaseModel
+
 
 try:
     from ..common import SERV_CONF
@@ -80,6 +81,11 @@ class EditTaskFormat(BaseModel):
 
 class DelTaskFormat(BaseModel):
     uids: List[str]
+
+
+class ExportTaskFormat(BaseModel):
+    uids: List[str]
+    to_icap: bool
 
 
 # --------------------------------------------------------------------
@@ -181,9 +187,28 @@ def edit_task(edit_data: EditTaskFormat):
         return http_msg(content=e, status_code=500)
 
 
+@task_router.post("/tasks/export")
+def export_task(data: ExportTaskFormat):
+    try:
+        ret = task_handler.export_ai_task(export_uids=data.uids, to_icap=data.to_icap)
+        return http_msg(content=ret)
+    except Exception as e:
+        return http_msg(content=e, status_code=500)
 
+@task_router.post("/tasks/import")
+def import_task(
+    file: Optional[UploadFile] = File(None),
+    url: Optional[str]= Form(None),
+):
+    try:
+        data = task_handler.import_ai_task(file=file, url=url)
+        return http_msg( 
+            content = data, 
+            status_code = 200 )
 
-
+    except Exception as e:
+        return http_msg( content=e, status_code = 500 )
+    
 
 
 
