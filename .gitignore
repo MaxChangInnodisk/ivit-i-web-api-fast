@@ -161,5 +161,8 @@ cython_debug/
 
 data/*
 model/*
+export
+temp
+
 ivit_i.sqlite
 !**/*/.gitkeep
