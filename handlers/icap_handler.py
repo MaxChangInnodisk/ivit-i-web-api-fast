@@ -17,7 +17,7 @@ except:
     from utils import get_mac_address, get_address, gen_uid
 
 from .mesg_handler import handle_exception, http_msg_formatter
-from .model_handler import ModelDeployerWrapper, URL_DEPLOYER
+from .model_handler import ModelDeployerWrapper, MODEL_URL_DEPLOYER
 from . import task_handler
 
 HEAD_MAP = {
@@ -227,7 +227,7 @@ class ICAP_HANDLER():
 # --------------------------------------------------------
 # DEPLOYER
 
-class ICAP_DEPLOYER(URL_DEPLOYER):
+class ICAP_DEPLOYER(MODEL_URL_DEPLOYER):
     """ Deployer for iCAP Model """
 
     def __init__(self, data:dict) -> None:
