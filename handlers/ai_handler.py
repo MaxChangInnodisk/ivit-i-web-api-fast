@@ -48,7 +48,7 @@ def ivit_i_intel(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
             label_path = params['label_path'],
             device = params['device'],
             confidence_threshold = params['confidence_threshold'],
-            topk = params.get('topk', 1),
+            topk = params.get('topk', 3),
         )
     elif type == OBJ:
         from ivit_i.core.models import iDetection
