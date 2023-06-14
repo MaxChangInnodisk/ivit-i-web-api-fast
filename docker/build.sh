@@ -15,14 +15,58 @@ source "${ROOT}/utils.sh"
 CONF="ivit-i.json"
 DOCKER_USER="maxchanginnodisk"
 DOCKERFILE="docker/ivit-i-service.dockerfile"
+TEMP=".temp"
 
 # ========================================================
 # Check configuration is exit
 check_config ${CONF}
 
 # ========================================================
-# Parse information from configuration
+# Split Platform and Other option
 check_jq
+
+# ========================================================
+# Check platform
+
+# Array
+OPT_ARR=(${*})
+
+case ${OPT_ARR[0]} in
+    "intel" )
+        echo "Launching iVIT-I-INTEL"
+        ;;
+    "xilinx" )
+        echo "Launching iVIT-I-XILINX"
+        ;;
+    "hailo" )
+        echo "Launching iVIT-I-HAILO"
+        ;;
+    "nvidia" )
+        echo "Launching iVIT-I-NVIDIA"
+        ;;
+    "jetson" )
+        echo "Launching iVIT-I-NVIDIA"
+        ;;
+    *)
+        echo "Not detect platform !!!!"
+        echo "Usage     : run.sh [PLATFORM] [OPTION]"
+        echo "Example   : run.sh intel -q"
+        exit
+        ;;
+
+esac
+
+# Get platform
+PLATFORM=${OPT_ARR[0]}
+
+# Clear platform parameter
+unset OPT_ARR[0]
+OPTS=${OPT_ARR[@]}
+
+# Modify Configuration
+jq --arg a "${PLATFORM}" '.PLATFORM = $a' ${CONF} > ${TEMP} && mv -f ${TEMP} ${CONF} 
+
+# Parse Information
 PROJECT=$(cat "${CONF}" | jq -r '.PROJECT')
 VERSION=$(cat "${CONF}" | jq -r '.VERSION')
 IVIT_VERSION=$(cat "${CONF}" | jq -r '.IVIT_VERSION')
