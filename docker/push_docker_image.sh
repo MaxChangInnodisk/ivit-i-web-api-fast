@@ -42,14 +42,9 @@ VERSION=$(cat ${CONF} | jq -r '.VERSION')
 PLATFORM=$(cat ${CONF} | jq -r '.PLATFORM')
 VERSION=$(cat ${CONF} | jq -r '.VERSION')
 
-
 # Concate name
-SRC_IMAGE="${DOCKER_USER}/${PROJECT}-${PLATFORM}:${VERSION}-dev"
 TRG_IMAGE="${DOCKER_USER}/${PROJECT}-${PLATFORM}:${VERSION}-${TAG}"
 CNTR_NAME="${PROJECT}-${PLATFORM}-${VERSION}"
-
-printd "Pushing Docker Image to Docker Hub ... ${SRC_IMAGE}" BR
-docker push ${SRC_IMAGE}
 
 printd "Pushing Docker Image to Docker Hub ... ${TRG_IMAGE}" BR
 docker push ${TRG_IMAGE}
