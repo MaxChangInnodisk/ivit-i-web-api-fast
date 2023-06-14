@@ -181,6 +181,7 @@ class ICAP_HANDLER():
                     "ivitUrl": get_address(),
                     "ivitTask": task_handler.get_task_info()
             }
+
             self.send_attr(data = basic_attr)
             
             dict_printer(
@@ -216,13 +217,22 @@ class ICAP_HANDLER():
     # Send Data Usage
 
     def send_data(self, data: dict, topic: str):
-        self.client.publish(topic, json.dumps(data))
+        try:
+            self.client.publish(topic, json.dumps(data))
+        except Exception as e:
+            log.exception(e)
 
     def send_attr(self, data: dict, topic:str=ICAP_CONF["TOPIC_SND_ATTR"]):
-        self.client.publish(topic, json.dumps(data), retain=False)
+        try:
+            self.client.publish(topic, json.dumps(data), retain=False)
+        except Exception as e:
+            log.exception(e)
 
     def send_tele(self, data: dict, topic:str=ICAP_CONF["TOPIC_SND_TEL"]):
-        self.client.publish(topic, json.dumps(data), retain=False)
+        try:
+            self.client.publish(topic, json.dumps(data), retain=False)
+        except Exception as e:
+            log.exception(e)
 
 # --------------------------------------------------------
 # DEPLOYER
