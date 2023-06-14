@@ -108,9 +108,6 @@ MOUNT_ACCELERATOR="\
 MOUNT_TOOL_FOR_TEMPRATURE="\
 -v /usr/bin/xmutil:/usr/bin/xmutil -v /usr/bin/platformstats:/usr/bin/platformstats \
 -v /usr/lib/libplatformstats.so.1:/usr/lib/libplatformstats.so.1 "
-MOUNT_X264="\
--v $(pwd)/docker/patch/libgstx264.so:/usr/lib/aarch64-linux-gnu/gstreamer-1.0/libgstx264.so"
-
 
 # ========================================================
 # [VISION] Set up Vision option for docker if need
@@ -152,7 +149,6 @@ ${SET_NAME} \
 ${SET_PRIVILEG} \
 ${MOUNT_ACCELERATOR} \
 ${MOUNT_TOOL_FOR_TEMPRATURE} \
-${MOUNT_X264} \
 ${SET_NETS} \
 ${SET_MEM} \
 ${SET_TIME} \
