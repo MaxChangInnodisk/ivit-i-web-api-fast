@@ -4,8 +4,8 @@ import numpy as np
 from apps.palette import palette
 from typing import Union, get_args
 from ivit_i.common.app import iAPP_CLS
+
 class Basic_Classification(iAPP_CLS):
-    """ __init__, __call__ """
 
     def __init__(self, params:dict, label:str, palette:dict=palette):
         """
@@ -21,14 +21,14 @@ class Basic_Classification(iAPP_CLS):
         self.palette= {}
         self.label_path = label
         self.label_list =[]
-        self.init_palette(palette)
+        self._init_palette(palette)
         self.FONT            = cv2.FONT_HERSHEY_SIMPLEX
         self.FONT_SCALE      = 1
         self.FONT_THICK      = cv2.LINE_AA
         self.FONT_THICKNESS  = 1
         
 
-    def init_palette(self,palette:dict):
+    def _init_palette(self,palette:dict):
         """
         We will deal all color we need there.
         Step 1 : assign color for each label.
@@ -64,7 +64,7 @@ class Basic_Classification(iAPP_CLS):
         """
         return self.palette[label]        
         
-    def check_depend(self, label:str):
+    def _check_depend(self, label:str):
         """
             Check label whether in the depend on or not.
         Args:
@@ -128,7 +128,7 @@ class Basic_Classification(iAPP_CLS):
         for idx, label, score in detections:
            
             # Checking Depend
-            if not self.check_depend(label): continue
+            if not self._check_depend(label): continue
 
             # Draw something                
             content     = '{} {:.1%}'.format(label, score)
@@ -231,7 +231,7 @@ if __name__=='__main__':
                             "areas": [
                                 {
                                     "name": "default",
-                                    "depend_on": [ ]
+                                    "depend_on": []
                                 }
                             ]
                         }
@@ -245,8 +245,9 @@ if __name__=='__main__':
             # Get frame & Do infernece
             frame = src.read()       
             detections = model.inference( frame )
+
             frame , app_output , event_output =app(frame,detections)
-                
+    
             # Draw FPS: default is left-top                     
             infer_metrx.paint_metrics(frame)
             
