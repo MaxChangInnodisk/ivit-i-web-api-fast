@@ -11,6 +11,7 @@ CONF="ivit-i.json"
 DOCKER_USER="maxchanginnodisk"
 REL_PATH=$( realpath "../ivit-i-intel")
 TAG="service"
+TEMP=".temp"
 
 # Define Basic Argument Parameters
 PKG_SO=false
@@ -25,21 +26,43 @@ source "${ROOT}/utils.sh"
 
 # ========================================================
 # Check configuration is exit
-
-FLAG=$(ls ${CONF} 2>/dev/null)
-if [[ -z $FLAG ]];then 
-	printd "Couldn't find configuration (${CONF})" Cy; 
-	exit
-else 
-	printd "Detected configuration (${CONF})" Cy; 
-fi
+check_config ${CONF}
 
 # ========================================================
-# Parse information from configuration
+# Split Platform and Other option
 check_jq
+
+# ========================================================
+# Check platform
+PLATFORM=$1
+case ${PLATFORM} in
+    "intel" )
+        echo "Launching iVIT-I-INTEL"
+        ;;
+    "xilinx" )
+        echo "Launching iVIT-I-XILINX"
+        ;;
+    "hailo" )
+        echo "Launching iVIT-I-HAILO"
+        ;;
+    "nvidia" )
+        echo "Launching iVIT-I-NVIDIA"
+        ;;
+    "jetson" )
+        echo "Launching iVIT-I-NVIDIA"
+        ;;
+    *)
+        echo "Not detect platform !!!!"
+        echo "Usage     : push_docker_image.sh [PLATFORM]"
+        echo "Example   : push_docker_image.sh intel"
+        exit
+        ;;
+
+esac
+
 PROJECT=$(cat ${CONF} | jq -r '.PROJECT')
 VERSION=$(cat ${CONF} | jq -r '.VERSION')
-PLATFORM=$(cat ${CONF} | jq -r '.PLATFORM')
+# PLATFORM=$(cat ${CONF} | jq -r '.PLATFORM')
 VERSION=$(cat ${CONF} | jq -r '.VERSION')
 
 # Concate name
