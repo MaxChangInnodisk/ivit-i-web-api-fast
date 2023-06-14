@@ -886,7 +886,7 @@ class InferenceLoop:
             cur_data = self.async_infer.get_results()
 
             # Application
-            self.draw, self.results, self.event = self.app(frame, cur_data, draw=True)
+            self.draw, self.results, self.event = self.app(frame, cur_data)
 
             # Display
             self.dpr.show(copy.deepcopy(self.draw))
