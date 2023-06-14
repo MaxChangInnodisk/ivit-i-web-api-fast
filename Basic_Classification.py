@@ -1,31 +1,45 @@
 import cv2
 import logging
+import numpy as np
 from apps.palette import palette
+from typing import Union, get_args
 from ivit_i.common.app import iAPP_CLS
-class Basic_Classification(iAPP_CLS):
-    """ __init__, __call__ """
 
-    def __init__(self, params=None, label=None, palette=palette, log=True):
+class Basic_Classification(iAPP_CLS):
+
+    def __init__(self, params:dict, label:str, palette:dict=palette):
+        """
+        Basic_Classification .
+        Args:
+            params (dict, optional): _description_. Defaults to None.
+            label (str, optional): _description_. Defaults to None.
+            palette (dict, optional): _description_. Defaults to palette.
+        """
         self.params = params
         self.app_type = 'cls'
-        self.depend_on = []
-        self.palette= {}
-        self.model_label = label
-        self.model_label_list =[]
-        self.init_palette(palette)
         self.depend_on = self.params['application']['areas'][0]['depend_on']
+        self.palette= {}
+        self.label_path = label
+        self.label_list =[]
+        self._init_palette(palette)
         self.FONT            = cv2.FONT_HERSHEY_SIMPLEX
         self.FONT_SCALE      = 1
         self.FONT_THICK      = cv2.LINE_AA
         self.FONT_THICKNESS  = 1
         
 
-    def init_palette(self,palette):
-
+    def _init_palette(self,palette:dict):
+        """
+        We will deal all color we need there.
+        Step 1 : assign color for each label.
+        Step 2 : if app_config have palette that user stting we will change the color follow user setting.
+        Args:
+            palette (dict): _description_
+        """
         color = None
-        with open(self.model_label,'r') as f:
-            # lines = f.read().splitlines()
+        with open(self.label_path,'r') as f:
             for idx, line in enumerate(f.readlines()):
+                #idx in palette begin to 1.
                 idx+=1
                 if self.params['application'].__contains__('palette'):
                     
@@ -37,41 +51,84 @@ class Basic_Classification(iAPP_CLS):
                     color = palette[str(idx)]
                 
                 self.palette.update({line.strip():color})
-                self.model_label_list.append(line.strip())
-                
-                
-
+                self.label_list.append(line.strip())  
         
-        
-    def set_color(self,label:str,color:tuple):
+    def get_color(self, label:str):
         """
-        set color :
+            Get color of label.
+        Args:
+            label (str): label of object.
 
-        sample of paremeter : 
-            label = "dog"
-            color = (0,0,255)
+        Returns:
+            list: (B,G,R).
         """
-        self.palette.update({label:color})
-        logging.info("Label: {} , change color to {}.".format(label,color))
-        
-    def get_color(self, label):
         return self.palette[label]        
         
-    def check_depend(self, label):
+    def _check_depend(self, label:str):
+        """
+            Check label whether in the depend on or not.
+        Args:
+            label (str): label of model predict.
+
+        Returns:
+            bool : label whether in the depend on or not.
+        """
         ret = True
        
         if len(self.depend_on)>0:
             ret = (label in self.depend_on)
         return ret
 
-    def __call__(self, frame, detections, draw=True) -> tuple:
+    def set_draw(self,params:dict):
+        """
+        Control anything about drawing.
+        Which params you can contral :
+
+        {  
+            palette (dict) { label(str) : color(Union[tuple, list]) },
+        }
+        
+        Args:
+            params (dict): 
+        """
+        color_support_type = Union[tuple, list]
+        palette = params.get('palette', None)
+        if isinstance(palette, dict):
+            if len(palette)==0:
+                logging.warning("Not set palette!")
+                pass
+            else:
+                for label,color in palette.items():
+
+                    if isinstance(label, str) and isinstance(color, get_args(color_support_type)):
+                        if self.palette.__contains__(label):
+                           self.palette.update({label:color})
+                        else:
+                            logging.error("Model can't recognition the label {} , please checkout your label!.".format(label))
+                        logging.info("Label: {} , change color to {}.".format(label,color))
+                    else:
+                        logging.error("Value in palette type must (label:str , color :Union[tuple , list] ),your type \
+                                      label:{} , color:{} is error.".format(type(label),type(color)))
+        else:
+            logging.error("Not set palette or your type {} is error.".format(type(palette)))
+
+    def __call__(self, frame:np.ndarray, detections:list):
+        """
+
+        Args:
+            frame (np.ndarray): The img that we want to deal with.
+            detections (list): output of model predict
+
+        Returns:
+            tuple:We will return the frame that finished painting and sort out infomation.
+        """
         
         app_output = { "areas":[{"id":0,"name":"default","data":[]}] }
 
         for idx, label, score in detections:
            
             # Checking Depend
-            if not self.check_depend(label): continue
+            if not self._check_depend(label): continue
 
             # Draw something                
             content     = '{} {:.1%}'.format(label, score)
@@ -174,7 +231,7 @@ if __name__=='__main__':
                             "areas": [
                                 {
                                     "name": "default",
-                                    "depend_on": [ ]
+                                    "depend_on": []
                                 }
                             ]
                         }
@@ -188,8 +245,9 @@ if __name__=='__main__':
             # Get frame & Do infernece
             frame = src.read()       
             detections = model.inference( frame )
+
             frame , app_output , event_output =app(frame,detections)
-                
+    
             # Draw FPS: default is left-top                     
             infer_metrx.paint_metrics(frame)
             
