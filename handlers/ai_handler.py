@@ -4,6 +4,7 @@
 # https://opensource.org/licenses/MIT
 
 import sys
+import logging as log
 if sys.version_info < (3, 8):
     from typing_extensions import Literal
 else:
@@ -52,11 +53,23 @@ def ivit_i_intel(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
         )
     elif type == OBJ:
         from ivit_i.core.models import iDetection
+        
+        # Update arch for intel platform
+        orig_arch = params["arch"]
+        correct_arch = ""
+        if 'yolov4' in orig_arch and 'tiny' in orig_arch:
+            correct_arch = 'yolov4'
+            log.warning(f'Detect arch is tiny ({orig_arch}), auto convert to {correct_arch}')
+            
+        elif 'yolov3' in orig_arch and 'tiny' in orig_arch:
+            correct_arch = 'yolo'
+            log.warning(f'Detect arch is tiny ({orig_arch}), auto convert to {correct_arch}')
+        
         model = iDetection(
             model_path = params["model_path"],
             label_path = params["label_path"],
             device = params["device"],
-            architecture_type = params["arch"],
+            architecture_type = correct_arch,
             anchors = params["anchors"],
             confidence_threshold = float(params["confidence_threshold"])
         )
