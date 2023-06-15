@@ -213,7 +213,6 @@ class app_common_handle(threading.Thread):
             
             self.is_draw=True
 
-                 
 class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
     """ IVIT-I Counting application :
             1. init params.
