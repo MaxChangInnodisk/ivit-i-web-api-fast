@@ -7,6 +7,8 @@ Step 3. Follow the [format of input parameter](#format-of-input-parameter) to us
 Other features : Different situation needs different value of "trancking distance".You can follow [here](#adjust-trancking-distance) to adjust trancking distance.  
 And the description of application output is [here](#application-output).   
 
+Note:If you want to use this application make sure you have filterpy==1.4.5 and lap==0.4.0 in your environment.
+
 More function :  
 1. User can control anythong about draw through function [set_draw()](#control-anything-about-draw).
 ## Setting app config 
