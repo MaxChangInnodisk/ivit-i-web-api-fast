@@ -340,7 +340,8 @@ class Sort(object):
         
     return np.empty((0,5))
 
-class Tracking_Zone_Sort(event_handle):
+class Tracking_Zone(iAPP_OBJ, event_handle):
+
   def __init__(self, params:dict, label:str,event_save_folder:str="event", palette:dict=palette):
       self.app_type = 'obj'
 
@@ -350,7 +351,6 @@ class Tracking_Zone_Sort(event_handle):
       self.palette={}
       self.label_path = label
       self.label_list =[]
-      
       
       # Update each Variable
       self._init_palette(palette)
@@ -364,10 +364,6 @@ class Tracking_Zone_Sort(event_handle):
       self._update_event_param()
       self._init_event_object()
       self.MOT_tracker= self._creat_MOT_tracker_for_each_area()
-
-      
-
-
 
   def _check_params(self,params:dict):
     """
@@ -468,10 +464,10 @@ class Tracking_Zone_Sort(event_handle):
       self.area_pts = {}
 
       #control draw
-      self.draw_bbox =self.params['application']['draw_bbox'] if self.params['application'].__contains__('draw_bbox') else False
-      self.draw_result =self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else False
-      self.draw_tracking = True
-      self.draw_area=True
+      self.draw_bbox=self.params['application']['draw_bbox'] if self.params['application'].__contains__('draw_bbox') else False
+      self.draw_result=self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else False
+      self.draw_tracking=True
+      self.draw_area=False
 
   def _creat_MOT_tracker_for_each_area(self):
     """
