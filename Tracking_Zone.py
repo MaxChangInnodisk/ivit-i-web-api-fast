@@ -738,7 +738,11 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
         data (list): total object number .format [{'label': str, 'num': int},{'label': str, 'num': int},...]
         area_id (int): area_id
     """
-    self.app_output_data[area_id]=data
+    _temp_data=[]
+    for id ,val in enumerate(data):
+      if val['num']!=0:
+        _temp_data.append(val)
+    self.app_output_data[area_id]=_temp_data
 
   def _combined_app_output(self):
     app_output={"areas": []}
@@ -768,6 +772,29 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
         for label , tracker in area_tracker.items():
           _temp_count=_temp_count+tracker.changeable_total
     return _temp_count
+  
+  def draw_total_result(self,frame:np.ndarray,result:dict,outer_clor:tuple=(0,255,255),font_color:tuple=(0,0,0)):
+    sort_id=0
+
+    for areas ,data in result.items():
+      # print(result)
+      for area_id ,area_info in enumerate(data):
+        for label_id,val in enumerate(area_info['data']):
+          temp_direction_result="{}:{} in area {}.".format(str(val['label']),str(val['num']),self.area_name[area_id])
+          
+          
+          (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
+          
+          t_xmin, t_ymin, t_xmax, t_ymax = 10, 10*sort_id+(sort_id*(t_hei+t_base)), 10+t_wid, 10*sort_id+((sort_id+1)*(t_hei+t_base))
+          
+          cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
+          cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
+          cv2.putText(
+              frame, temp_direction_result, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
+              self.font_size, font_color, self.font_thick, cv2.LINE_AA
+          )
+          sort_id=sort_id+1
+
   def draw_area_event(self, frame:np.ndarray, is_draw_area:bool, area_color:tuple=None, area_opacity:float=None, draw_points:bool=True):
     """ Draw Detecting Area and update center point if need.
     - args
@@ -1046,8 +1073,8 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
       if event_handler.event_output !={}:
         event_output['event'].append(event_handler.event_output)
 
-  
-
+    #step7: draw total result on the left top.
+    self.draw_total_result(frame,app_output)
     return (frame ,app_output,event_output)
 
 if __name__=='__main__':
@@ -1199,7 +1226,7 @@ if __name__=='__main__':
                     "draw_bbox":True
                 }
             }
-    app = Tracking_Zone_Sort(app_config,args.label )
+    app = Tracking_Zone(app_config,args.label )
 
     # 7. Start Inference
     try:
@@ -1210,7 +1237,7 @@ if __name__=='__main__':
             results = model.inference(frame=frame)
           
             frame , app_output , event_output =app(frame,results)
-            
+            print(app_output)
             infer_metrx.paint_metrics(frame)
 
             # Draw FPS: default is left-top                     
