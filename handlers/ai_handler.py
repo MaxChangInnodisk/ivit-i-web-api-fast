@@ -61,9 +61,9 @@ def ivit_i_intel(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
             correct_arch = 'yolov4'
             log.warning(f'Detect arch is tiny ({orig_arch}), auto convert to {correct_arch}')
             
-        elif 'yolov3' in orig_arch and 'tiny' in orig_arch:
-            correct_arch = 'yolo'
-            log.warning(f'Detect arch is tiny ({orig_arch}), auto convert to {correct_arch}')
+        # elif 'yolov3' in orig_arch and 'tiny' in orig_arch:
+        #     correct_arch = 'yolo'
+        #     log.warning(f'Detect arch is tiny ({orig_arch}), auto convert to {correct_arch}')
         
         model = iDetection(
             model_path = params["model_path"],
