@@ -30,7 +30,8 @@ from .io_handler import (
     update_src_status, 
     start_source, 
     stop_source,
-    is_source_using
+    is_source_using,
+    create_rtsp_displayer
 )
 from . import task_handler, db_handler, model_handler
 from .app_handler import create_app
@@ -300,10 +301,19 @@ def run_ai_task(uid:str, data:dict=None) -> str:
             rtsp=True, 
             height=height, 
             width=width, 
-            fps=src.get_fps(),
+            fps=30,
             name=uid, 
             platform='intel')
-            
+        
+        # dpr = create_rtsp_displayer(
+        #     name = uid,
+        #     width = width,
+        #     height = height,
+        #     fps = 30,
+        #     server = 'rtsp://127.0.0.1:8554',
+        #     platform = 'intel',
+        # )
+
     except Exception as e:
         raise RuntimeError("Load Displayer Failed: {}".format(simple_exception(e)[1]))
 
@@ -698,7 +708,8 @@ class AsyncInference:
     def __init__(   self, 
                     imodel:iModel,
                     workers:int=1,
-                    freqency:float=0.066) -> None:
+                    freqency:float=0.066,
+                    clean_duration:int=5) -> None:
         """Asynchorize Inference Object
 
         Args:
@@ -715,6 +726,9 @@ class AsyncInference:
         self.pools = []
         self.exec_time = time.time()
         self.freqency = freqency
+
+        self.clean_duration = clean_duration
+        self.clean_flag = self.clean_duration
 
         self.lock = threading.RLock()
 
@@ -745,11 +759,20 @@ class AsyncInference:
             self.results = result
             self.lock.release()
 
+            self.clean_flag = self.clean_duration
+
+        else:
+            self.clean_flag -= 1
+
         # Keep update exec_time
         self.exec_time = time.time()
 
         # Pop out first exec
         self.pools.pop(0)
+
+        # Clear Results
+        if self.clean_flag == 0:
+            self.results = []
 
     def submit_data(self, frame:np.ndarray):
         """Create a threading for inference
@@ -889,7 +912,7 @@ class InferenceLoop:
             self.draw, self.results, self.event = self.app(frame, cur_data)
 
             # Display
-            self.dpr.show(copy.deepcopy(self.draw))
+            self.dpr.show(self.draw)
 
             # Log
             # log.debug(cur_data)
