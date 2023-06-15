@@ -56,15 +56,16 @@ def ivit_i_intel(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
         
         # Update arch for intel platform
         orig_arch = params["arch"]
-        correct_arch = ""
+        correct_arch = orig_arch
         if 'yolov4' in orig_arch:
             correct_arch = 'yolov4'
             log.warning(f'Detect arch is tiny ({orig_arch}), auto convert to {correct_arch}')
             
-        # elif 'yolov3' in orig_arch and 'tiny' in orig_arch:
-        #     correct_arch = 'yolo'
-        #     log.warning(f'Detect arch is tiny ({orig_arch}), auto convert to {correct_arch}')
+        elif 'yolov3' in orig_arch:
+            correct_arch = 'yolo'
+            log.warning(f'Detect arch is tiny ({orig_arch}), auto convert to {correct_arch}')
         
+        # Support yolo,yolov4,yolof,yolox,yolov3-onnx
         model = iDetection(
             model_path = params["model_path"],
             label_path = params["label_path"],
