@@ -12,7 +12,8 @@ common.init_ivit_env()
 
 from ivit_i.io import (
     SourceV2, 
-    Displayer
+    Displayer,
+    RtspWrapper
 )
 
 from ivit_i.common.app import (

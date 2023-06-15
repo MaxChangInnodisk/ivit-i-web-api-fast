@@ -27,7 +27,7 @@ from .db_handler import (
 from .err_handler import InvalidUidError
 
 # iVIT Libraray
-from .ivit_handler import SourceV2, Displayer
+from .ivit_handler import SourceV2, Displayer, RtspWrapper
 
 # --------------------------------------------------------
 # Consistant
@@ -124,6 +124,7 @@ def is_src_loaded(source_uid) -> bool:
 # Main Function: Displayer
 
 create_displayer = Displayer
+create_rtsp_displayer = RtspWrapper
 
 # --------------------------------------------------------
 # Main Function: Source
