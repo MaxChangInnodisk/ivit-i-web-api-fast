@@ -467,8 +467,8 @@ class Movement_Zone(iAPP_OBJ, event_handle):
       self.draw_bbox=self.params['application']['draw_bbox'] if self.params['application'].__contains__('draw_bbox') else False
       self.draw_result=self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else False
       self.draw_tracking=True
-      self.draw_area=True
-      self.is_draw_line=True
+      self.draw_area=False
+      self.is_draw_line=False
 
   def _creat_MOT_tracker_for_each_area(self):
     """
