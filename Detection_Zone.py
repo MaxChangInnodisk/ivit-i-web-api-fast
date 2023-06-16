@@ -1,16 +1,13 @@
-import os, cv2, logging
+import os, cv2, logging, uuid, time, math
 import numpy as np
-import uuid
-import os
 import threading
 from datetime import datetime
 from typing import Union, get_args
 from apps.palette import palette
-import math
 from ivit_i.common.app import iAPP_OBJ
 
 class event_handle(threading.Thread):
-    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int ,event_save_folder:str):
+    def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int ,event_save_folder:str,uid:dict):
         threading.Thread.__init__(self)
         self.operator = operator
         self.thres = thres
@@ -23,8 +20,9 @@ class event_handle(threading.Thread):
         self.trigger_time=datetime
         self.info =" "
         self.event_save_folder=event_save_folder
+        self.uid=uid
 
-    def get_logic_event(self, operator):
+    def _get_logic_event(self, operator):
         """ Define the logic event """
         greater = lambda x,y: x>y
         greater_or_equal = lambda x,y: x>=y
@@ -64,12 +62,12 @@ class event_handle(threading.Thread):
             self.eventflag=True
             self.trigger_time=datetime.now()
             self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))
-            uid=str(uuid.uuid4())[:8]
-            path='./'+self.event_save_folder+'/'+str(uid)+'/'
+            uid=self.uid[area_id] if not (self.uid[area_id]==None) else str(uuid.uuid4())[:8]
+            path='./'+self.event_save_folder+'/'+str(uid)+'/'+str(time.time())+'/'
             if not os.path.isdir(path):
                 os.makedirs(path)
-            cv2.imwrite(path+str(self.trigger_time)+'.jpg', frame)
-            cv2.imwrite(path+str(self.trigger_time)+"_org"+'.jpg', ori_frame)
+            cv2.imwrite(path+'original.jpg', frame)
+            cv2.imwrite(path+'overlay.jpg', ori_frame)
             self.event_output.update({"uuid":uid,"title":self.event_title[area_id],"areas":app_output["areas"][area_id],"timesamp":self.trigger_time,"screenshot":{"overlay": path+str(self.trigger_time)+'.jpg',
             "original": path+str(self.trigger_time)+"_org"+'.jpg'}}) 
             # Draw Inforamtion
@@ -229,8 +227,8 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.palette = {}
         self.judge_area=10
         self.event_title={}
-        self.operator={}
-        self.thres={}
+        self.logic_operator={}
+        self.logic_value={}
         self.app_output={}
         self.total={}
         self.cooldown_time={}
@@ -263,7 +261,8 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.model_label_list =[]
         
         self.event_save_folder=event_save_folder
-
+        self.event_uid={}
+        
         # self.pool = ThreadPool(os.cpu_count() )
         self.init_palette(palette)
 
@@ -367,19 +366,54 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
 
     def init_logic_param(self):
         
-        for i in range(len(self.params['application']['areas'])):
-            if self.params['application']['areas'][i].__contains__('events'):
-                self.operator.update({i:self.get_logic_event(self.params['application']['areas'][i]['events']['logic_operator'])})
-                self.thres.update({i: self.params['application']['areas'][i]['events']['logic_value']})
-                self.event_title.update({i:self.params['application']['areas'][i]['events']['title']})
-                if self.params['application']['areas'][i]['events'].__contains__('cooldown_time'):
-                    self.cooldown_time.update({i:self.params['application']['areas'][i]['events']['cooldown_time']})
+        for area_id ,area_info in enumerate(self.params['application']['areas']):
+
+            if area_info.__contains__('events'):
+                if not isinstance(area_info['events'],dict):
+                    logging.error("Event type is dict! but your type is {} ,please correct it."\
+                                .format(type(area_info['events'])))
+                    raise TypeError("Event type is dict! but your type is {} ,please correct it."\
+                            .format(type(area_info['events'])))
+            
+                if not area_info['events'].__contains__('logic_operator'):
+                    logging.error("Events must have key 'logic_operator'! please correct it.")
+                    raise ValueError("Events must have key 'logic_operator'! please correct it.")
+            
+                self.logic_operator.update({area_id:self._get_logic_event(area_info['events']['logic_operator'])})
+
+                if not area_info['events'].__contains__('logic_value'):
+                    logging.error("Events must have key 'logic_value'! please correct it.")
+                    raise ValueError("Events must have key 'logic_value'! please correct it.")
+            
+                self.logic_value.update({area_id: area_info['events']['logic_value']})
+
+                if not area_info['events'].__contains__('title'):
+                    logging.error("Events must have key 'title'! please correct it.")
+                    raise ValueError("Events must have key 'title'! please correct it.")
+                
+                self.event_title.update({area_id:area_info['events']['title']})
+
+                if area_info['events'].__contains__('cooldown_time'):
+                    self.cooldown_time.update({area_id:self.params['application']['areas'][i]['events']['cooldown_time']})
                 else :
-                    self.cooldown_time.update({i:10})   
-                if self.params['application']['areas'][i]['events'].__contains__('sensitivity'):
-                    self.sensitivity.update({i:self.get_sensitivity_event(self.params['application']['areas'][i]['events']['sensitivity'])})
+                    self.cooldown_time.update({area_id:10})   
+                if area_info['events'].__contains__('sensitivity'):
+                    self.sensitivity.update({area_id:self._get_sensitivity_event(area_info['events']['sensitivity'])})
+            
+                if area_info['events'].__contains__('uid'):
+                    if not isinstance(area_info['events']['uid'],str):
+                        logging.error("Event key uid type is str! but your type is {} ,please correct it."\
+                                    .format(type(area_info['events']['uid'])))
+                        raise TypeError("Event key uid type is str! but your type is {} ,please correct it."\
+                                    .format(type(area_info['events']['uid'])))
+                    self.event_uid.update({area_id:area_info['events']['uid']})
+                else:
+                    self.event_uid.update({area_id:None})
+
+            else:
+                logging.warning("No set event!")
     
-    def get_sensitivity_event(self,sensitivity_str):
+    def _get_sensitivity_event(self,sensitivity_str):
         # sensitivity_map={
         #     "low":0.3,
         #     "medium" : 0.5,
@@ -393,8 +427,8 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         return sensitivity_map.get(sensitivity_str)
 
     def init_event_object(self):
-        for i , v   in self.operator.items():
-            event_obj = event_handle(self.operator,self.thres,self.cooldown_time,self.event_title,i,self.event_save_folder) 
+        for i , v   in self.logic_operator.items():
+            event_obj = event_handle(self.logic_operator,self.logic_value,self.cooldown_time,self.event_title,i,self.event_save_folder,self.event_uid) 
             self.event_handler.update( { i: event_obj }  )        
         
     def init_area_mask(self,frame):
@@ -810,9 +844,10 @@ if __name__=='__main__':
                         ]
                     ],
                     "events": {
+                        "uid":"cfd1f399",
                         "title": "Traffic is very heavy",
                         "logic_operator": ">",
-                        "logic_value": 100,
+                        "logic_value": 1,
                     }
                 }
             ]

@@ -14,7 +14,7 @@ import time
 from filterpy.kalman import KalmanFilter
 
 class event_handle(threading.Thread):
-  def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int,event_save_folder:str):
+  def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int,event_save_folder:str,uid:dict):
     threading.Thread.__init__(self)
     self.operator = operator
     self.thres = thres
@@ -27,6 +27,7 @@ class event_handle(threading.Thread):
     self.trigger_time=datetime.now()        
     self.info =" "
     self.event_save_folder=event_save_folder
+    self.uid=uid
 
   def get_logic_event(self, operator):
     """ Define the logic event """
@@ -68,12 +69,12 @@ class event_handle(threading.Thread):
       self.eventflag=True
       self.trigger_time=datetime.now()
       self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))
-      uid=str(uuid.uuid4())[:8]
-      path='./'+self.event_save_folder+'/'+str(uid)+'/'
+      uid=self.uid[area_id] if not (self.uid[area_id]==None) else str(uuid.uuid4())[:8]
+      path='./'+self.event_save_folder+'/'+str(uid)+'/'+str(time.time())+'/'
       if not os.path.isdir(path):
           os.makedirs(path)
-      cv2.imwrite(path+str(self.trigger_time)+'.jpg', frame)
-      cv2.imwrite(path+str(self.trigger_time)+"_org"+'.jpg', ori_frame)
+      cv2.imwrite(path+'original.jpg', frame)
+      cv2.imwrite(path+'overlay.jpg', ori_frame)
       self.event_output.update({"uuid":uid,"title":self.event_title,"areas":app_output["areas"],\
                                 "timesamp":self.trigger_time,"screenshot":{"overlay": path+str(self.trigger_time)+'.jpg',
       "original": path+str(self.trigger_time)+"_org"+'.jpg'}}) 
@@ -559,9 +560,9 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
     self.event_title = {}
     self.cooldown_time = {}
     self.sensitivity ={}
-
     self.event_handler={}
     self.event_save_folder=event_save_folder
+    self.event_uid={}
 
   def _update_event_param(self):
     """ Update the parameters of the event, which only happend at first time. """    
@@ -598,6 +599,17 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
             self.cooldown_time.update({area_id:10})   
         if area_info['events'].__contains__('sensitivity'):
               self.sensitivity.update({area_id:self._get_sensitivity_event(area_info['events']['sensitivity'])})
+        
+        if area_info['events'].__contains__('uid'):
+          if not isinstance(area_info['events']['uid'],str):
+            logging.error("Event key uid type is str! but your type is {} ,please correct it."\
+                        .format(type(area_info['events']['uid'])))
+            raise TypeError("Event key uid type is str! but your type is {} ,please correct it."\
+                        .format(type(area_info['events']['uid'])))
+          self.event_uid.update({area_id:area_info['events']['uid']})
+        else:
+          self.event_uid.update({area_id:None})
+
       else:
         logging.warning("No set event!")
       
@@ -758,7 +770,7 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
 
    for area_id ,val in self.logic_operator.items():
       event_obj = event_handle(val,self.logic_value[area_id],self.cooldown_time[area_id]\
-                               ,self.event_title[area_id],area_id,self.event_save_folder) 
+                               ,self.event_title[area_id],area_id,self.event_save_folder,self.event_uid) 
       self.event_handler.update( { area_id: event_obj }  )  
 
   def _deal_changeable_total(self,return_to_zero:bool=False):
@@ -782,7 +794,7 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
         for label_id,val in enumerate(area_info['data']):
           if val['num']==0:
              continue
-          temp_direction_result="{} : {} {}".format(self.area_name[area_id],str(val['num']),str(val['label']))
+          temp_direction_result=" {} : {} {} ".format(self.area_name[area_id],str(val['num']),str(val['label']))
           
           
           (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
@@ -1194,6 +1206,7 @@ if __name__=='__main__':
                                 ]
                             ],
                             "events": {
+                                "uid":"cfd1f399",
                                 "title": "The daily traffic is over 2",
                                 "logic_operator": ">",
                                 "logic_value": 100,
@@ -1237,8 +1250,10 @@ if __name__=='__main__':
             frame = src.read()
             
             results = model.inference(frame=frame)
-          
+
+            a=time.time()
             frame , app_output , event_output =app(frame,results)
+            print(time.time()-a)
             # print(app_output)
             # print(event_output)
             # infer_metrx.paint_metrics(frame)
