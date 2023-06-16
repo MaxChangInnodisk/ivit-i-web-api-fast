@@ -798,6 +798,8 @@ class AsyncInference:
         """
         return self.results
 
+    def get_fps(self):
+        return self.imodel.get_fps()
 
 class InferenceLoop:
     """ Inference Thread Helper """
@@ -918,8 +920,8 @@ class InferenceLoop:
 
             # Send Data
             self.results.update({
-                "fps": self.metric.get_fps(),
-                "live_time": self.metric.get_exec_time()
+                "fps": self.async_infer.get_fps(),
+                "live_time": self.latency_limitor.get_exec_time()
             })
             WS_CONF.update({ self.uid: self.results })
 
