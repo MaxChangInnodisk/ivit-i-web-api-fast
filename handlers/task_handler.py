@@ -805,32 +805,43 @@ class InferenceLoop:
     """ Inference Thread Helper """
 
     def __init__(self, uid, src, model, app, dpr=None) -> None:
+        
+        # Basic Parameter
         self.uid = uid
         self.src = src
         self.model = model
         self.app = app
         self.dpr = dpr if dpr else FakeDisplayer()
 
+        # Thread Parameter
         self.is_ready = True
         self.thread_object = None
         
+        # Draw Parameter
         self.draw = None
         self.results = None
         self.event = None
 
-        self.metric = Metric()
+        # Metric
+        self.stream_metric = Metric()
         self.latency_limitor = Metric()
 
+        # RTSP Output
         self.display_latency = 1/30
 
+        # For iCAP
         self.icap_alive = 'ICAP' in SERV_CONF and not (SERV_CONF['ICAP'] is None)
 
+        # Create AsyncInference Object
         self.async_infer = AsyncInference( 
             imodel=self.model, 
             workers=1,
             freqency=self.display_latency*2)
-
         log.warning('Create a InferenceLoop')
+
+        # FPS and Running Time
+        self.fps = -1
+        self.running_time = 0
 
     def create_thread(self) -> threading.Thread:
         return threading.Thread(target=self._infer_thread, daemon=True)
@@ -897,19 +908,19 @@ class InferenceLoop:
         while( self.is_ready and self.src.is_ready):
 
             # Ready to calculate performance
-            self.metric.update(); self.latency_limitor.update()
+            self.stream_metric.update(); self.latency_limitor.update()
             
             # Setting Dynamic Variable ( thread )
             self._dynamic_change_app_setup_event()
 
-            # Get data        
+            # Get data
             ret, frame = self.src.read()
 
-            # Do Async Inference
+            # Async Inference: Submit Data and Get Result
             self.async_infer.submit_data(frame=frame)
             cur_data = self.async_infer.get_results()
 
-            # Application
+            # Run Application
             self.draw, self.results, self.event = self.app(frame, cur_data)
 
             # Display
@@ -918,10 +929,18 @@ class InferenceLoop:
             # Log
             # log.debug(cur_data)
 
+            # Make sure Inference FPS is correct
+            temp_fps = self.async_infer.get_fps()
+            self.fps = self.fps if abs(self.fps-temp_fps)>10 else temp_fps
+            
+            # Stream FPS
+            self.running_time = self.stream_metric.get_exec_time()
+
             # Send Data
             self.results.update({
-                "fps": self.async_infer.get_fps(),
-                "live_time": self.latency_limitor.get_exec_time()
+                "fps": self.fps,
+                "stream_fps": self.stream_metric.get_fps(),
+                "live_time": self.running_time
             })
             WS_CONF.update({ self.uid: self.results })
 
@@ -933,7 +952,7 @@ class InferenceLoop:
                 time.sleep(t_delay )
             
             # Calculate FPS and Update spped_limitor
-            self.metric.update()
+            self.stream_metric.update()
 
         # Check is error from source or not
         if (not self.src.is_ready) and len(self.src.errors) > 0:
