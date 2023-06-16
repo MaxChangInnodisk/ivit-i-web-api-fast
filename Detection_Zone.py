@@ -525,31 +525,14 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         if  data is None   : return False 
         return True                      
 
-    def draw_direction_result(self,result,outer_clor,font_color,frame):
-        
-        if len(result)==0:
-            id =0
-            temp_direction_result="There are {} object in area.".format(str(0))
-            
-            
-            (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
-            
-            t_xmin, t_ymin, t_xmax, t_ymax = 10, 10*id+(id*(t_hei+t_base)), 10+t_wid, 10*id+((id+1)*(t_hei+t_base))
-            
-            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
-            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
-            cv2.putText(
-                frame, temp_direction_result, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
-                self.font_size, font_color, self.font_thick, cv2.LINE_AA
-            )
+    def draw_direction_result(self,result,outer_clor,font_color,frame,area_id):
 
         for id,val in result.items():
-            
-            temp_direction_result="There are {} object in {}.".format(str(val),self.area_name[id])
+            temp_direction_result=" {} : {} object ".format(self.area_name[area_id],result[area_id])
             
             (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
             
-            t_xmin, t_ymin, t_xmax, t_ymax = 10, 10*id+(id*(t_hei+t_base)), 10+t_wid, 10*id+((id+1)*(t_hei+t_base))
+            t_xmin, t_ymin, t_xmax, t_ymax = 10, 10+10*id+(id*(t_hei+t_base)), 10+t_wid, 10+10*id+((id+1)*(t_hei+t_base))
             
             cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
             cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
@@ -694,8 +677,8 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
                 
                 outer_clor = (0,255,255)
                 font_color = (0,0,0)
-                self.draw_direction_result(self.app_thread.total,outer_clor,font_color,frame)
-
+                self.draw_direction_result(self.app_thread.total,outer_clor,font_color,frame,i)
+                
                 if self.event_handler.__contains__(i)==False:
                     continue
 

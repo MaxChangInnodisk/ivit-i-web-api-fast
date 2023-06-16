@@ -924,12 +924,12 @@ class Movement_Zone(iAPP_OBJ, event_handle):
       # print(result)
       for area_id ,area_info in enumerate(data):
         for label_id,val in enumerate(area_info['data']):
-          temp_direction_result="There are {} object {} in area {}.".format(str(val['num']),str(val['label']),self.area_name[area_id])
+          temp_direction_result=" {} ({}) : {} ".format(self.area_name[area_id],str(val['label']),str(val['num']))
           
           
           (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
           
-          t_xmin, t_ymin, t_xmax, t_ymax = 10, 10*sort_id+(sort_id*(t_hei+t_base)), 10+t_wid, 10*sort_id+((sort_id+1)*(t_hei+t_base))
+          t_xmin, t_ymin, t_xmax, t_ymax = 10, 10+10*sort_id+(sort_id*(t_hei+t_base)), 10+t_wid, 10+10*sort_id+((sort_id+1)*(t_hei+t_base))
           
           cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
           cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
@@ -1459,9 +1459,9 @@ if __name__=='__main__':
             results = model.inference(frame=frame)
           
             frame , app_output , event_output =app(frame,results)
-            print(app_output,'\n')
-            print(event_output)
-            infer_metrx.paint_metrics(frame)
+            # print(app_output,'\n')
+            # print(event_output)
+            # infer_metrx.paint_metrics(frame)
 
             # Draw FPS: default is left-top                     
             dpr.show(frame=frame)

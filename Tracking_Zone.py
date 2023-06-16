@@ -782,12 +782,12 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
         for label_id,val in enumerate(area_info['data']):
           if val['num']==0:
              continue
-          temp_direction_result="{}:{} in area {}.".format(str(val['label']),str(val['num']),self.area_name[area_id])
+          temp_direction_result="{} : {} {}".format(self.area_name[area_id],str(val['num']),str(val['label']))
           
           
           (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
           
-          t_xmin, t_ymin, t_xmax, t_ymax = 10, 10*sort_id+(sort_id*(t_hei+t_base)), 10+t_wid, 10*sort_id+((sort_id+1)*(t_hei+t_base))
+          t_xmin, t_ymin, t_xmax, t_ymax = 10, 10+10*sort_id+(sort_id*(t_hei+t_base)), 10+t_wid, 10+10*sort_id+((sort_id+1)*(t_hei+t_base))
           
           cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
           cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
@@ -1173,7 +1173,7 @@ if __name__=='__main__':
                     "areas": [
                         {
                             "name": "Area0",
-                            "depend_on": [ 
+                            "depend_on": [ 'car'
                             ],
                             "area_point": [
                                 [
@@ -1196,7 +1196,7 @@ if __name__=='__main__':
                             "events": {
                                 "title": "The daily traffic is over 2",
                                 "logic_operator": ">",
-                                "logic_value": 50,
+                                "logic_value": 100,
                             }
                         },
                         # {
@@ -1224,8 +1224,8 @@ if __name__=='__main__':
                         #         ],
                         #     }
                     ],
-                    "draw_result":True,
-                    "draw_bbox":True
+                    "draw_result":False,
+                    "draw_bbox":False
                 }
             }
     app = Tracking_Zone(app_config,args.label )
@@ -1239,8 +1239,9 @@ if __name__=='__main__':
             results = model.inference(frame=frame)
           
             frame , app_output , event_output =app(frame,results)
-            print(app_output)
-            infer_metrx.paint_metrics(frame)
+            # print(app_output)
+            # print(event_output)
+            # infer_metrx.paint_metrics(frame)
 
             # Draw FPS: default is left-top                     
             dpr.show(frame=frame)
