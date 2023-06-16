@@ -54,17 +54,34 @@ sudo ./docker/run.sh intel -q
 * We support `intel`, `xilinx`, `hailo`, `nvidia`, `jetson` now.
 
 # Install Service
-We also support sysytemctl to launch iVIT-I when boot. if your system doesn't have gui then you can select `cli` mode.
-* Usage
-    ```bash
-    Usage:  install.sh [PLATFORM] [MODE].
+We also support `sysytemctl` to launch iVIT-I when booting. you can select `cli` mode if your system doesn't have GUI and the default value is `gui` if you not set up the mode option.
 
-        - PLATFORM: support intel, xilinx, nvidia, jetson, hailo.
-        - MODE: support cli, gui. default is gui.
-    ```
-* Sample
+* Install iVIT-I-Intel service into system, it will auto launch at background
   ```bash
-  sudo ./docker/install.sh intel gui
+  sudo ./docker/install.sh intel
+  ```
+  * Usage
+      ```bash
+      Usage:  install.sh [PLATFORM] [MODE].
+  
+          - PLATFORM: support intel, xilinx, nvidia, jetson, hailo.
+          - MODE: support cli, gui. default is gui.
+      ```
+* Start iVIT-I service
+  ```bash
+  sudo systemctl start ivit-i
+  ```
+* Stop iVIT-I service
+  ```bash
+  sudo systemctl stop ivit-i
+  ```
+* Check the status of the service
+  ```bash
+  sudo systemctl status ivit-i
+  ```
+* Uninstall iVIT-I service
+  ```bash
+  sudo ./docker/uninstall.sh
   ```
 
 # Configuration
