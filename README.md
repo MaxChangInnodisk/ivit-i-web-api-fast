@@ -60,7 +60,7 @@ We also support `sysytemctl` to launch iVIT-I when booting. you can select `cli`
   ```bash
   sudo ./docker/install.sh intel
   ```
-  * Usage
+  * The usage of the installation script
       ```bash
       Usage:  install.sh [PLATFORM] [MODE].
   
