@@ -826,7 +826,7 @@ class InferenceLoop:
         self.async_infer = AsyncInference( 
             imodel=self.model, 
             workers=1,
-            freqency=0.077)
+            freqency=self.display_latency*2)
 
         log.warning('Create a InferenceLoop')
 
@@ -889,7 +889,6 @@ class InferenceLoop:
     def _infer_loop(self):
 
         log.warning('Start AI Task Inference Stream')
-        self.prev_time = time.time()
         update_task_status(self.uid, 'running')
 
         # Make sure source is ready
