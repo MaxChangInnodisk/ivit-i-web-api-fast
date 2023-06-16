@@ -780,6 +780,8 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
       # print(result)
       for area_id ,area_info in enumerate(data):
         for label_id,val in enumerate(area_info['data']):
+          if val['num']==0:
+             continue
           temp_direction_result="{}:{} in area {}.".format(str(val['label']),str(val['num']),self.area_name[area_id])
           
           
