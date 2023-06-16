@@ -697,6 +697,37 @@ def import_ai_task(file:File, url:str=None):
     }
 
 
+class EasyTimer:
+
+    def __init__(self, limit:float) -> None:
+        self._prev_time = time.time()
+        self.limit = limit
+        self._is_stop = False
+
+        self._duration = time.time()
+        
+    def stop(self):
+        self._is_stop = True
+        # log.debug(f'Stop {self.__class__.__name__}')
+    
+    def start(self):
+        self._prev_time = time.time()
+        self._is_stop = False
+        # log.debug(f'Start {self.__class__.__name__}')
+
+    def update(self):
+        self._duration = time.time()-self._prev_time
+        return self._duration
+
+    @property
+    def is_timeup(self) -> bool:
+        return (time.time() - self._prev_time) > self.limit
+    
+    @property
+    def is_stop(self) -> bool:
+        return self._is_stop
+
+
 class FakeDisplayer:
     log.warning('Initialize Fake Displayer')
     show = lambda frame: frame
@@ -709,13 +740,14 @@ class AsyncInference:
                     imodel:iModel,
                     workers:int=1,
                     freqency:float=0.066,
-                    clean_duration:int=5) -> None:
+                    clean_duration:int=1) -> None:
         """Asynchorize Inference Object
 
         Args:
             imodel (iModel): the iModel object for inference
             workers (int, optional): the maximum number of the thread. Defaults to 2.
             freqency (float, optional): the freqency of the inference. Defaults to 0.033.
+            clean_duration (int, optional): the duration of cleanning results. Defaults to 5.
         """
         self.imodel = imodel
         self.results = []
@@ -727,8 +759,9 @@ class AsyncInference:
         self.exec_time = time.time()
         self.freqency = freqency
 
-        self.clean_duration = clean_duration
-        self.clean_flag = self.clean_duration
+        # Set Timer for clean result
+        self.start_clean_timer = False
+        self.clean_timer = EasyTimer(limit=clean_duration)
 
         self.lock = threading.RLock()
 
@@ -739,6 +772,23 @@ class AsyncInference:
     def _is_full_pool(self):
         """full pool"""
         return (len(self.pools) > self.workers)
+
+    def _check_time_to_clean_results(self):
+        
+        # If no need to clean
+        if not self.start_clean_timer:
+            return
+
+        # If need clean, then keep the start time
+        if self.clean_timer.is_stop:
+            self.clean_timer.start()
+
+        # Calculate Time
+        if not self.clean_timer.is_timeup:
+            return
+        
+        self.results = []
+        self.clean_timer.stop()
 
     def infer_callback(self, result):
         """Callback function for threading pool
@@ -752,27 +802,26 @@ class AsyncInference:
             2. Pop out the first one in `self.workers`.
             3. Update timestamp `freqency`.
         """
-        
+
         # Has results then update self.results
         if len(result) != 0:
             self.lock.acquire()
             self.results = result
             self.lock.release()
-
-            self.clean_flag = self.clean_duration
-
+            
+            self.start_clean_timer = False
+        
         else:
-            self.clean_flag -= 1
+            self.start_clean_timer = True
+        
+        # Check timer every time
+        self._check_time_to_clean_results()
 
         # Keep update exec_time
         self.exec_time = time.time()
 
         # Pop out first exec
         self.pools.pop(0)
-
-        # Clear Results
-        if self.clean_flag == 0:
-            self.results = []
 
     def submit_data(self, frame:np.ndarray):
         """Create a threading for inference
@@ -800,6 +849,7 @@ class AsyncInference:
 
     def get_fps(self):
         return self.imodel.get_fps()
+
 
 class InferenceLoop:
     """ Inference Thread Helper """
@@ -933,14 +983,11 @@ class InferenceLoop:
             temp_fps = self.async_infer.get_fps()
             self.fps = self.fps if abs(self.fps-temp_fps)>10 else temp_fps
             
-            # Stream FPS
-            self.running_time = self.stream_metric.get_exec_time()
-
             # Send Data
             self.results.update({
                 "fps": self.fps,
                 "stream_fps": self.stream_metric.get_fps(),
-                "live_time": self.running_time
+                "live_time": self.stream_metric.get_exec_time()
             })
             WS_CONF.update({ self.uid: self.results })
 
