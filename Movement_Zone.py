@@ -924,7 +924,7 @@ class Movement_Zone(iAPP_OBJ, event_handle):
       # print(result)
       for area_id ,area_info in enumerate(data):
         for label_id,val in enumerate(area_info['data']):
-          temp_direction_result="There {} object {} in area {}.".format(str(val['num']),str(val['label']),self.area_name[area_id])
+          temp_direction_result="There are {} object {} in area {}.".format(str(val['num']),str(val['label']),self.area_name[area_id])
           
           
           (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
