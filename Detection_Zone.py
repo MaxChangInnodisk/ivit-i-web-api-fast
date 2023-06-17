@@ -244,28 +244,28 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.font_size  = None
         self.font_thick = None
         self.thick      = None
-        self.draw_result =self.params['application'].get('draw_result',True)
+        
         #for draw area
         self.area_name={}
-        self.draw_bbox = self.params['application'].get('draw_bbox',True)
-        self.draw_area= False
         self.area_opacity=None
         self.area_color=None
         self.area_pts = {}
         self.change_resulutuon = 1
         self.normalize_area_pts = {}
         self.area_cnt = {}
-        
-
         self.model_label = label
         self.model_label_list =[]
-        
         self.event_save_folder=event_save_folder
         self.event_uid={}
+
+        #control
+        self.draw_result =self.params['application'].get('draw_result',True)
+        self.draw_bbox = self.params['application'].get('draw_bbox',True)
+        self.draw_app_common_output = True
+        self.draw_area= False
         
         # self.pool = ThreadPool(os.cpu_count() )
         self.init_palette(palette)
-
         self.init_logic_param()
         self.app_common_start()
         self.init_event_object()
@@ -559,8 +559,9 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         if  data is None   : return False 
         return True                      
 
-    def draw_direction_result(self,result,outer_clor,font_color,frame,area_id):
-
+    def draw_app_result(self,frame,result:dict,area_id:int,outer_clor:tuple= (0,255,255),font_color:tuple=(0,0,0)):
+        if self.draw_app_common_output == False:
+            return
         for id,val in result.items():
             temp_direction_result=" {} : {} object ".format(self.area_name[area_id],result[area_id])
             
@@ -619,6 +620,7 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
             draw_area : bool , 
             draw_bbox : bool ,
             draw_result : bool ,
+            draw_app_common_output : bool ,
             palette (dict) { label(str) : color(Union[tuple, list]) },
         }
         
@@ -648,6 +650,11 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         else:
             logging.error("draw_result type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_result', self.draw_result))))
         
+        if isinstance(params.get('draw_app_common_output', self.draw_app_common_output) , bool):    
+            self.draw_app_common_output= params.get('draw_app_common_output', self.draw_app_common_output)
+            logging.info("Change draw_app_common_output mode , now draw_line mode is {} !".format(self.draw_app_common_output))
+        else:
+            logging.error("draw_app_common_output type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_line', self.draw_app_common_output))))
 
         palette = params.get('palette', None)
         if isinstance(palette, dict):
@@ -709,9 +716,8 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
                         ) 
                 self.app_thread.is_draw=False
                 
-                outer_clor = (0,255,255)
-                font_color = (0,0,0)
-                self.draw_direction_result(self.app_thread.total,outer_clor,font_color,frame,i)
+        
+                self.draw_app_result(frame,self.app_thread.total,i)
                 
                 if self.event_handler.__contains__(i)==False:
                     continue
@@ -865,7 +871,7 @@ if __name__=='__main__':
             frame , app_output , event_output =app(frame,results)
                 
             # infer_metrx.paint_metrics(frame)
-
+            
             # Draw FPS: default is left-top                     
             dpr.show(frame=frame)
 

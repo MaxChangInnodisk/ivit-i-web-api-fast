@@ -14,7 +14,7 @@ import time
 from filterpy.kalman import KalmanFilter
 
 class event_handle(threading.Thread):
-  def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int,event_save_folder:str,uid:dict):
+  def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int,event_save_folder:str,uid:str=None):
     threading.Thread.__init__(self)
     self.operator = operator
     self.thres = thres
@@ -471,6 +471,7 @@ class Movement_Zone(iAPP_OBJ, event_handle):
       self.draw_tracking=True
       self.draw_area=False
       self.is_draw_line=False
+      self.draw_app_common_output=True
 
   def _creat_MOT_tracker_for_each_area(self):
     """
@@ -932,9 +933,10 @@ class Movement_Zone(iAPP_OBJ, event_handle):
             
             cv2.line(frame, valx[0], valx[1], (0, 255, 255), 3)
 
-  def draw_total_result(self,frame:np.ndarray,result:dict,outer_clor:tuple=(0,255,255),font_color:tuple=(0,0,0)):
+  def draw_app_result(self,frame:np.ndarray,result:dict,outer_clor:tuple=(0,255,255),font_color:tuple=(0,0,0)):
     sort_id=0
-
+    if self.draw_app_common_output == False:
+      return
     for areas ,data in result.items():
       # print(result)
       for area_id ,area_info in enumerate(data):
@@ -1114,6 +1116,7 @@ class Movement_Zone(iAPP_OBJ, event_handle):
         draw_result : bool ,
         draw_tracking : bool ,
         draw_line : bool ,
+        draw_app_common_output : bool ,
         palette (dict) { label(str) : color(Union[tuple, list]) },
     }
     
@@ -1154,6 +1157,12 @@ class Movement_Zone(iAPP_OBJ, event_handle):
         logging.info("Change draw_line mode , now draw_line mode is {} !".format(self.is_draw_line))
     else:
         logging.error("draw_line type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_line', self.is_draw_line))))
+
+    if isinstance(params.get('draw_app_common_output', self.draw_app_common_output) , bool):    
+        self.draw_app_common_output= params.get('draw_app_common_output', self.draw_app_common_output)
+        logging.info("Change draw_app_common_output mode , now draw_line mode is {} !".format(self.draw_app_common_output))
+    else:
+        logging.error("draw_app_common_output type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_line', self.draw_app_common_output))))
 
     palette = params.get('palette', None)
     if isinstance(palette, dict):
@@ -1240,7 +1249,7 @@ class Movement_Zone(iAPP_OBJ, event_handle):
         event_output['event'].append(event_handler.event_output)
 
     #step8: draw total result on the left top.
-    self.draw_total_result(frame,app_output)
+    self.draw_app_result(frame,app_output)
     return (frame ,app_output,event_output)
 
 if __name__=='__main__':
@@ -1400,7 +1409,7 @@ if __name__=='__main__':
                         #         "uid":"cfd1f399",
                         #         "title": "Detect the traffic flow between Taipei and Xi Zhi ",
                         #         "logic_operator": ">",
-                        #         "logic_value": 10,
+                        #         "logic_value": 1,
                                 
                         #     }
                     },

@@ -469,6 +469,7 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
       self.draw_result=self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else False
       self.draw_tracking=True
       self.draw_area=False
+      self.draw_app_common_output = True
 
   def _creat_MOT_tracker_for_each_area(self):
     """
@@ -785,9 +786,10 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
           _temp_count=_temp_count+tracker.changeable_total
     return _temp_count
   
-  def draw_total_result(self,frame:np.ndarray,result:dict,outer_clor:tuple=(0,255,255),font_color:tuple=(0,0,0)):
+  def draw_app_result(self,frame:np.ndarray,result:dict,outer_clor:tuple=(0,255,255),font_color:tuple=(0,0,0)):
     sort_id=0
-
+    if self.draw_app_common_output == False:
+      return
     for areas ,data in result.items():
       # print(result)
       for area_id ,area_info in enumerate(data):
@@ -968,6 +970,7 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
         draw_bbox : bool ,
         draw_result : bool ,
         draw_tracking : bool ,
+        draw_app_common_output : bool ,
         palette (dict) { label(str) : color(Union[tuple, list]) },
     }
     
@@ -1002,6 +1005,12 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
         logging.info("Change draw_tracking mode , now draw_tracking mode is {} !".format(self.draw_tracking))
     else:
         logging.error("draw_tracking type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_tracking', self.draw_tracking))))
+
+    if isinstance(params.get('draw_app_common_output', self.draw_app_common_output) , bool):    
+        self.draw_app_common_output= params.get('draw_app_common_output', self.draw_app_common_output)
+        logging.info("Change draw_app_common_output mode , now draw_line mode is {} !".format(self.draw_app_common_output))
+    else:
+        logging.error("draw_app_common_output type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_line', self.draw_app_common_output))))
 
     palette = params.get('palette', None)
     if isinstance(palette, dict):
@@ -1088,7 +1097,7 @@ class Tracking_Zone(iAPP_OBJ, event_handle):
         event_output['event'].append(event_handler.event_output)
 
     #step7: draw total result on the left top.
-    self.draw_total_result(frame,app_output)
+    self.draw_app_result(frame,app_output)
     return (frame ,app_output,event_output)
 
 if __name__=='__main__':
@@ -1250,10 +1259,8 @@ if __name__=='__main__':
             frame = src.read()
             
             results = model.inference(frame=frame)
-
-            a=time.time()
             frame , app_output , event_output =app(frame,results)
-            print(time.time()-a)
+            
             # print(app_output)
             # print(event_output)
             # infer_metrx.paint_metrics(frame)
