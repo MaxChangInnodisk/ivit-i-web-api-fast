@@ -26,8 +26,10 @@ class Basic_Classification(iAPP_CLS):
         self.FONT_SCALE      = 1
         self.FONT_THICK      = cv2.LINE_AA
         self.FONT_THICKNESS  = 1
-        
-
+        self.WIDTH_SPACE = 10
+        self.HIGHT_SPACE = 10
+        self.OPACITY = 0.4
+    
     def _init_palette(self,palette:dict):
         """
         We will deal all color we need there.
@@ -63,7 +65,20 @@ class Basic_Classification(iAPP_CLS):
             list: (B,G,R).
         """
         return self.palette[label]        
+    
+    def _update_draw_param(self,frame:np.ndarray):
+        """
+            Accourding to the resolution of frame to modify draw size.
+        Args:
+            frame (np.ndarray): input image.
+
+        """
         
+        self.FONT_SCALE = 1 *int(((frame.shape[1]/640)+(frame.shape[0]/425))/2)
+        self.FONT_THICKNESS = 2 *int((frame.shape[1]/640))
+        self.WIDTH_SPACE = 10 * (frame.shape[1]//640)
+        self.HIGHT_SPACE = 10 * (frame.shape[0]//425)
+
     def _check_depend(self, label:str):
         """
             Check label whether in the depend on or not.
@@ -78,7 +93,30 @@ class Basic_Classification(iAPP_CLS):
         if len(self.depend_on)>0:
             ret = (label in self.depend_on)
         return ret
+    
+    def draw_app_result(self,frame,result:dict,id,color:tuple= (255,255,255)):
+        outer_clor=color
+        font_color = (255-color[0],255-color[1],255-color[2])
+        overlay = frame.copy()
 
+        (t_wid, t_hei), t_base = cv2.getTextSize(result, cv2.FONT_HERSHEY_SIMPLEX, self.FONT_SCALE, self.FONT_THICKNESS)
+        
+        t_xmin, t_ymin, t_xmax, t_ymax = int(self.WIDTH_SPACE), int(self.HIGHT_SPACE+self.HIGHT_SPACE*id+(id*(t_hei+t_base))), \
+        int(self.WIDTH_SPACE+t_wid), int(self.HIGHT_SPACE+self.HIGHT_SPACE*id+((id+1)*(t_hei+t_base)))
+        
+        # cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
+        point = np.array([[t_xmin, t_ymin],[t_xmax,t_ymin],[t_xmax, t_ymax+t_base],[t_xmin,t_ymax+t_base]])
+
+        
+        
+        cv2.fillPoly(overlay, pts=[point], color=outer_clor)
+        frame = cv2.addWeighted( frame, 1-self.OPACITY, overlay, self.OPACITY, 0 )
+
+        
+        
+        return cv2.putText(frame, result, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
+            self.FONT_SCALE, font_color, self.FONT_THICKNESS, cv2.LINE_AA)
+        
     def set_draw(self,params:dict):
         """
         Control anything about drawing.
@@ -122,35 +160,35 @@ class Basic_Classification(iAPP_CLS):
         Returns:
             tuple:We will return the frame that finished painting and sort out infomation.
         """
+        self._update_draw_param(frame)
         
         app_output = { "areas":[{"id":0,"name":"default","data":[]}] }
-
+        
         for idx, label, score in detections:
            
             # Checking Depend
             if not self._check_depend(label): continue
-
+            
             # Draw something                
             content     = '{} {:.1%}'.format(label, score)
-            ( text_width, text_height), text_base \
-                = cv2.getTextSize(content, self.FONT, self.FONT_SCALE, self.FONT_THICKNESS)
-            xmin        = 10
-            ymin        = 10 + len(app_output['areas'][0]['data'])*(text_height+text_base)
-            xmax        = xmin + text_width
-            ymax        = ymin + text_height  
-            app_output['areas'][0]['data'].append({"label":label,"score":score})
-
             cur_color = self.get_color(label)
+            frame = self.draw_app_result(frame,content,idx,cur_color)
+            # ( text_width, text_height), text_base \
+            #     = cv2.getTextSize(content, self.FONT, self.FONT_SCALE, self.FONT_THICKNESS)
+            # xmin        = self.WIDTH_SPACE
+            # ymin        = self.HIGHT_SPACE + len(app_output['areas'][0]['data'])*(text_height+text_base)
+            # xmax        = xmin + text_width
+            # ymax        = ymin + text_height  
+            # app_output['areas'][0]['data'].append({"label":label,"score":score})
+
+            # cur_color = self.get_color(label)
             
-
-            cv2.putText(
-                frame, content, (xmin, ymax), self.FONT,
-                self.FONT_SCALE, cur_color, self.FONT_THICKNESS, self.FONT_THICK
-            )      
-
+            # cv2.putText(
+            #     frame, content, (xmin, ymax), self.FONT,
+            #     self.FONT_SCALE, cur_color, self.FONT_THICKNESS, self.FONT_THICK
+            # )    
+            
         return ( frame, app_output, {} )
-
-
 
 if __name__=='__main__':
     import logging as log
@@ -249,7 +287,7 @@ if __name__=='__main__':
             frame , app_output , event_output =app(frame,detections)
     
             # Draw FPS: default is left-top                     
-            infer_metrx.paint_metrics(frame)
+            # infer_metrx.paint_metrics(frame)
             
             # Display
             dpr.show(frame=frame)                   
