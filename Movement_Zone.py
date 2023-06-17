@@ -541,7 +541,8 @@ class Movement_Zone(iAPP_OBJ, event_handle):
       BASE_THICK      = 1         # Setup Basic Thick Value
       BASE_FONT_SIZE  = 0.5   # Setup Basic Font Size Value
       FONT_SCALE      = 0.2   # Custom Value which Related with the size of the font.
-
+      WIDTH_SPACE = 10
+      HIGHT_SPACE = 10
       # Get Frame Size
       self.frame_size = frame.shape[:2]
       
@@ -555,6 +556,9 @@ class Movement_Zone(iAPP_OBJ, event_handle):
 
       self.area_color=[0,0,255]
       self.area_opacity=0.4  
+
+      self.WIDTH_SPACE = int(scale*WIDTH_SPACE) 
+      self.HIGHT_SPACE = int(scale*HIGHT_SPACE) 
 
   def _init_event_param(self,event_save_folder:str="event"):
     """ Initialize Event Parameters """
@@ -946,7 +950,8 @@ class Movement_Zone(iAPP_OBJ, event_handle):
           
           (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
           
-          t_xmin, t_ymin, t_xmax, t_ymax = 10, 10+10*sort_id+(sort_id*(t_hei+t_base)), 10+t_wid, 10+10*sort_id+((sort_id+1)*(t_hei+t_base))
+          t_xmin, t_ymin, t_xmax, t_ymax = self.WIDTH_SPACE, self.HIGHT_SPACE+self.HIGHT_SPACE*sort_id+(sort_id*(t_hei+t_base)), \
+            self.WIDTH_SPACE+t_wid, self.HIGHT_SPACE+self.HIGHT_SPACE*sort_id+((sort_id+1)*(t_hei+t_base))
           
           cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
           cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
