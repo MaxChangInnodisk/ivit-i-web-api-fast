@@ -164,29 +164,18 @@ class Basic_Classification(iAPP_CLS):
         
         app_output = { "areas":[{"id":0,"name":"default","data":[]}] }
         
+        object_count = 0
         for idx, label, score in detections:
-           
+            
             # Checking Depend
             if not self._check_depend(label): continue
             
             # Draw something                
-            content     = '{} {:.1%}'.format(label, score)
+            content     = ' {} {:.1%} '.format(label, score)
             cur_color = self.get_color(label)
-            frame = self.draw_app_result(frame,content,idx,cur_color)
-            # ( text_width, text_height), text_base \
-            #     = cv2.getTextSize(content, self.FONT, self.FONT_SCALE, self.FONT_THICKNESS)
-            # xmin        = self.WIDTH_SPACE
-            # ymin        = self.HIGHT_SPACE + len(app_output['areas'][0]['data'])*(text_height+text_base)
-            # xmax        = xmin + text_width
-            # ymax        = ymin + text_height  
-            # app_output['areas'][0]['data'].append({"label":label,"score":score})
-
-            # cur_color = self.get_color(label)
+            frame = self.draw_app_result(frame,content,object_count,cur_color)
+            object_count+=1
             
-            # cv2.putText(
-            #     frame, content, (xmin, ymax), self.FONT,
-            #     self.FONT_SCALE, cur_color, self.FONT_THICKNESS, self.FONT_THICK
-            # )    
             
         return ( frame, app_output, {} )
 
