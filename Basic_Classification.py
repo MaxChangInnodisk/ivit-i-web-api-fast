@@ -74,7 +74,7 @@ class Basic_Classification(iAPP_CLS):
 
         """
         WIDTH_SCALE=(frame.shape[1]//640) if (frame.shape[1]//640)>=1 else 1
-        HIGHT_SCALE=(frame.shape[0]//640) if (frame.shape[0]//640)>=1 else 1
+        HIGHT_SCALE=(frame.shape[0]//640) if (frame.shape[0]//425)>=1 else 1
 
         self.FONT_SCALE = 1 *((WIDTH_SCALE+HIGHT_SCALE)//2)
         self.FONT_THICKNESS = 2 * ((WIDTH_SCALE+HIGHT_SCALE)//2)
