@@ -73,11 +73,13 @@ class Basic_Classification(iAPP_CLS):
             frame (np.ndarray): input image.
 
         """
-        
-        self.FONT_SCALE = 1 *int(((frame.shape[1]/640)+(frame.shape[0]/425))/2)
-        self.FONT_THICKNESS = 2 *int((frame.shape[1]/640))
-        self.WIDTH_SPACE = 10 * (frame.shape[1]//640)
-        self.HIGHT_SPACE = 10 * (frame.shape[0]//425)
+        WIDTH_SCALE=(frame.shape[1]//640) if (frame.shape[1]//640)>=1 else 1
+        HIGHT_SCALE=(frame.shape[0]//640) if (frame.shape[0]//640)>=1 else 1
+
+        self.FONT_SCALE = 1 *((WIDTH_SCALE+HIGHT_SCALE)//2)
+        self.FONT_THICKNESS = 2 * ((WIDTH_SCALE+HIGHT_SCALE)//2)
+        self.WIDTH_SPACE = 10 * WIDTH_SCALE
+        self.HIGHT_SPACE = 10 * HIGHT_SCALE
 
     def _check_depend(self, label:str):
         """
@@ -112,7 +114,7 @@ class Basic_Classification(iAPP_CLS):
         cv2.fillPoly(overlay, pts=[point], color=outer_clor)
         frame = cv2.addWeighted( frame, 1-self.OPACITY, overlay, self.OPACITY, 0 )
 
-        
+       
         
         return cv2.putText(frame, result, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
             self.FONT_SCALE, font_color, self.FONT_THICKNESS, cv2.LINE_AA)
@@ -174,9 +176,12 @@ class Basic_Classification(iAPP_CLS):
             content     = ' {} {:.1%} '.format(label, score)
             cur_color = self.get_color(label)
             frame = self.draw_app_result(frame,content,object_count,cur_color)
+            
             object_count+=1
-            
-            
+            app_output['areas'][0]['data'].append({"label":label,"score":score})
+        # cv2.putText(frame, "asdasdasdasdas", (int(frame.shape[1]/2), int(frame.shape[0]/2)), cv2.FONT_HERSHEY_SIMPLEX,
+        #     self.FONT_SCALE, (255,255,255), self.FONT_THICKNESS, cv2.LINE_AA)    
+        # print(app_output)
         return ( frame, app_output, {} )
 
 if __name__=='__main__':
