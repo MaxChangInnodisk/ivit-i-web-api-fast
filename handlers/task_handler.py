@@ -434,7 +434,7 @@ def add_ai_task(add_data):
 
     # Model Setting
     threshold = add_data.model_setting['confidence_threshold']
-    if threshold < 0.1 or threshold > 1.0:
+    if threshold < 0.01 or threshold > 1.0:
         errors.update( {"confidence_threshold": "Invalid confidence threshold, should in range 0 to 1"})
     
     if len(errors.keys())>0:
