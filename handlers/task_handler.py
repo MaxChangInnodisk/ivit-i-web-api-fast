@@ -237,6 +237,13 @@ def run_ai_task(uid:str, data:dict=None) -> str:
     7. Create InferenceLoop and keep in RT_CONF[<uid>]['EXEC']
     8. Start source and Start InferenceLoop
     """
+    
+    # NOTE: Hailo only support one task running
+    if SERV_CONF["PLATFORM"] == "hailo":
+        running_tasks = select_data(table='task', data=['uid'], condition=f"WHERE status='running'")
+        if len(running_tasks) >0:
+            raise RuntimeError('Not support multiple AI task !!!')
+    
     # Get Task Information
     task = select_data(table='task', data="*", condition=f"WHERE uid='{uid}'")
 
