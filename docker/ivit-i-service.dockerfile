@@ -14,9 +14,4 @@ RUN pip3 install --no-cache-dir \
     "uvicorn[standard]" \
     python-multipart
 
-# For Application
-RUN pip3 install \
-    filterpy==1.4.5 \
-    lap==0.4.0
-
 CMD [ "bash" ]
