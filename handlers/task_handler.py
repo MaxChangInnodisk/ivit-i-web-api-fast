@@ -214,9 +214,20 @@ def verify_duplicate_task(task_name:str, duplicate_limit=2):
 
 
 def verify_thres(threshold:float):
-    if threshold < 0.1 and threshold > 1.0:
+    if threshold < 0.01 and threshold > 1.0:
         raise ValueError('Threshold value should in range 0 to 1')
 
+
+def check_single_task_for_hailo():
+
+    # NOTE: Hailo only support one task running
+    if SERV_CONF["PLATFORM"] != "hailo":
+        return
+
+    running_tasks = select_data(table='task', data=['uid'], condition=f"WHERE status='running'")
+    if len(running_tasks) >0:
+        raise RuntimeError('Not support multiple AI task !!!')
+    
 
 # --------------------------------------------------------
 # Execute AI Task
@@ -238,12 +249,9 @@ def run_ai_task(uid:str, data:dict=None) -> str:
     8. Start source and Start InferenceLoop
     """
     
-    # NOTE: Hailo only support one task running
-    if SERV_CONF["PLATFORM"] == "hailo":
-        running_tasks = select_data(table='task', data=['uid'], condition=f"WHERE status='running'")
-        if len(running_tasks) >0:
-            raise RuntimeError('Not support multiple AI task !!!')
-    
+    # Checking single task
+    check_single_task_for_hailo()
+
     # Get Task Information
     task = select_data(table='task', data="*", condition=f"WHERE uid='{uid}'")
 
@@ -426,8 +434,10 @@ def add_ai_task(add_data):
         results = db_to_list(cur.execute("""SELECT uid FROM model WHERE uid=\"{}\" """.format(add_data.model_uid)))
         if is_list_empty(results):
             errors.update( {"model_uid": "Unkwon model UID: {}".format(add_data.model_uid)} )
+    
     except Exception as e:
         log.exception(e)
+
     finally:
         # Close DB
         close_db(con, cur)
@@ -437,6 +447,7 @@ def add_ai_task(add_data):
     if threshold < 0.01 or threshold > 1.0:
         errors.update( {"confidence_threshold": "Invalid confidence threshold, should in range 0 to 1"})
     
+    # Find Error and return errors
     if len(errors.keys())>0:
         return {
         "uid": task_uid,
