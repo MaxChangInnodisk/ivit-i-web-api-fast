@@ -49,17 +49,20 @@ def update_service_config_at_first(config_path:str='ivit-i.json'):
     
     for key, val in json_data.items():
         
+        if key in "WEB":
+            trg_conf["WEB_PORT"] = val
+
         if not (key in [ "SERVICE", "MQTT", "ICAP" ]):
             trg_conf[key] = val
             log.info('({}) Update {}: {}'.format(trg_conf.get_name, key, val))
             continue
-
+        
         for sub_key, sub_val in val.items():
             # Point to target config object
             if key == "ICAP": trg_conf = ICAP_CONF
             else: trg_conf = SERV_CONF
             # Modify key and value
-            trg_conf[sub_key] = sub_val                        
+            trg_conf[sub_key] = sub_val
             log.info('({}) Update {}: {}'.format( trg_conf.get_name, sub_key, sub_val))
 
     # Update FRAMEWORK
@@ -92,7 +95,7 @@ SERV_CONF = ConfigWrapper(
         TEMP_DIR = 'temp',
         NGINX_PORT = "6632",
         RTSP_PORT = "8554",
-        WEB_PORT = "4999",
+        WEB_PORT = "8001",
         IDEV = iDevice()
 )
 
