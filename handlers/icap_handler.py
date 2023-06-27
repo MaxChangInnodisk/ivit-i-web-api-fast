@@ -177,11 +177,15 @@ class ICAP_HANDLER():
             dict_printer(title='Subscribe Topics:', data=topics) 
 
             # Send Shared Attribute to iCAP
+            host_addr = get_address()
+            if not (SERV_CONF["WEB_PORT"] is None):
+                host_addr = host_addr + f':{SERV_CONF["WEB_PORT"]}'
+                log.warning('Website address is : {}'.format(host_addr))
+
             basic_attr = {
-                    "ivitUrl": get_address(),
+                    "ivitUrl": host_addr,
                     "ivitTask": task_handler.get_task_info()
             }
-
             self.send_attr(data = basic_attr)
             
             dict_printer(
