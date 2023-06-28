@@ -17,15 +17,12 @@ cd $(dirname ${ROOT})
 # ========================================================
 # Basic Parameters
 CONF="ivit-i.json"
+COMPOSE="${ROOT}/compose.yml"
 TEMP=".temp"
 
 # ========================================================
 # Check configuration is exit
 check_config ${CONF}
-
-# ========================================================
-# Split Platform and Other option
-check_jq
 
 # ========================================================
 # Check platform
@@ -67,6 +64,16 @@ OPTS=${OPT_ARR[@]}
 
 # Modify Configuration
 jq --arg a "${PLATFORM}" '.PLATFORM = $a' ${CONF} > ${TEMP} && mv -f ${TEMP} ${CONF} 
+
+# Update Docker Compose
+# ========================================================
+# Split Platform and Other option
+check_jq
+API_PORT=$(cat "${CONF}" | jq -r '.SERVICE.PORT')
+NGINX_PORT=$(cat "${CONF}" | jq -r '.NGINX.PORT')
+
+update_compose_env ${COMPOSE} "NGINX_PORT=${NGINX_PORT}"
+update_compose_env ${COMPOSE} "API_PORT=${API_PORT}" 
 
 # ========================================================
 # Download submodule
