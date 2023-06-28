@@ -435,7 +435,7 @@ def register_tb_device(tb_url):
             config = json.load(f)
 
         # Update config 
-        config["ICAP"]["DEVICE_NAME"] = dev_tail
+        # config["ICAP"]["DEVICE_NAME"] = dev_tail
         with open(SERV_CONF["CONFIG_PATH"], "w") as f:
             json.dump(config, f, indent=4)
 
