@@ -42,6 +42,9 @@ DOCKER_ROOT=$(dirname "${FILE}")
 ROOT=$(dirname "${DOCKER_ROOT}")
 source "${DOCKER_ROOT}/utils.sh"
 
+# Make sure submodule is downlaod
+git submodule update --init || echo "Already initailized."
+
 # Select .service file ( cli, gui )
 TITLE=""
 if [[ ${MODE} = "cli" ]];then
