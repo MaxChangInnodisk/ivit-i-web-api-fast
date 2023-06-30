@@ -65,3 +65,15 @@ async def remove_model_proc_list(uid:str):
         mesg = "Not found process"
         return http_msg( content=mesg, status_code = 500 )
 
+@proc_router.delete("/process")
+async def remove_model_proc_list():
+
+    try:
+        check_proc()
+        SERV_CONF["PROC"] = {}
+        return http_msg( content = 'Clear all process', status_code = 200 )
+
+    except Exception as e:
+        mesg = "Not found process"
+        return http_msg( content=mesg, status_code = 500 )
+
