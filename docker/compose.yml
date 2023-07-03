@@ -1,5 +1,5 @@
 # YAML
-version: '3'
+version: '3.7'
 services:
   rtsp:
     image: aler9/rtsp-simple-server
@@ -22,7 +22,17 @@ services:
       - NGINX_PORT=6632
       - API_PORT=819
       - RTC_PORT=8083
-      - WEB_PORT=4999
   website:
     image: jordan007/iviti-wa:v013
-    network_mode: host
+    ports:
+      - "8001:8001" # 外部露出開放的 port 對應到 docker container 的 port
+    networks:
+      ivit_net:
+        ipv4_address: 172.40.0.4
+
+networks:
+  ivit_net:
+    name: ivit_net
+    ipam:
+      config:
+        - subnet: 172.40.0.0/24
