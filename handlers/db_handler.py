@@ -317,6 +317,7 @@ def parse_task_data(data: Union[dict, sqlite3.Cursor]) -> dict:
     Returns:
         dict: Support key is: uid, name, source_uid, model_uid, model_setting, status, device, error
     """
+
     return {
         "uid": data[0],
         "name": data[1],
@@ -325,7 +326,7 @@ def parse_task_data(data: Union[dict, sqlite3.Cursor]) -> dict:
         "model_setting": json.loads(data[4]),
         "status": data[5],
         "device": data[6],
-        "error": data[7]
+        "error": data[7] if data[7] != '{}' else None
     }
 
 
