@@ -36,9 +36,15 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. you can use iVIT-T t
 
 
 # Requirements
+*** *Notice: you have to install `GPU driver` and `nvidia-docker-toolkit` if you are using `NVIDIA` or `Jetson` platform.* ***
+
 * [Docker 20.10 + ](https://docs.docker.com/engine/install/ubuntu/)
-* [Docker-Compose v2.15.1 ](https://docs.docker.com/compose/install/linux/#install-using-the-repository)
-    * you can check via `docker compose version`
+  * `Docker Compose` > `v2.15.X`
+    * **[ VERIFY ]** Use this command ( `docker compose version` ).
+    * **[ INSTALL ]** Install docker compose by following this [document](https://docs.docker.com/compose/install/linux/#install-using-the-repository) if you don't have docker compose.
+    
+* ( OPT ) [NVIDIA GPU Driver](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#nvidia-drivers)
+* ( OPT ) [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#step-1-install-nvidia-container-toolkit)
 
 
 # Quick Start
@@ -54,7 +60,7 @@ sudo ./docker/run.sh intel -q
 * We support `intel`, `xilinx`, `hailo`, `nvidia`, `jetson` now.
 
 # Install Service
-We also support `sysytemctl` to launch iVIT-I when booting. you can select `cli` mode if your system doesn't have GUI and the default value is `gui` if you not set up the mode option.
+We also support `systemctl` to launch iVIT-I when booting. you can select `cli` mode if your system doesn't have GUI and the default value is `gui` if you not set up the mode option.
 
 * Install iVIT-I-Intel service into system, it will auto launch at background
   ```bash
