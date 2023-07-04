@@ -36,7 +36,7 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. you can use iVIT-T t
 
 
 # Requirements
-*** *Notice: you have to install `GPU driver` and `nvidia-docker-toolkit` if you are using `NVIDIA` or `Jetson` platform.* ***
+*** *Notice: `GPU driver` and `nvidia-docker-toolkit` are required for `NVIDIA` or `Jetson` platforms.* ***
 
 * [Docker 20.10 + ](https://docs.docker.com/engine/install/ubuntu/)
   * `Docker Compose` > `v2.15.X`
