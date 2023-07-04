@@ -120,7 +120,7 @@ def get_task_info(uid:str=None):
             source_name = None
             return_errors.append( InvalidUidError(f'Got invalid source uid: {source_uid}') )
         else:
-            source_name = results[0]
+            source_name = results[0][0]
 
         # Model
         results = select_column_by_uid(cur, 'model', model_uid, ["name", "type"])
@@ -136,7 +136,7 @@ def get_task_info(uid:str=None):
             return_errors.append( InvalidUidError(f'Got invalid application uid: {app_uid}') )
             app_name = None
         else:
-            app_name = results[0]
+            app_name = results[0][0]
 
         # Add More Data
         info.update({
