@@ -129,6 +129,11 @@ async def execute_task(exec_data: TaskAction):
         
         mesg = func(uid=uid, data=data)
 
+        # NOTE: Avoid sending loading status to front end.
+        while(task_handler.get_task_status(uid=uid)=='loading'):
+            print('Loading AI Tasks ...')
+            time.sleep(1e-3)
+
         return http_msg( content = mesg, status_code = 200 )
 
     except Exception as e:
@@ -149,7 +154,7 @@ def add_task(add_data: AddTaskFormat):
     try:
     
         ret = task_handler.add_ai_task(add_data=add_data)
-    
+
         code = 200 if ret['status']=='success' else 500
     
         return http_msg(content=ret, status_code=code)
