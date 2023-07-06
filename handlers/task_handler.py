@@ -224,7 +224,7 @@ def check_single_task_for_hailo():
     if SERV_CONF["PLATFORM"] != "hailo":
         return
 
-    running_tasks = select_data(table='task', data=['uid'], condition=f"WHERE status='running'")
+    running_tasks = select_data(table='task', data=['uid'], condition=f"WHERE status='run'")
     if len(running_tasks) >0:
         raise RuntimeError('Not support multiple AI task !!!')
     
@@ -239,7 +239,7 @@ def run_ai_task(uid:str, data:dict=None) -> str:
     1. Check task is exist
     2. Parse task information
     3. Check task status
-        If running then return message; 
+        If run then return message; 
         If stop or error then keep going; 
         If loading then wait for N seconds ( default is 20 ).
     4. Get model information and load model
@@ -270,7 +270,7 @@ def run_ai_task(uid:str, data:dict=None) -> str:
 
         status = get_task_status(uid)
         
-        if status == 'running':
+        if status == 'run':
             mesg = 'AI Task is running'
             log.warn(mesg)
             return mesg    
@@ -376,7 +376,7 @@ def stop_ai_task(uid:str, data:dict=None):
     task_info = parse_task_data(task)
     source_uid=  task_info['source_uid']
 
-    if get_task_status(uid=uid)!='running':
+    if get_task_status(uid=uid)!='run':
         mesg = 'AI Task is stopped !'
         return mesg
 
@@ -975,7 +975,7 @@ class InferenceLoop:
     def _infer_loop(self):
 
         log.warning('Start AI Task Inference Stream')
-        update_task_status(self.uid, 'running')
+        update_task_status(self.uid, 'run')
 
         # Make sure source is ready
         while( self.is_ready and self.src.is_ready):

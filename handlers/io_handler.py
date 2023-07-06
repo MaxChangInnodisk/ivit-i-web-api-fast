@@ -75,7 +75,7 @@ def is_source_using(source_uid:str) -> Tuple[bool, str]:
     if is_list_empty(data):
         return (flag, mesg)
 
-    using_tasks = [ uid for uid, status in data if status == 'running' ]
+    using_tasks = [ uid for uid, status in data if status == 'run' ]
     flag = (len(using_tasks)>=1)
     if not flag:
         return (flag, mesg)
@@ -102,7 +102,7 @@ def is_src_loaded(source_uid) -> bool:
 
         status = get_src_status(source_uid)
         
-        if status in [ 'running',  "loaded" ]:
+        if status in [ 'run',  "loaded" ]:
             src = RT_CONF[K_SRC].get(source_uid)
             if src is None:
                 break
@@ -177,7 +177,7 @@ def start_source(source_uid:str):
     """Start source"""
     src = create_source(source_uid)
     src.start()
-    update_src_status(source_uid, 'running')
+    update_src_status(source_uid, 'run')
 
 
 def stop_source(source_uid:str):
