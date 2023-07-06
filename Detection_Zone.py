@@ -265,6 +265,7 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         self.draw_area= False
         
         # self.pool = ThreadPool(os.cpu_count() )
+
         self.init_palette(palette)
         self.init_logic_param()
         self.app_common_start()
@@ -449,7 +450,12 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
             cv2.fillPoly(tmp,[poly],1)
             self.area_mask.update({i:tmp})
 
+    def init_area_total(self,total):
+        for i ,val in total.items():
+            total.update({i:0})
 
+        return total
+    
     def app_common_start(self)    :
         
         self.app_thread=app_common_handle(self.params, self.area_mask, self.depend_on, self.total, self.app_output, self.area_pts, self.area_name, self.sensitivity)
@@ -569,7 +575,8 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         if self.draw_app_common_output == False:
             return
         for id,val in result.items():
-            temp_direction_result=" {} : {} object ".format(self.area_name[area_id],result[area_id])
+
+            temp_direction_result=" {} : {} object ".format(self.area_name[id],result[id])
             
             (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
             
@@ -698,7 +705,7 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
         if cv2.waitKey(1) in [ ord('c'), 99 ]: self.draw_area= self.draw_area^1
         frame = self.draw_area_event(frame, self.draw_area)
 
-        self.app_thread.total={}
+        self.app_thread.total=self.init_area_total(self.app_thread.total)
         self.app_thread.app_output={}
         self.event_output={'event':[]}
         
@@ -723,7 +730,7 @@ class Detection_Zone(iAPP_OBJ,event_handle,app_common_handle):
                         ) 
                 self.app_thread.is_draw=False
                 
-        
+               
                 self.draw_app_result(frame,self.app_thread.total,i)
                 
                 if self.event_handler.__contains__(i)==False:
@@ -854,6 +861,36 @@ if __name__=='__main__':
                         [
                             0.356,
                             0.812
+                        ]
+                    ],
+                    "events": {
+                        "uid":"cfd1f399",
+                        "title": "Traffic is very heavy",
+                        "logic_operator": ">",
+                        "logic_value": 1,
+                    }
+                },
+                {
+                    "name": "Area1",
+                    "depend_on": [
+                        "car",
+                    ],
+                    "area_point": [
+                        [
+                            0.456,
+                            0.383
+                        ],
+                        [
+                            0.538,
+                            0.203
+                        ],
+                        [
+                            0.568,
+                            0.312
+                        ],
+                        [
+                            0.456,
+                            0.212
                         ]
                     ],
                     "events": {
