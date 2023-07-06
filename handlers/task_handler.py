@@ -522,7 +522,12 @@ def edit_ai_task(edit_data):
     )
     
     # Add App Information into Database
-    app_type = select_data(table='app', data=['type'], condition=f"WHERE name='{edit_data.app_name}'")[0][0]
+    # app_type = select_data(table='app', data=['type'], condition=f"WHERE name='{edit_data.app_name}'")[0][0]
+    try:
+        app_type = select_data(table='app', data=['type'], condition=f"WHERE name='{edit_data.app_name}'")[0][0]
+    except:
+        app_type = select_data(table='app', data=['type'], condition=f"WHERE name='{edit_data.app_name}'")[0]
+    # print('\n\n', app_type)    
     insert_data(
         table="app",
         data={
@@ -989,7 +994,13 @@ class InferenceLoop:
             cur_data = self.async_infer.get_results()
 
             # Run Application
-            self.draw, self.results, self.event = self.app(frame, cur_data)
+            try:
+                _draw, _results, _event = self.app(copy.deepcopy(frame), cur_data)
+                
+                self.draw, self.results, self.event = _draw, _results, _event
+            except Exception as e:
+                log.warning('Run Application Error')
+                log.exception(e)
 
             # Display
             self.dpr.show(self.draw)
