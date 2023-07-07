@@ -23,6 +23,7 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. you can use iVIT-T t
 - [Quick Start](#quick-start)
   - [Prepare Repository](#prepare-repository)
   - [Run `service` quickly with platform.](#run-service-quickly-with-platform)
+  - [Vitis Web Site](#vitis-web-site)
 - [Install Service](#install-service)
 - [Configuration](#configuration)
 - [About Running Scripts](#about-running-scripts)
@@ -58,6 +59,11 @@ git clone -b r1.1 https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-
 sudo ./docker/run.sh intel -q
 ```
 * We support `intel`, `xilinx`, `hailo`, `nvidia`, `jetson` now.
+
+## Vitis Web Site
+* Open Browser and enter the url: [http://127.0.0.1:8001](http://127.0.0.1:8001)
+* Entrance
+  ![ivit-i-entrance](assets/images/ivit-i-entrance.png)
 
 # Install Service
 We also support `systemctl` to launch iVIT-I when booting. you can select `cli` mode if your system doesn't have GUI and the default value is `gui` if you not set up the mode option.
