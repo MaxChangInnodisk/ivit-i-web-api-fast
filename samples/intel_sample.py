@@ -15,20 +15,20 @@ import logging as log
 try:
     from .imagenet import IMAGE_NET_LABEL
     from .coco import COCO_LABEL
-    from .utils import download_data, download_model
+    from .utils import download_data, download_model, load_palette
 except:
     from imagenet import IMAGE_NET_LABEL
     from coco import COCO_LABEL
-    from utils import download_data, download_model
+    from utils import download_data, download_model, load_palette
 
 try:
     from ..common import SERV_CONF
     from ..utils import gen_uid, json_to_str
-    from ..handlers import db_handler
+    from ..handlers import db_handler, model_handler
 except:
     from common import SERV_CONF
     from utils import gen_uid, json_to_str
-    from handlers import db_handler
+    from handlers import db_handler, model_handler
 
 
 def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
@@ -68,11 +68,17 @@ def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
         "topk": 3
     }
 
+    # Get label and palette
+    data = model_handler.parse_model_folder(os.path.join(SERV_CONF["MODEL_DIR"], model_name))
+    label_path = data["label_path"]
+    trg_palette = load_palette(label_path=label_path)
+
     app_name = 'Basic_Classification'
     app_type = 'CLS'
     app_uid = task_uid
     app_setting = {
         "application": {
+            "palette":trg_palette ,
             "areas": [
                 {
                     "name": "default",
@@ -163,11 +169,17 @@ def intel_sample_obj(db_path: str = SERV_CONF["DB_PATH"]):
         "confidence_threshold": 0.5
     }
 
+    # Get label and palette
+    data = model_handler.parse_model_folder(os.path.join(SERV_CONF["MODEL_DIR"], model_name))
+    label_path = data["label_path"]
+    trg_palette = load_palette(label_path=label_path)
+
     app_name = 'Basic_Object_Detection'
     app_type = 'OBJ'
     app_uid = task_uid
     app_setting = {
         "application": {
+            "palette":trg_palette,
             "areas": [
                 {
                     "name": "default",
@@ -263,18 +275,18 @@ def intel_sample_detection_zone(db_path: str = SERV_CONF["DB_PATH"]):
     app_uid = task_uid
     app_setting = {
         "application": {
-						"palette": {
-                        "car": [
-                            105,
-                            125,
-                            105
-                        ],
-                        "truck": [
-                            125,
-                            115,
-                            105
-                        ]
-                    },
+            "palette": {
+                "car": [
+                    105,
+                    125,
+                    105
+                ],
+                "truck": [
+                    125,
+                    115,
+                    105
+                ]
+            },
             "areas": [
                 {
                     "name": "Area0",
@@ -652,3 +664,5 @@ if __name__ == "__main__":
     db_handler.init_sqlite()
     intel_sample_cls()
     intel_sample_obj()
+    """_summary_
+    """

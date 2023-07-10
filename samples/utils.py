@@ -18,6 +18,10 @@ except:
     from common import SERV_CONF
     from handlers import model_handler
 
+try:
+    from .palette import palette
+except:
+    from palette import palette
 """
 This is a utils for samples
 Use gdown to download ai model and testing data.
@@ -65,3 +69,16 @@ def download_model(file_name, file_url):
 def download_data(file_name, file_url):
     file_path = os.path.join(SERV_CONF["DATA_DIR"], file_name)
     download_file(file_path, file_url)
+
+
+def load_palette(label_path:str) -> dict:
+    """Trying to generate a whole label palette"""
+    with open(label_path, 'r') as f:
+
+        ret = {}
+        for idx, line in enumerate(f.readlines()):
+            line = line.strip()
+            ret[line] = palette[str(idx+1)]
+    
+    return ret
+            
