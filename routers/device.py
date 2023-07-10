@@ -5,6 +5,7 @@
 
 
 # Basic
+import time
 import logging as log
 from fastapi import APIRouter
 
@@ -25,8 +26,22 @@ async def get_platform():
 @device_router.get("/devices")
 def get_device():
     try:
-        data = SERV_CONF["IDEV"].get_device_info()
-        # print(data)
+        data = None
+        for _ in range(2):
+            try:
+                data = SERV_CONF["IDEV"].get_device_info()
+                break
+            except Exception as e:
+                log.exception(e)
+
+        if data is None:
+            raise RuntimeError('Could not get device information.')
+
+        # Old Version
+        # data = SERV_CONF["IDEV"].get_device_info()
         return http_msg( content=data, status_code=200)
+
     except Exception as e:
-        return http_msg( content=e, status_code=500)
+        log.exception(e)
+        eee = RuntimeError("Could not get device information.")
+        return http_msg( content=eee, status_code=500)
