@@ -522,18 +522,12 @@ def edit_ai_task(edit_data):
     )
     
     # Add App Information into Database
-    # app_type = select_data(table='app', data=['type'], condition=f"WHERE name='{edit_data.app_name}'")[0][0]
-    try:
-        app_type = select_data(table='app', data=['type'], condition=f"WHERE name='{edit_data.app_name}'")[0][0]
-    except:
-        app_type = select_data(table='app', data=['type'], condition=f"WHERE name='{edit_data.app_name}'")[0]
-    # print('\n\n', app_type)    
     insert_data(
         table="app",
         data={
             "uid": app_uid,
             "name": edit_data.app_name,
-            "type": app_type,
+            "type": edit_data.app_name,
             "app_setting": json_to_str(edit_data.app_setting)
         },
         replace=True
