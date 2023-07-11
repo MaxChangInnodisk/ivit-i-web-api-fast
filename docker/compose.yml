@@ -19,20 +19,22 @@ services:
     volumes:
       - ./nginx-config.template:/etc/nginx/templates/default.conf.template
     environment:
-      - NGINX_PORT=6632
+      - NG_PORT=6632
       - API_PORT=819
       - RTC_PORT=8083
   website:
     image: jordan007/iviti-wa:v013
-    ports:
-      - "8001:8001" # 外部露出開放的 port 對應到 docker container 的 port
-    networks:
-      ivit_net:
-        ipv4_address: 172.40.0.4
-
-networks:
-  ivit_net:
-    name: ivit_net
-    ipam:
-      config:
-        - subnet: 172.40.0.0/24
+    network_mode: host
+    environment:
+      - NGINX_PORT=8001
+      - BACKEND_PORT=6632
+      - STREAM_PORT=8083
+    command: >
+      /bin/sh -c
+      "envsubst '
+      $${NGINX_PORT}
+      $${BACKEND_PORT}
+      $${STREAM_PORT}
+      '< /etc/nginx/nginx.conf.template
+      > /etc/nginx/nginx.conf
+      && nginx -g 'daemon off;'"

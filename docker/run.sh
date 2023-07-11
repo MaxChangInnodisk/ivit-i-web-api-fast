@@ -71,9 +71,14 @@ jq --arg a "${PLATFORM}" '.PLATFORM = $a' ${CONF} > ${TEMP} && mv -f ${TEMP} ${C
 check_jq
 API_PORT=$(cat "${CONF}" | jq -r '.SERVICE.PORT')
 NGINX_PORT=$(cat "${CONF}" | jq -r '.NGINX.PORT')
+WEB_PORT=$(cat "${CONF}" | jq -r '.WEB.PORT')
 
-update_compose_env ${COMPOSE} "NGINX_PORT=${NGINX_PORT}"
+
+update_compose_env ${COMPOSE} "NG_PORT=${NGINX_PORT}"
 update_compose_env ${COMPOSE} "API_PORT=${API_PORT}" 
+
+update_compose_env ${COMPOSE} "BACKEND_PORT=${NGINX_PORT}"
+update_compose_env ${COMPOSE} "NGINX_PORT=${WEB_PORT}"
 
 # ========================================================
 # Download submodule
