@@ -784,7 +784,7 @@ class Detection_Zone(iAPP_OBJ, event_handle):
 
     #step5: draw total result on the left top.
     self.draw_app_result(frame,app_output)
-    
+
     #step6: deal event.
     #if the area don't have set event. 
     event_output={'event':[]}
@@ -793,7 +793,6 @@ class Detection_Zone(iAPP_OBJ, event_handle):
       if event_handler.event_output !={}:
         event_output['event'].append(event_handler.event_output)
 
-    
     return (frame ,app_output,event_output)   
            
 if __name__=='__main__':
