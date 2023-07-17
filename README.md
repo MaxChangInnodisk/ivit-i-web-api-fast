@@ -30,8 +30,7 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. you can use iVIT-T t
 - [Web API Documentation](#web-api-documentation)
 - [Build Web Site for ARM](#build-web-site-for-arm)
 - [Troubleshooting](#troubleshooting)
-- [Developement](#developement)
-  - [Add new platform](#add-new-platform)
+- [Release note and Todo list](#release-note-and-todo-list)
 - [Reference](#reference)
 
 
@@ -163,35 +162,11 @@ Only `aarch64` have to rebuild website service, like `xilinx`, `jetson` platform
     ```
 
 # Troubleshooting
-1. Keep re-connect to MQTT ( iCAP ).
-    * Issue
-        
-        ![keeping-connect-to-mqtt-server](assets/images/keeping-connect-to-mqtt-server.png)
+* [trouble-shooting](./assets/docs/trouble-shooting)
 
-    * Solution
-        Duplicate name on iCAP server, please modify `DEVICE_NAME` in `ivit-i.json`
-        ```JSON
-        {
-            "ICAP": {
-                "DEVICE_NAME": "Your Custom Name"
-            }
-        }
-        ```
-
-
-# Developement
-
-## Add new platform
-1. Modify ivit-i.json
-   * `PLATFORM` & `FRAMEWORK`
-2. Build docker image.
-3. Add a run script that should name with `run-{platform}.sh`
-4. Add samples: `./samples/{platform}_sample.py`
-   * Update the zip file on the AI Model Zoo which must include a configuration file.
-   * Add classification sample
-   * Add object detection sample
-5. Verify classification sample
-6. Verify object detection sample
+# Release note and Todo list
+* [Release Note](./assets/docs/release-note.md)
+* [Todo List](./assets/docs/to-do.md)
 
 
 # Reference
