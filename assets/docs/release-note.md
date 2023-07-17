@@ -11,4 +11,5 @@
 # v1.1.1 
 1. Set nginx `client_max_body_size` to 0, unlimited uploading files.
 2. Stop iVIT-I service when executing `uninstall.sh`.
-3. ...
+3. Add fullscreen to the stream page by clicking the streaming.
+4. Fix the delete hotkey when editing the area.

@@ -4,7 +4,7 @@
 the faster web api for `iVIT-I`
 
 # iVIT-I
-iVIT (Vision Intelligence Toolkit) is an AI suite software. you can use iVIT-T to train a custom AI model and deploy to iVIT-I, iVIT-I provides a simpler AI framework and integrate with iCAP, iVIT-I is easy to integrate with your own program by using our `Web API (ivit-i-web-api-fast)` or `Python Library (ivit-i-{platform})`. 
+iVIT (Vision Intelligence Toolkit) is an AI suite software. You can use iVIT-T to train a custom AI model and deploy it to `iVIT-I`. It provides a more straightforward usage and integrates with iCAP, `iVIT-I` is easy to integrate with your program using our `Web API (ivit-i-web-api-fast)` or `Python Library (ivit-i-{platform})`. 
 
 | PLATFORM        | REPOSITORY
 | ---             | ---
@@ -23,14 +23,16 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. you can use iVIT-T t
 - [Quick Start](#quick-start)
   - [Prepare Repository](#prepare-repository)
   - [Run `service` quickly with platform.](#run-service-quickly-with-platform)
-  - [Vitis Web Site](#vitis-web-site)
+  - [Visit Web Site](#visit-web-site)
 - [Install Service](#install-service)
 - [Configuration](#configuration)
 - [About Running Scripts](#about-running-scripts)
 - [Web API Documentation](#web-api-documentation)
 - [Build Web Site for ARM](#build-web-site-for-arm)
-- [Troubleshooting](#troubleshooting)
-- [Release note and Todo list](#release-note-and-todo-list)
+- [Other Docs](#other-docs)
+  - [Troubleshooting](#troubleshooting)
+  - [Release Note](#release-note)
+  - [Todo list](#todo-list)
 - [Reference](#reference)
 
 
@@ -59,7 +61,7 @@ sudo ./docker/run.sh intel -q
 ```
 * We support `intel`, `xilinx`, `hailo`, `nvidia`, `jetson` now.
 
-## Vitis Web Site
+## Visit Web Site
 * Open Browser and enter the url: [http://127.0.0.1:8001](http://127.0.0.1:8001)
 * Entrance
   ![ivit-i-entrance](assets/images/ivit-i-entrance.png)
@@ -99,8 +101,8 @@ We also support `systemctl` to launch iVIT-I when booting. you can select `cli` 
 You can modify the configuration file ( [`ivit-i.json`](ivit-i.json) ) to change the port number you want, `SERVICE.PORT` for web service, `NGINX.PORT` for nginx agent, etc.
 | KEY           | DESC
 | ---           | --- 
-| `NGINX`       |   Modify `NGINX` port number if the port number is conflict. default is 6632.
-| `SERVICE`     |   Modify `iVIT-I service` port number if the port number is conflict. default is 819.
+| `NGINX`       |   Modify `NGINX` port number if the port number is in conflict. default is 6632.
+| `SERVICE`     |   Modify `iVIT-I service` port number if the port number is in conflict. default is 819.
 | `ICAP`        |   Modify HOST and PORT for the `iCAP service`.
 
 
@@ -161,11 +163,14 @@ Only `aarch64` have to rebuild website service, like `xilinx`, `jetson` platform
     docker-compose -f ./docker-compose-pro.yml build
     ```
 
-# Troubleshooting
+# Other Docs
+## Troubleshooting
 * [trouble-shooting](./assets/docs/trouble-shooting)
 
-# Release note and Todo list
+## Release Note
 * [Release Note](./assets/docs/release-note.md)
+
+## Todo list
 * [Todo List](./assets/docs/to-do.md)
 
 
