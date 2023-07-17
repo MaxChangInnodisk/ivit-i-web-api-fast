@@ -1046,7 +1046,8 @@ class InferenceLoop:
             # Send and Store Error Message with Json Format
             json_exp = json_exception(e)
             if "WS" in WS_CONF:
-                asyncio.run( WS_CONF["WS"].send_json({"ERROR": json_exp}) )
+                # FIXME: modify error message
+                asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="ERROR", content=e )) )
             update_task_status(
                 uid=self.uid, status='error', err_mesg=json_exp)
 
