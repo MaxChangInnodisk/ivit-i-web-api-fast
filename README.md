@@ -52,7 +52,10 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. You can use iVIT-T t
 # Quick Start
 ## Prepare Repository
 ```bash
-git clone -b r1.1 https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
+
+VER=r1.1.1
+
+git clone -b ${VER} https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
 ```
 
 ## Run `service` quickly with platform.
