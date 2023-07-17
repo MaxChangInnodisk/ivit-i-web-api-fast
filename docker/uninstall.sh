@@ -3,6 +3,9 @@
 # Parameters
 SERVICE="ivit-i"
 
+# Stop Service
+sudo systemctl stop ${SERVICE}
+
 # Disable Service when startup
 sudo systemctl disable ${SERVICE}
 
