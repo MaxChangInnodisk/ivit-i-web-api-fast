@@ -1,4 +1,3 @@
-
 # Troubleshooting
 
 1. Keep re-connect to MQTT ( iCAP ).

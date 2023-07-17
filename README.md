@@ -30,9 +30,9 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. You can use iVIT-T t
 - [Web API Documentation](#web-api-documentation)
 - [Build Web Site for ARM](#build-web-site-for-arm)
 - [Other Docs](#other-docs)
-  - [Troubleshooting](#troubleshooting)
+  - [Trouble Shooting](#trouble-shooting)
   - [Release Note](#release-note)
-  - [Todo list](#todo-list)
+  - [Todo List](#todo-list)
 - [Reference](#reference)
 
 
@@ -164,14 +164,9 @@ Only `aarch64` have to rebuild website service, like `xilinx`, `jetson` platform
     ```
 
 # Other Docs
-## Troubleshooting
-* [trouble-shooting](./assets/docs/trouble-shooting)
-
-## Release Note
-* [Release Note](./assets/docs/release-note.md)
-
-## Todo list
-* [Todo List](./assets/docs/to-do.md)
+## [Trouble Shooting](./assets/docs/trouble-shooting)
+## [Release Note](./assets/docs/release-note.md)
+## [Todo List](./assets/docs/to-do.md)
 
 
 # Reference
