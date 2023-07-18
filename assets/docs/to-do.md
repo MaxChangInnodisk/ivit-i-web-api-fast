@@ -1,12 +1,8 @@
 # To-do
 
-## v1.1.2
-- [ ] Unplugging USB Camera could cause AI tasks to fail and could not execute again.
-- [ ] Change log file format
-  - [ ] `Rotating Logs`.
-  - [ ] Add timestamp.
+## r1.1.X
 
-## v1.2
+## r1.2
 - [ ] Event
   - [ ] Event information on stream page.
   - [ ] Event detail dialog.

@@ -1,13 +1,17 @@
 # Release Note
 
-## v1.1.1 
+## r1.1.1 
 1. Set nginx `client_max_body_size` to 0, unlimited uploading files.
 2. Stop iVIT-I service when executing `uninstall.sh`.
 3. Add fullscreen to the stream page by clicking the streaming.
 4. Fix the delete hotkey when editing the area.
+5. Fixing the error of executing AI task failed after re-plugging USB camera.
+6. Add an error message when unplugging USB camera.
+7. Change the format of the log file from `File` to `RotatedFile` and add the `logs` folder and timestamp on the log file ( e.g.`ivit-i-230818.log` )
 
+---
 
-## v1.1
+## r1.1
 1. Launch / Stop AI Tasks
 2. Add / Edit/ Delete AI Tasks.
     1. Select Source Features
