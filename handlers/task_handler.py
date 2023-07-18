@@ -1027,21 +1027,39 @@ class InferenceLoop:
             # Calculate FPS and Update spped_limitor
             self.stream_metric.update()
 
-        # Check is error from source or not
-        if (not self.src.is_ready) and len(self.src.errors) > 0:
-            
-            # Stop Source and update status
-            self.src.release()
-            update_src_status(self.src_uid, 'error')
-            raise self.src.errors[-1]
-
         # Update Task Status to Stop
         update_task_status(self.uid, 'stop')
     
+    def _capture_src_error(self):
+
+        # Means no error and some tasks is still running
+        if self.src.is_ready and len(self.src.errors) == 0:
+            return
+        
+        # Check is error from source or not
+        if (not self.src.is_ready) and len(self.src.errors) > 0:
+
+            # Update Status
+            update_src_status(self.src_uid, 'error')
+      
+            # Lastest error
+            error = self.src.errors[-1]
+
+            # Stop Source and update status
+            self.src.release()
+      
+            # Add Source uid
+            ret_mesg = ws_msg( type="ERROR", content=error.message )
+            ret_mesg["data"] = {
+                    "source_uid": self.src_uid }
+            asyncio.run( WS_CONF["WS"].send_json(ret_mesg) )
+
+
     def _infer_thread(self):
         
         try:
             self._infer_loop()
+            self._capture_src_error()
 
         # If Get Exception
         except Exception as e:
