@@ -350,6 +350,8 @@ def run_ai_task(uid:str, data:dict=None) -> str:
                 src=src,
                 model=model,
                 app=app,
+                src_uid = source_uid,
+                model_uid = model_uid,
                 dpr=dpr 
             ),
             'DATA': {} 
@@ -871,11 +873,12 @@ class AsyncInference:
 class InferenceLoop:
     """ Inference Thread Helper """
 
-    def __init__(self, uid, src, model, app, dpr=None) -> None:
+    def __init__(self, uid, src, model, app, src_uid, model_uid, dpr=None) -> None:
         
         # Basic Parameter
         self.uid = uid
         self.src = src
+        self.src_uid = src_uid
         self.model = model
         self.app = app
         self.dpr = dpr if dpr else FakeDisplayer()
@@ -1026,6 +1029,10 @@ class InferenceLoop:
 
         # Check is error from source or not
         if (not self.src.is_ready) and len(self.src.errors) > 0:
+            
+            # Stop Source and update status
+            self.src.release()
+            update_src_status(self.src_uid, 'error')
             raise self.src.errors[-1]
 
         # Update Task Status to Stop
