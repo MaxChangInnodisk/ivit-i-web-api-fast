@@ -1,22 +1,22 @@
 {
-    "PROJECT": "ivit-i",
-    "PLATFORM": "intel",
-    "VERSION": "v1.1",
-    "IVIT_VERSION": "v1.1",
-    "TAG": "service",
-    "SERVICE": {
-        "HOST": "127.0.0.1",
-        "PORT": 819
-    },
-    "ICAP": {
-        "HOST": "10.204.16.115",
-        "PORT": 3000,
-        "DEVICE_NAME": ""
-    },
-    "NGINX": {
-        "PORT": 6632
-    },
-    "WEB": {
-        "PORT": 8001
-    }
+  "PROJECT": "ivit-i",
+  "PLATFORM": "intel",
+  "VERSION": "v1.1",
+  "IVIT_VERSION": "v1.1",
+  "TAG": "service",
+  "SERVICE": {
+    "HOST": "127.0.0.1",
+    "PORT": 819
+  },
+  "ICAP": {
+    "HOST": "10.204.16.115",
+    "PORT": 3000,
+    "DEVICE_NAME": ""
+  },
+  "NGINX": {
+    "PORT": 6632
+  },
+  "WEB": {
+    "PORT": 8001
+  }
 }
