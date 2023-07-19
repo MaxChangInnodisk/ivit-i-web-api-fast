@@ -13,7 +13,7 @@ source "${ROOT}/utils.sh"
 # ========================================================
 # Basic Parameters
 CONF="ivit-i.json"
-DOCKER_USER="maxchanginnodisk"
+DOCKER_USER="innodiskorg"
 DOCKERFILE="docker/ivit-i-service.dockerfile"
 TEMP=".temp"
 

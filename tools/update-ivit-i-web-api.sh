@@ -10,7 +10,7 @@ cd $ROOT
 
 # Parameters
 CONF=${ROOT}/ivit-i.json
-DOCKER_USER="maxchanginnodisk"
+DOCKER_USER="innodiskorg"
 
 # Update Repo
 git fetch && git pull

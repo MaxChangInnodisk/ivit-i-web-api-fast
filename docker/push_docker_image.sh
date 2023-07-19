@@ -8,7 +8,7 @@
 # ========================================================
 # Global Varaible
 CONF="ivit-i.json"
-DOCKER_USER="maxchanginnodisk"
+DOCKER_USER="innodiskorg"
 REL_PATH=$( realpath "../ivit-i-intel")
 TAG="service"
 TEMP=".temp"
