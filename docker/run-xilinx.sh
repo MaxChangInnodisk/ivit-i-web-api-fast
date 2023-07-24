@@ -166,9 +166,12 @@ if [[ ${QUICK} = false ]];then waitTime 5; fi
 # Execution
 
 # Run Docker Service
-if [[ $(docker &>/dev/null) -eq 1 ]];then
-	sudo dockerd & > ./docker.log
-fi
+# if [[ $(docker &>/dev/null) -eq 1 ]];then
+# 	sudo dockerd & > /docker.log
+# fi
+
+# sudo dockerd > /dev/null 2>&1 &
+sudo dockerd > /docker.log 2>&1 &
 
 # Rund Docker Compose
 printd "Launch Relative Container" G
@@ -180,7 +183,7 @@ bash -c "${DOCKER_CMD}"
 
 if [[ ${INTERATIVE} = true ]];then
 	printd "Close Relative Container" R
-	docker compose -f ${DOCKER_COMPOSE} -p ${TAG} down
+	docker compose --file ${DOCKER_COMPOSE} -p ${TAG} down
 fi
 
 exit 0;
