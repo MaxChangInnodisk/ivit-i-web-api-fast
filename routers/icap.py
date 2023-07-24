@@ -19,6 +19,14 @@ except:
     from handlers.mesg_handler import http_msg
     from handlers import icap_handler
 
+
+# Helper 
+def check_icap():
+    
+    if SERV_CONF.get('ICAP') is None:
+        raise RuntimeError('iCAP is not register !! ')
+
+
 # Router
 
 icap_router = APIRouter(tags=["icap"])
@@ -69,15 +77,28 @@ async def set_icap_address(data: ResetFormat):
     except Exception as e:
         SERV_CONF["ICAP"] = None
         return http_msg(content=e, status_code=500)
+    
 
 @icap_router.get("/icap/device/id")
 async def get_device_id():
-    return http_msg({"device_id": ICAP_CONF["DEVICE_ID"]}, 200 )
+    try:
+        check_icap()
+        return http_msg({"device_id": ICAP_CONF["DEVICE_ID"]}, 200 )
+    except Exception as e:
+        return http_msg(e, 500)
 
 @icap_router.get("/icap/device/type")
 async def get_device_id():
-    return http_msg({"device_type": ICAP_CONF["DEVICE_TYPE"]}, 200 )
+    try:
+        check_icap()
+        return http_msg({"device_type": ICAP_CONF["DEVICE_TYPE"]}, 200 )
+    except Exception as e:
+        return http_msg(e, 500)
 
 @icap_router.get("/icap/device/name")
 async def get_device_id():
-    return http_msg({"device_type": ICAP_CONF["DEVICE_NAME"]}, 200 )
+    try:
+        check_icap()
+        return http_msg({"device_type": ICAP_CONF["DEVICE_NAME"]}, 200 )
+    except Exception as e:
+        return http_msg(e, 500)

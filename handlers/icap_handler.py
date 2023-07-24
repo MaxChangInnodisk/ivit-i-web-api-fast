@@ -470,6 +470,7 @@ def register_tb_device(tb_url):
             data={  "URL": tb_url,
                     "TOKEN": TB_KEY_TOKEN,
                     "Response": data },
+            content_maximum=500,
             level='warn')
         
         return False, data
