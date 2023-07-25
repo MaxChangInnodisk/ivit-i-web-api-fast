@@ -1101,7 +1101,13 @@ class InferenceLoop:
             self.thread_object = self.create_thread()
         
         if not self.thread_object.is_alive():
-            self.thread_object.start()
+            try:
+                self.thread_object.start()
+            except Exception as e:
+                log.warning('Initialize thread again !!!')
+                self.thread_object = self.create_thread()
+                self.thread_object.start()
+
 
     def release(self):
         self.stop()
