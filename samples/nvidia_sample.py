@@ -72,14 +72,14 @@ def nv_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
     app_uid = task_uid
     app_setting = {
         "application": {
+            "palette": {
+                "airplane": [255, 255, 255],
+                "warpalne": [0, 0, 0],
+            },
             "areas": [
                 {
                     "name": "default",
-                    "depend_on": IMAGE_NET_LABEL,
-                    "palette": {
-                        "airplane": [255, 255, 255],
-                        "warpalne": [0, 0, 0],
-                    }
+                    "depend_on": IMAGE_NET_LABEL
                 }
             ]
         }
@@ -269,7 +269,7 @@ def nv_sample_obj_yolov4_tiny(db_path: str = SERV_CONF["DB_PATH"]):
             "areas": [
                 {
                     "name": "default",
-                            "depend_on": COCO_LABEL,
+                    "depend_on": COCO_LABEL,
                 }
             ]
         }
@@ -364,7 +364,7 @@ def nv_sample_obj_yolov4(db_path: str = SERV_CONF["DB_PATH"]):
             "areas": [
                 {
                     "name": "default",
-                            "depend_on": COCO_LABEL,
+                    "depend_on": COCO_LABEL,
                 }
             ]
         }
