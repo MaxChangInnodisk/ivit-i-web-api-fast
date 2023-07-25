@@ -49,7 +49,7 @@ def ivit_i_intel(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
             label_path = params['label_path'],
             device = params['device'],
             confidence_threshold = params['confidence_threshold'],
-            topk = params.get('topk', 3),
+            topk = params.get('topk', 3)
         )
     elif type == OBJ:
         from ivit_i.core.models import iDetection
@@ -109,6 +109,7 @@ def ivit_i_dgpu(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
             device = dev,
             confidence_threshold = float(params['confidence_threshold']),
             topk = params.get('topk', 1),
+            preproc_mode = "caffe"
         )
     elif type == OBJ:
         from ivit_i.core.models import iDetection
