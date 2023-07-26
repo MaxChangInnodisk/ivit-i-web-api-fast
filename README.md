@@ -53,7 +53,7 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. You can use iVIT-T t
 ## Prepare Repository
 ```bash
 
-VER=r1.1.1
+VER=r1.1.2
 
 git clone -b ${VER} https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
 ```
