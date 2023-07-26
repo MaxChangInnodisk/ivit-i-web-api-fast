@@ -1,5 +1,12 @@
 # Release Note
 
+## r1.1.2
+1. Change the data process to improve the precision of inference.
+2. Display the whole name of the accelerator in the drop-down list.
+3. Hang in the loading page when editing the classification task.
+4. Keep the dialog when uploading the source file. 
+5. Fix the problem that the sample model can be removed in nvidia platform.
+
 ## r1.1.1 
 1. Set nginx `client_max_body_size` to 0, unlimited uploading files.
 2. Stop iVIT-I service when executing `uninstall.sh`.
