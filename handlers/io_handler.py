@@ -207,6 +207,25 @@ def add_source(files=None, input: str=None, option: dict=None) -> dict:
     # Got RTSP, V4L2
     if (files is None) or not (files[0].filename):
         name = input
+
+        # If RTSP and V4L2 is created and load , then return source object
+        source = select_data(
+            table='source', data="*",
+            condition=f"WHERE name='{name}'" )
+
+        # Means the source is exist
+        if not is_list_empty(source):
+            # Parse Source Information
+            src_info = parse_source_data(source[0])
+            return {
+                "uid": src_info['uid'],
+                "name": src_info['name'],
+                "type": src_info['type'],
+                "input": src_info['input'],
+                "height": str(src_info['height']), 
+                "width": str(src_info['width']),
+                "status": src_info["status"]
+            }
     
     # Got Files
     else:
@@ -277,10 +296,18 @@ def get_source_frame(source_uid:str, resolution:list=None) -> np.ndarray:
     Returns:
         cv2.ndarray: _description_
     """
-    src = create_source(source_uid=source_uid)
-    frame = copy.deepcopy(src.frame)
-    src.release()
-    update_data(table="source", data={"status": "stop"}, condition='WHERE uid="{}"'.format(source_uid))
+    # Check source is exist or not
+    source = select_data(   table='source', data="*",
+                            condition=f"WHERE uid='{source_uid}'" )
+    if not is_list_empty(source):
+        src = create_source(source_uid=source_uid)
+        frame = copy.deepcopy(src.frame)
+    
+    else:
+        src = create_source(source_uid=source_uid)
+        frame = copy.deepcopy(src.frame)
+        src.release()
+        update_data(table="source", data={"status": "stop"}, condition='WHERE uid="{}"'.format(source_uid))
     
     if not (resolution is None):
         frame = cv2.resize( frame, (resolution[1], resolution[0]))
