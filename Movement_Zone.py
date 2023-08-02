@@ -1243,7 +1243,7 @@ class Movement_Zone(iAPP_OBJ, event_handle):
     
     #step7: deal event.
     #if the area don't have set event. 
-    event_output={'event':[]}
+    event_output=[]
     for area_id , event_handler in self.event_handler.items():
 
       # self.pool.apply_async(event_handler,(frame,ori_frime,i,self.app_thread.total,self.app_thread.app_output))
@@ -1251,7 +1251,7 @@ class Movement_Zone(iAPP_OBJ, event_handle):
       if (event_handler.pass_time == event_handler.cooldown_time):
         self._deal_changeable_total(True)
       if event_handler.event_output !={}:
-        event_output['event'].append(event_handler.event_output)
+        event_output.append(event_handler.event_output)
 
     #step8: draw total result on the left top.
     self.draw_app_result(frame,app_output)

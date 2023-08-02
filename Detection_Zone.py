@@ -66,7 +66,6 @@ class event_handle(threading.Thread):
     
     if self.pass_time > self.cooldown_time:
         
-      self.eventflag=True
       self.trigger_time=datetime.now()
       self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))
       uid=self.uid[area_id] if not (self.uid[area_id]==None) else str(uuid.uuid4())[:8]
@@ -75,8 +74,13 @@ class event_handle(threading.Thread):
           os.makedirs(path)
       cv2.imwrite(path+'original.jpg', frame)
       cv2.imwrite(path+'overlay.jpg', ori_frame)
-      self.event_output.update({"uuid":uid,"title":self.event_title,"areas":app_output["areas"],\
-                                "timesamp":self.trigger_time,"screenshot":{"overlay": path+str(self.trigger_time)+'.jpg',
+      self.event_output.update({
+        "uuid": uid,
+        "title": self.event_title,
+        "areas": app_output["areas"],
+        "timesamp":str(self.trigger_time),
+        "screenshot":
+            { "overlay": path+str(self.trigger_time)+'.jpg',
       "original": path+str(self.trigger_time)+"_org"+'.jpg'}}) 
       # Draw Inforamtion
       
@@ -499,7 +503,6 @@ class Detection_Zone(iAPP_OBJ, event_handle):
                                ,self.event_title[area_id],area_id,self.event_save_folder,self.event_uid) 
       self.event_handler.update( { area_id: event_obj }  )  
 
-  
   def draw_app_result(self,frame:np.ndarray,result:dict,outer_clor:tuple=(0,255,255),font_color:tuple=(0,0,0)):
     sort_id=0
     if self.draw_app_common_output == False:
@@ -787,11 +790,11 @@ class Detection_Zone(iAPP_OBJ, event_handle):
 
     #step6: deal event.
     #if the area don't have set event. 
-    event_output={'event':[]}
+    event_output=[]
     for area_id , event_handler in self.event_handler.items():
       event_handler(frame,ori_frame,area_id,self._get_total(area_id),app_output)
       if event_handler.event_output !={}:
-        event_output['event'].append(event_handler.event_output)
+        event_output.append(event_handler.event_output)
 
     return (frame ,app_output,event_output)   
            
