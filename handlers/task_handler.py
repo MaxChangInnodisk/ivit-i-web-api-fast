@@ -471,7 +471,20 @@ def add_ai_task(add_data):
             "device": add_data.device
         }
     )
-    
+
+    # NOTE: check event first because the setting was in app_setting
+    # Add Event Information
+    for area_info in add_data.app_setting["application"]["areas"]:
+        if "events" not in area_info:
+            continue
+
+        log.info(f"Get event setting in area ( {area_info['name']} )")
+        
+        for key in [ "enable", "uid", "title", "logic_operator", "logic_value" ]:
+            if key == "enable" and not area_info.get(key):
+                area_info.update({"enable": True})
+            log.debug("\t* {}: {}".format(key, area_info["events"].get(key)))           
+        
     # Add App Information into Database
     # app_type = select_data(table='app', data=['type'], condition=f"WHERE name='{add_data.app_name}'")[0][0]
     app_type = RT_CONF["IAPP"].get_app(add_data.app_name).get_type()
@@ -485,10 +498,7 @@ def add_ai_task(add_data):
         }
     )
 
-    # Add Event Information
-    if "events" in add_data.app_setting["application"]["areas"]:
-        log.info('Get event setting ...')
-    
+        
     return {
         "uid": task_uid,
         "status": "success",
@@ -999,6 +1009,16 @@ class InferenceLoop:
             try:
                 _draw, _results, _event = self.app(copy.deepcopy(frame), cur_data)
                 
+                # NOTE: If get data then send websocket to frontend
+                if _event:
+                    # NOTE: store in database
+                    print('has event: ', _event)
+                    # if "WS" in WS_CONF:
+                    #     t1 = time.time()
+                    #     asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=json_to_str(_event) )) )
+                    #     print('Send event output to WebSocket ( Cost {}s)'.format(round(time.time()-t1, 5)))
+
+                # Not replace directly to avoid variable is replaced when interrupted                
                 self.draw, self.results, self.event = _draw, _results, _event
             except Exception as e:
                 log.warning('Run Application Error')
@@ -1057,8 +1077,8 @@ class InferenceLoop:
             ret_mesg = ws_msg( type="ERROR", content=error.message )
             ret_mesg["data"] = {
                     "source_uid": self.src_uid }
-            asyncio.run( WS_CONF["WS"].send_json(ret_mesg) )
-
+            if "WS" in WS_CONF:
+                asyncio.run( WS_CONF["WS"].send_json(ret_mesg) )
 
     def _infer_thread(self):
         
