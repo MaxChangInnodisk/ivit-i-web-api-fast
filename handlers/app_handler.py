@@ -45,9 +45,21 @@ def create_app(app_uid:str, label_path:str) -> Union[iAPP_CLS, iAPP_OBJ, iAPP_SE
     app_data = select_data( 
         table='app', data="*",
         condition=f"WHERE uid='{app_uid}'" )
+    task_data = select_data( 
+        table='task', data=["uid","name"],
+        condition=f"WHERE uid='{app_uid}'" ) 
     
+    task_uid, task_name = task_data[0]
+    log.info('Creating application ( {}: {})'.format(task_name, task_uid))
+
     app_info = parse_app_data(app_data[0])
-    
+
+    # NOTE: check enable is True
+    # We have multiple area have to check
+    for idx, area_info in enumerate(app_info["app_setting"]["application"]["areas"]):
+        if not area_info["events"]["enable"]:
+            del app_info["app_setting"]["application"]["areas"][idx]["events"]
+            
     # Instance App Object
     app = RT_CONF['IAPP'].get_app(app_info['name'])(
         params = app_info['app_setting'],
