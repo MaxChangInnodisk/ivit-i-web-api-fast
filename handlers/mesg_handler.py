@@ -92,7 +92,7 @@ def ws_msg(content: Union[dict, str, Exception], type:Literal["UID", "ERROR", "T
 
     Args:
         content (Union[dict, str, Exception]): message
-        type (Literal[&quot;UID&quot;,&quot;ERROR&quot;,&quot;TEMP&quot;, &quot;PROC&quot;]): websocket message type
+        type (Literal[&quot;UID&quot;,&quot;ERROR&quot;,&quot;TEMP&quot;, &quot;PROC&quot;,&quot;EVENT&quot;]): websocket message type
 
     Returns:
         dict: websocket message
