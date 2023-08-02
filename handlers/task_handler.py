@@ -423,9 +423,10 @@ def add_ai_task(add_data):
         con, cur = connect_db()
 
         # Task Name
-        results = db_to_list(cur.execute("""SELECT name FROM task WHERE name=\"{}\" """.format(add_data.task_name)))
+        results = db_to_list(cur.execute("""SELECT uid, name FROM task WHERE name=\"{}\" """.format(add_data.task_name)))
         if not is_list_empty(results):
-            errors.update( {"task_name": "Duplicate task name: {}".format(add_data.task_name)} )
+            uid, name = results[0]
+            errors.update( {"task_name": "Duplicate task name: {} ({})".format(name, uid)} )
 
         # Source UID
         results = db_to_list(cur.execute("""SELECT uid FROM source WHERE uid=\"{}\" """.format(add_data.source_uid)))
@@ -483,6 +484,10 @@ def add_ai_task(add_data):
             "app_setting": add_data.app_setting
         }
     )
+
+    # Add Event Information
+    if "events" in add_data.app_setting["application"]["areas"]:
+        log.info('Get event setting ...')
     
     return {
         "uid": task_uid,
