@@ -163,6 +163,7 @@ data/*
 model/*
 export
 temp
+event
 
 ivit_i.sqlite
 !**/*/.gitkeep
