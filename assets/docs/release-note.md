@@ -1,5 +1,17 @@
 # Release Note
 
+## r1.1.3
+1. Fix: Can not choose the USB camera running with another AI task when adding a new AI Task.
+2. Fix: Can not run the object detection model because of losing `libyololayer.so` in the `NVIDIA` platform.
+3. Fix: Unplugging the USB camera will cause a blank page in the stream page.
+4. Fix: Losing the `Edit` button on the stream page when the AI task is in error status.
+5. Fix: The user can switch to the Camera tab when uploading the source file.
+6. Fix: Can not save the AI task when re-plugin USB camera on the Edit page.
+7. Feat: Add '...' when the project name is too long.
+8. Feat: Update USB camera information and sort it automatically when the user opens the dropdown list.
+9. Feat: Add AI Task uid and name in some error messages.
+10. Feat: Add hardware requirement in `README.md`.
+
 ## r1.1.2
 1. Change the data process to improve the precision of inference.
 2. Display the whole name of the accelerator in the drop-down list.
