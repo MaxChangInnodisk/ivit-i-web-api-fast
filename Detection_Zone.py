@@ -11,10 +11,10 @@ from ivit_i.common.app import iAPP_OBJ
 import os
 import numpy as np
 import time
-
+from typing import Tuple
 
 class event_handle(threading.Thread):
-  def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int,event_save_folder:str,uid:dict):
+  def __init__(self ,operator,thres:dict,cooldown_time:dict,event_title:dict,area_id:int,event_save_folder:str,uid:dict):
     threading.Thread.__init__(self)
     self.operator = operator
     self.thres = thres
@@ -93,58 +93,111 @@ class event_handle(threading.Thread):
       self.info = "The {} area : ".format(area_id)+self.event_title+\
         ' , '.join([ 'total:{}  , cool down time:{}/{}'.format(total_object_number,self.pass_time,self.cooldown_time)])
 
-class Detection_Zone(iAPP_OBJ, event_handle):
+class Detection_Zone(iAPP_OBJ):
 
-  def __init__(self, params:dict, label:str,event_save_folder:str="event", palette:dict=palette):
-      self.app_type = 'obj'
+    def __init__(self, params:dict, label:str, event_save_folder:str="event", palette:dict=palette):
+        
+        # Define Application Type
+        self.app_type = 'obj'
 
-      #this step will check application and areas whether with standards or not .
-      self.params = self._check_params(params)
+        # This step will check application and areas whether with standards or not .
+        self.params = self._init_params(params)
+        self.label_path = label
 
-      self.palette={}
-      self.label_path = label
-      self.label_list =[]
-      
-      # Update each Variable
-      self._init_palette(palette)
+        self.palette={}
+        self.label_list =[]
+        # Update each Variable
+        self._init_palette(palette)
 
-      #put here reason is in there we need self.label_list but self.label_list get value after _init_palette
-      self.depend_on , self.app_output_data = self._get_depend_on()
+        #put here reason is in there we need self.label_list but self.label_list get value after _init_palette
+        self.depend_on , self.app_output_data = self._get_depend_on()
 
-      self._init_draw_params()
-      self._update_area_params()
-      self._init_event_param(event_save_folder)
-      self._update_event_param()
-      self._init_event_object()
+        self._init_draw_params()
+        self._update_area_params()
+        self._init_event_param(event_save_folder)
+        self._update_event_param()
+        self._init_event_object()
 
-  def _check_params(self,params:dict):
-    """
-      Ensure params with the standards.
-    Args:
-        params (dict): app config.
-    """
-    #judge type
-    if not isinstance(params,dict):
-      logging.error("app config type is dict! but your type is {} ,Please check and correct it.".format(type(params)))
-      raise TypeError("app config type is dict! but your type is {} ,Please check and correct it.".format(type(params)))
-    #judge container
-    if not params.__contains__('application'):
-      logging.error("app config must have key 'application'! Please check and correct it.")
-      raise ValueError("app config must have key 'application'! Please check and correct it.")
-    
-    if not isinstance(params['application'],dict):
-      logging.error("app config key 'application' type is dict! but your type is {} ,Please check and correct it.".format(type(params['application'])))
-      raise TypeError("app config key 'application' type is dict! but your type is {} ,Please check and correct it.".format(type(params['application'])))
-    
-    if not params['application'].__contains__('areas'):
-      logging.error("app config must have key 'areas'! Please check and correct it.")
-      raise ValueError("app config must have key 'areas'! Please check and correct it.")
-    
-    if not isinstance(params['application']['areas'],list):
-      logging.error("app config key 'areas' type is list! but your type is {} ,Please check and correct it.".format(type(params['application']['areas'])))
-      raise TypeError("app config key 'areas' type is list! but your type is {} ,Please check and correct it.".format(type(params['application']['areas'])))
-    
-    return params
+    def _init_params(self, params:dict) -> dict:
+        """Initailize and check parameters
+
+        Args:
+            params (dict): the application config
+
+        Raises:
+            TypeError: params type error.
+            ValueError: params['application'] not setup.
+            TypeError: params['application'] type error.
+            ValueError: params['application']['areas] not setup
+            TypeError: params['application']['areas] type error
+
+        Returns:
+            dict: params after checking
+        """
+        #check config type
+        if not isinstance(params, dict):
+            raise TypeError(f"The app_config should be dictionaray ! but get {type(params)}.")
+        
+        #check config key ( application ) is exist or not and the type is correct or not
+        app_info =  params.get("application", None)
+        if not app_info:
+           raise ValueError("The app_config must have key 'application'.")
+        
+        if not isinstance( app_info, dict):
+            raise TypeError(f"The app_config['application'] should be dictionaray ! but get {type(app_info)}.")
+        
+        #check area setting is exist or not and the type is correct or not
+        areas_info = app_info.get("areas", None)
+        if not areas_info:
+           raise ValueError("The app_config['application'] must have key 'areas'.")
+        
+        if not isinstance( areas_info, list):
+            raise TypeError(f"The app_config['application']['areas'] should be list ! but get {type(areas_info)}.")
+        
+        return params
+
+    def _init_palette_and_label(self, palette:dict, label_path:str) -> Tuple[ dict, list ]:
+        """
+        We will deal all color we need there.
+        Step 1 : assign color for each label.
+        Step 2 : if app_config have palette that user stting we will change the color follow user setting.
+        Args:
+            palette (dict): palette list.
+
+        palette -> index: list ( bgr )
+        """
+
+        #check type and path is available
+        if not isinstance(palette, dict):
+            raise TypeError(f"Expect palette type is dict, but get {type(palette)}.")
+        if not os.path.exists(label_path):
+            raise FileNotFoundError(f"Can not find label file in '{label_path}'.")
+        
+        #update custom color
+        custom_palette = self.params["application"].get("palette", None)
+        
+        #paramerters
+        ret_palette = {}
+        ret_label = []
+
+        #update palette and label
+        idx = 1
+        f = open(label_path, 'r')
+        for raw_label in f.readlines():
+            label = raw_label.strip()
+            
+            if custom_palette and label in custom_palette:
+                color = custom_palette[label]
+            else:
+                color = palette[str(idx)]
+            
+            ret_palette[label] = color
+            ret_label.append(label)
+            idx += 1
+        
+        f.close()
+        return ( ret_palette, ret_label )
+
 
   def _get_depend_on(self):
     """
@@ -428,31 +481,6 @@ class Detection_Zone(iAPP_OBJ, event_handle):
         temp_point = self._sort_point_list(temp_point)
         self.area_pts.update({area_id:temp_point})
         temp_point = []
-
-  def _init_palette(self,palette:dict):
-    """
-      We will deal all color we need there.
-      Step 1 : assign color for each label.
-      Step 2 : if app_config have palette that user stting we will change the color follow user setting.
-    Args:
-        palette (dict): palette list.
-    """
-    color = None
-    with open(self.label_path,'r') as f:
-        # lines = f.read().splitlines()
-        for idx, line in enumerate(f.readlines()):
-            idx+=1
-            if self.params['application'].__contains__('palette'):
-                
-                if self.params['application']['palette'].__contains__(line.strip()):
-                    color = self.params['application']['palette'][line.strip()]
-                else:
-                    color = palette[str(idx)]
-            else :         
-                color = palette[str(idx)]
-            
-            self.palette.update({line.strip():color})
-            self.label_list.append(line.strip())
 
   def _check_depend(self, label:str):
         """
