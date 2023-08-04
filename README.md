@@ -14,12 +14,12 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. You can use iVIT-T t
 | NVIDIA dGPU     | [ivit-i-nvidia](https://github.com/InnoIPA/ivit-i-nvidia)
 | NVIDIA Jetson   | [ivit-i-jetson](https://github.com/InnoIPA/ivit-i-jetson)
 
-
 # Outline
 - [iVIT-I-WebAPI-Fast](#ivit-i-webapi-fast)
 - [iVIT-I](#ivit-i)
 - [Outline](#outline)
-- [Requirements](#requirements)
+- [Hardware Recommendations](#hardware-recommendations)
+- [Pre-requirements](#pre-requirements)
 - [Quick Start](#quick-start)
   - [Prepare Repository](#prepare-repository)
   - [Run `service` quickly with platform.](#run-service-quickly-with-platform)
@@ -35,9 +35,48 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. You can use iVIT-T t
   - [Todo List](#todo-list)
 - [Reference](#reference)
 
+# Hardware Recommendations
+The specification below shows the recommended requirements. In case of the use of another hardware, the correct functionality can not be guaranteed:
+* `Intel`
+  | Item    | Detail
+  | ---     | ---
+  | CPU     | Intel® 12th Gen Core™i7/i5 processors
+  | Memory  | 16GB
+  | Storage | 500GB
+  | OS    | Ubuntu 20.04.4
+* `NVIDIA`
+  | Item    | Detail
+  | ---     | ---
+  | CPU     | Intel® 12th Gen Core™i7/i5 processors
+  | GPU     | NVIDIA RTX A2000, A4500
+  | Memory  | 16GB
+  | Storage | 500GB
+  | OS      | Ubuntu 20.04.4
+
+* `Xilinx`
+  
+  | Item    | Detail
+  | ---     | ---
+  | Module  | [exmu-x261](https://www.innodisk.com/en/products/embedded-peripheral/fpga/exmu-x261)
+  | OS  | Petalinux
+  | Mics    | Vitis-AI 2.5.0
+
+  If you want to get more detail, please visit [ivit-i-xilinx](https://github.com/InnoIPA/ivit-i-xilinx) 
+
+* `Jetson`
+  * Support Jetson Nano, Xavier NX, Xavier AGX, and Orin products.
+
+* `Hailo`
+  | Item  | Name
+  | ---   | ---
+  | CPU   | Intel® 12th Gen Core™i7/i5 processors
+  | Accerelator | [Hailo-8™ Starter Kit](https://hailo.ai/products/hailo-8-starter-kit/)
+  | Memory   | 16GB
+  | Storage | 500GB
+  | OS    | Ubuntu 20.04.4
 
 
-# Requirements
+# Pre-requirements
 *** *Notice: `GPU driver` and `nvidia-docker-toolkit` are required for `NVIDIA` or `Jetson` platforms.* ***
 
 * [Docker 20.10 + ](https://docs.docker.com/engine/install/ubuntu/)
@@ -53,7 +92,7 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. You can use iVIT-T t
 ## Prepare Repository
 ```bash
 
-VER=r1.1.2
+VER=r1.1.3
 
 git clone -b ${VER} https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
 ```
