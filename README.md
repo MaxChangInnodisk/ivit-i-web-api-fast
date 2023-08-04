@@ -64,8 +64,12 @@ The specification below shows the recommended requirements. In case of the use o
   If you want to get more detail, please visit [ivit-i-xilinx](https://github.com/InnoIPA/ivit-i-xilinx) 
 
 * `Jetson`
-  * Support Jetson Nano, Xavier NX, Xavier AGX, and Orin products.
-
+  
+  | Item  | Detail
+  | ---   | ---
+  | Platform  | Jetson Nano, Xavier NX, Xavier AGX, and Orin products.
+  | JetPack   | 5.1.2+ ( without CUDA is okay! )
+  
 * `Hailo`
   | Item  | Name
   | ---   | ---
