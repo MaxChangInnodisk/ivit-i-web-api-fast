@@ -23,7 +23,7 @@ services:
       - API_PORT=819
       - RTC_PORT=8083
   website:
-    image: jordan007/iviti-wa:v104
+    image: jordan007/iviti-wa:v105
     network_mode: host
     environment:
       - NGINX_PORT=8001
