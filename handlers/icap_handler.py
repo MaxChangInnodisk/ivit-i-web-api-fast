@@ -252,6 +252,8 @@ class ICAP_DEPLOYER(MODEL_URL_DEPLOYER):
         self.ver            = data["sw_version"]
         self.tag            = data["sw_tag"]
         self.url            = data["sw_url"]
+
+        # NOTE: checksum will lose sometime.
         self.checksum       = data["sw_checksum"]
         self.checksum_type  = data["sw_checksum_algorithm"]
         self.descr          = data["sw_description"]    
