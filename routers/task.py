@@ -187,7 +187,8 @@ def delete_task(del_data: DelTaskFormat):
 def edit_task(edit_data: EditTaskFormat):
     try:
         ret = task_handler.edit_ai_task(edit_data=edit_data)
-        return http_msg(content=ret)
+        code = 200 if ret['status']=='success' else 500
+        return http_msg(content=ret, status_code=code)
     except Exception as e:
         return http_msg(content=e, status_code=500)
 

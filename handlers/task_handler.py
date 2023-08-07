@@ -509,7 +509,13 @@ def add_ai_task(add_data):
 def edit_ai_task(edit_data):
     """ Edit AI Task
     ---
-    
+    1. Check task_uid and task_name is exist or not ( ignore itself )
+    2. Check threshold is available
+    3. Check source_uid, model_uid is exist or not
+    4. Is there has any errors then return response with status='failed'
+    5. insert data into database
+        * task
+        * app
     """
     # Get Task UUID and Application UUID    
     task_uid = app_uid = edit_data.task_uid
@@ -522,6 +528,35 @@ def edit_ai_task(edit_data):
 
     # CHECK: threshold value is available
     verify_thres(threshold=edit_data.model_setting['confidence_threshold'])
+
+    # CHECK Others
+    errors = {}
+    try:
+        # Check Database Data
+        con, cur = connect_db()
+        # Source UID
+        results = db_to_list(cur.execute("""SELECT uid FROM source WHERE uid=\"{}\" """.format(edit_data.source_uid)))
+        if is_list_empty(results):
+            errors.update( {"source_uid": "Unkwon Source UID: {}".format(edit_data.source_uid)} )
+        # Model UID
+        results = db_to_list(cur.execute("""SELECT uid FROM model WHERE uid=\"{}\" """.format(edit_data.model_uid)))
+        if is_list_empty(results):
+            errors.update( {"model_uid": "Unkwon model UID: {}".format(edit_data.model_uid)} )
+    
+    except Exception as e:
+        log.exception(e)
+
+    finally:
+        # Close DB
+        close_db(con, cur)
+
+    # Find Error and return errors
+    if len(errors.keys())>0:
+        return {
+        "uid": task_uid,
+        "status": "failed",
+        "data": errors
+    }
 
     # Add Task Information into Database
     insert_data(
