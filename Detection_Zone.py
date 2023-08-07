@@ -97,28 +97,36 @@ class Detection_Zone(iAPP_OBJ):
 
     def __init__(self, params:dict, label:str, event_save_folder:str="event", palette:dict=palette):
         
-        # Define Application Type
+        # define application type
         self.app_type = 'obj'
 
-        # This step will check application and areas whether with standards or not .
-        self.params = self._init_params(params)
-        self.label_path = label
+        # initialize and check parameters
+        self.params = self._check_params(params)
 
-        self.palette={}
-        self.label_list =[]
-        # Update each Variable
-        self._init_palette(palette)
+        # initialize and check palette and labels
+        self.palette, self.label_list = self._init_palette_and_label(
+            palette= palette,
+            label_path= label )
 
-        #put here reason is in there we need self.label_list but self.label_list get value after _init_palette
-        self.depend_on , self.app_output_data = self._get_depend_on()
-
+        # put here reason is in there we need self.label_list but self.label_list get value after _init_palette
+        # self.depend_on , self.app_output_data = self._get_depend_on()
+        self.depend_on , self.app_output_data = None, None
+        # Draw
         self._init_draw_params()
         self._update_area_params()
+        
+        # Event
         self._init_event_param(event_save_folder)
         self._update_event_param()
         self._init_event_object()
 
-    def _init_params(self, params:dict) -> dict:
+    # ----------------------------------------------------------------------------
+    # Helper Function
+    def _check_type(self, data, type):
+        if isinstance( data, type): return
+        raise TypeError(f"The area data should be {str(type)}, but get {type(data)}")
+
+    def _check_params(self, params:dict) -> dict:
         """Initailize and check parameters
 
         Args:
@@ -135,304 +143,354 @@ class Detection_Zone(iAPP_OBJ):
             dict: params after checking
         """
         #check config type
-        if not isinstance(params, dict):
-            raise TypeError(f"The app_config should be dictionaray ! but get {type(params)}.")
+        self._check_type(params, dict)
         
         #check config key ( application ) is exist or not and the type is correct or not
         app_info =  params.get("application", None)
         if not app_info:
            raise ValueError("The app_config must have key 'application'.")
         
-        if not isinstance( app_info, dict):
-            raise TypeError(f"The app_config['application'] should be dictionaray ! but get {type(app_info)}.")
+        self._check_type(app_info, dict)
         
         #check area setting is exist or not and the type is correct or not
         areas_info = app_info.get("areas", None)
         if not areas_info:
            raise ValueError("The app_config['application'] must have key 'areas'.")
-        
-        if not isinstance( areas_info, list):
-            raise TypeError(f"The app_config['application']['areas'] should be list ! but get {type(areas_info)}.")
+
+        self._check_type(areas_info, list)
         
         return params
 
+    # ----------------------------------------------------------------------------
+    # Palette and Label
     def _init_palette_and_label(self, palette:dict, label_path:str) -> Tuple[ dict, list ]:
-        """
-        We will deal all color we need there.
-        Step 1 : assign color for each label.
-        Step 2 : if app_config have palette that user stting we will change the color follow user setting.
+        """generate the color palette which key is label name and label list.
+
         Args:
-            palette (dict): palette list.
+            palette (dict): the default palette
+            label_path (str): the path to label file
 
-        palette -> index: list ( bgr )
+        Raises:
+            TypeError: if the default palette with wrong type
+            FileNotFoundError: if not find label file
+
+        Returns:
+            Tuple[ dict, list ]: ( palette, label_list )
         """
-
-        #check type and path is available
+        
+        # check type and path is available
         if not isinstance(palette, dict):
             raise TypeError(f"Expect palette type is dict, but get {type(palette)}.")
         if not os.path.exists(label_path):
             raise FileNotFoundError(f"Can not find label file in '{label_path}'.")
         
-        #update custom color
-        custom_palette = self.params["application"].get("palette", None)
+        # update custom color if need
+        custom_palette = self.params["application"].get("palette", {})
         
-        #paramerters
-        ret_palette = {}
-        ret_label = []
+        # paramerters
+        ret_palette, ret_label_list = {}, []
 
-        #update palette and label
+        # update palette and label
         idx = 1
         f = open(label_path, 'r')
         for raw_label in f.readlines():
+
             label = raw_label.strip()
             
-            if custom_palette and label in custom_palette:
+            # if setup custom palette
+            if label in custom_palette:
                 color = custom_palette[label]
+            
+            # use default palette 
             else:
                 color = palette[str(idx)]
             
+            # update palette, label_list and idx
             ret_palette[label] = color
-            ret_label.append(label)
+            ret_label_list.append(label)
             idx += 1
-        
+
+        # close and return
         f.close()
-        return ( ret_palette, ret_label )
+        return ( ret_palette, ret_label_list )
 
 
-  def _get_depend_on(self):
-    """
-      Getd epend on info. 
-    Returns:
-      list : depend on object for each area.
-    """
-    temp_depend ={}
-    temp_app_output_data={}
-    for area_id in range(len(self.params['application']['areas'])):
-      if not isinstance(self.params['application']['areas'][area_id],dict):
-        logging.error("app config each areas info in key 'areas' type is dict! but your type is {} ,Please check and correct it."\
-                      .format(type(self.params['application']['areas'][area_id])))
-        raise TypeError("app config each areas info in key 'areas' type is dict! but your type is {} ,Please check and correct it."\
-                        .format(type(self.params['application']['areas'][area_id])))
-      
-      if not self.params['application']['areas'][area_id].__contains__('depend_on'):
-        logging.error("app config must have key 'depend_on'! Please check and correct it.")
-        raise ValueError("app config must have key 'depend_on'! Please check and correct it.")
+    def _get_depend_and_app_output(self) -> Tuple[ dict, dict ]:
+ 
 
-      if not isinstance(self.params['application']['areas'][area_id]['depend_on'],list):
-        logging.error("app config depend_on type is dict! but your type is {} ,Please check and correct it."\
-                      .format(type(self.params['application']['areas'][area_id]['depend_on'])))
-        raise TypeError("app config depend_on type is dict! but your type is {} ,Please check and correct it."\
-                        .format(type(self.params['application']['areas'][area_id]['depend_on'])))
-      
-      
-      _label=[]
-      if self.params['application']['areas'][area_id]['depend_on']==[]:
+        def _get_depend(data) -> list:
+            # check has depend_on and type is correct
+            _depend_on = data.get("depend_on", None)
+            if not _depend_on:
+                raise ValueError(f"Can not find 'depend_on' in area ({area_id}) ")
+            elif _depend_on==[]:
+                _depend_on = self.label_list
+            else:
+                self._check_type(_depend_on, list)
+            return _depend_on
+
+        def _get_app_output(depend_on: list) -> list:
+            return [ { "label": label, "num": 0 } for label in depend_on ]
+
+        # parameters
+        ret_depend_on, ret_app_output = dict(), dict() 
+
+        # update
+        for area_id, area_data in enumerate( self.params['application']['areas'] ):
+            # check area data type
+            self._check_type( data= area_data, type= dict )
+            # get depend_on and check type
+            ret_depend_on[area_id] = _get_depend(area_data)
+            # update app_output
+            ret_app_output[area_id] = _get_app_output(ret_depend_on[area_id])
         
-        temp_depend.update({area_id:self.label_list})
-        for label in self.label_list:
-           _label.append({
-                          "label":label,
-                          "num":0
-                          })
-        temp_app_output_data.update({area_id:_label})
-      else:
-        temp_depend.update({area_id:self.params['application']['areas'][area_id]['depend_on']})
+        return ret_depend_on, ret_app_output
+
+    # ----------------------------------------------------------------------------
+    # Draw Parameters
+    def _init_draw_params(self):
+        """ Initialize Draw Parameters """
+        #for draw result and boundingbox
+        self.frame_idx = 0
+        self.frame_size = None
+        self.font_size  = None
+        self.font_thick = None
+        self.thick      = None
         
-        for label in self.params['application']['areas'][area_id]['depend_on']:
-          if not (label in self.label_list):
-            logging.error("The label {} you set not in the label path! Please check and correct it!".format(label))
-            raise ValueError("The label '{}' you set not in the label file! Please check and correct it!".format(label))
-          _label.append({
-                          "label":label,
-                          "num":0
-                          })
-        temp_app_output_data.update({area_id:_label})
+        #for draw area
+        self.area_name={}
+        self.area_opacity=None
+        self.area_color=None
+        self.area_pts = {}
+        self.area_cnt = {}
+        self.normalize_area_pts = {}
+        self.area_pts = {}
 
-    return temp_depend , temp_app_output_data
+        #control draw
+        self.draw_bbox=self.params['application']['draw_bbox'] if self.params['application'].__contains__('draw_bbox') else False
+        self.draw_result=self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else False
+        self.draw_area=False
+        self.draw_app_common_output = True
 
-  def _init_draw_params(self):
-      """ Initialize Draw Parameters """
-      #for draw result and boundingbox
-      self.frame_idx = 0
-      self.frame_size = None
-      self.font_size  = None
-      self.font_thick = None
-      self.thick      = None
-      
-      #for draw area
-      self.area_name={}
-      self.area_opacity=None
-      self.area_color=None
-      self.area_pts = {}
-      self.area_cnt = {}
-      self.normalize_area_pts = {}
-      self.area_pts = {}
+        self.depend_on = {}
+        self.app_output_data = {}
 
-      #control draw
-      self.draw_bbox=self.params['application']['draw_bbox'] if self.params['application'].__contains__('draw_bbox') else False
-      self.draw_result=self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else False
-      self.draw_area=False
-      self.draw_app_common_output = True
 
-  def _update_area_params(self):
-    """
-      Get area point from app config. defalt is full screen.
-    """
-    for area_id ,area_info in enumerate(self.params['application']['areas']):
-      
-      if not area_info.__contains__('area_point'): 
-        logging.error("app config must have key 'area_point'! please correct it.")
-        raise ValueError("app config must have key 'area_point'! please correct it.")
-      if not isinstance(area_info['area_point'],list):
-        logging.error("app config each areas info in key 'area_point' type is list! but your type is {} ,please correct it."\
-                      .format(type(area_info['area_point'])))
-        raise TypeError("app config each areas info in key 'area_point' type is list! but your type is {} ,please correct it."\
-                        .format(type(area_info['area_point']))) 
-      
-      if not area_info.__contains__('name'): 
-        logging.error("app config must have key 'name'! please correct it.")
-        raise ValueError("app config must have key 'name'! please correct it.")
-      if not isinstance(area_info['name'],str):
-        logging.error("app config each areas info in key 'name' type is str! but your type is {} ,please correct it."\
-                      .format(type(area_info['name'])))
-        raise TypeError("app config each areas info in key 'name' type is str! but your type is {} ,please correct it."\
-                        .format(type(area_info['name']))) 
-
-      if area_info['area_point']!=[]:
-        self.normalize_area_pts.update({area_id:area_info['area_point']})
-        self.area_name.update({area_id:area_info['name']})
-        # self.area_color.update({i:[random.randint(0,255),random.randint(0,255),random.randint(0,255)]})
-      else:
-        self.normalize_area_pts.update({area_id:[[0,0],[1,0],[1,1],[0,1]]})
-        self.area_name.update({area_id:"The defalt area"})
-      
-      if area_info['name']!="":
-        self.area_name.update({area_id:area_info['name']})
-        # self.area_color.update({i:[random.randint(0,255),random.randint(0,255),random.randint(0,255)]})
-      else:
-        self.area_name.update({area_id:"The defalt area"})
-
-  def _update_draw_param(self, frame:np.ndarray):
-      """ Update the parameters of the drawing tool, which only happend at first time. """
-      
-      # if frame_size not None means it was already init 
-      if( self.frame_idx > 1): return None
-
-      # Parameters
-      FRAME_SCALE     = 0.0005    # Custom Value which Related with Resolution
-      BASE_THICK      = 1         # Setup Basic Thick Value
-      BASE_FONT_SIZE  = 0.5   # Setup Basic Font Size Value
-      FONT_SCALE      = 0.2   # Custom Value which Related with the size of the font.
-      WIDTH_SPACE = 10
-      HIGHT_SPACE = 10
-      # Get Frame Size
-      self.frame_size = frame.shape[:2]
-      
-      # Calculate the common scale
-      scale = FRAME_SCALE * sum(self.frame_size)
-      
-      # Get dynamic thick and dynamic size 
-      self.thick  = BASE_THICK + round( scale )
-      self.font_thick = self.thick//2
-      self.font_size = BASE_FONT_SIZE + ( scale*FONT_SCALE )
-
-      self.area_color=[0,0,255]
-      self.area_opacity=0.4  
-
-      self.WIDTH_SPACE = int(scale*WIDTH_SPACE) 
-      self.HIGHT_SPACE = int(scale*HIGHT_SPACE) 
-
-  def _init_event_param(self,event_save_folder:str="event"):
-    """ Initialize Event Parameters """
-    self.logic_operator = {}
-    self.logic_value = {}
-    self.event_title = {}
-    self.cooldown_time = {}
-    self.sensitivity ={}
-    self.event_handler={}
-    self.event_save_folder=event_save_folder
-    self.event_uid={}
-
-  def _update_event_param(self):
-    """ Update the parameters of the event, which only happend at first time. """    
-    for area_id ,area_info in enumerate(self.params['application']['areas']):
-
-      if area_info.__contains__('events'):
-        if not isinstance(area_info['events'],dict):
-          logging.error("Event type is dict! but your type is {} ,please correct it."\
-                      .format(type(area_info['events'])))
-          raise TypeError("Event type is dict! but your type is {} ,please correct it."\
-                      .format(type(area_info['events'])))
+    def _update_draw_param(self, frame:np.ndarray) -> None:
+        """ Update the parameters of the drawing tool, which only happend at first time. """
         
-        if not area_info['events'].__contains__('logic_operator'):
-          logging.error("Events must have key 'logic_operator'! please correct it.")
-          raise ValueError("Events must have key 'logic_operator'! please correct it.")
+        # if frame_size not None means it was already init 
+        if( self.frame_idx > 1): return None
+
+        # Parameters
+        FRAME_SCALE     = 0.0005    # Custom Value which Related with Resolution
+        BASE_THICK      = 1         # Setup Basic Thick Value
+        BASE_FONT_SIZE  = 0.5   # Setup Basic Font Size Value
+        FONT_SCALE      = 0.2   # Custom Value which Related with the size of the font.
+        WIDTH_SPACE = 10
+        HIGHT_SPACE = 10
+        # Get Frame Size
+        self.frame_size = frame.shape[:2]
         
-        self.logic_operator.update({area_id:self._get_logic_event(area_info['events']['logic_operator'])})
-
-        if not area_info['events'].__contains__('logic_value'):
-          logging.error("Events must have key 'logic_value'! please correct it.")
-          raise ValueError("Events must have key 'logic_value'! please correct it.")
+        # Calculate the common scale
+        scale = FRAME_SCALE * sum(self.frame_size)
         
-        self.logic_value.update({area_id: area_info['events']['logic_value']})
+        # Get dynamic thick and dynamic size 
+        self.thick  = BASE_THICK + round( scale )
+        self.font_thick = self.thick//2
+        self.font_size = BASE_FONT_SIZE + ( scale*FONT_SCALE )
 
-        if not area_info['events'].__contains__('title'):
-          logging.error("Events must have key 'title'! please correct it.")
-          raise ValueError("Events must have key 'title'! please correct it.")
+        self.area_color=[0,0,255]
+        self.area_opacity=0.4  
+
+        self.WIDTH_SPACE = int(scale*WIDTH_SPACE) 
+        self.HIGHT_SPACE = int(scale*HIGHT_SPACE) 
+
+    # ----------------------------------------------------------------------------
+    # Area Parameters
+    def _update_area_params(self):
+        """
+        Get area point from app config. defalt is full screen.
+        """
+
+        def _get_depend(data) -> list:
+            # check has depend_on and type is correct
+            _depend_on = data.get("depend_on", None)
+            if not _depend_on:
+                raise ValueError(f"Can not find 'depend_on' in area ({area_id}) ")
+            elif _depend_on==[]:
+                _depend_on = self.label_list
+            else:
+                self._check_type(_depend_on, list)
+            return _depend_on
+
+        def _get_app_output(depend_on: list) -> list:
+            return [ { "label": label, "num": 0 } for label in depend_on ]
+
+        def _get_area_point(data, default_value= [[0,0],[1,0],[1,1],[0,1]]) -> list:
+            _area_point = data.get("area_point", None)
+            if not _area_point:
+                raise ValueError(f"Can not find 'area_point' in config.")
+            elif _area_point == []:
+                _area_point = default_value
+            else:
+                self._check_type(_area_point, list)
+            return _area_point
+
+        def _get_area_name(data, default_value= "The defalt area") -> str:
+            _name = data.get("name", None)
+            if not _name:
+                raise ValueError(f"Can not find 'name' in config.")
+            elif _name == []:
+                _name = default_value
+            else:
+                self._check_type(_name, str)
+            return _name
+
+        for area_id ,area_info in enumerate(self.params["application"]["areas"]):
+
+            # check area data type
+            self._check_type( data= area_info, type= dict )
+
+            # area name: get name
+            self.area_name[area_id] = _get_area_name(area_info)
+
+            # area point: normalize area points
+            self.normalize_area_pts[area_id] = _get_area_point(area_info)
+
+            # depend_on: get depend_on and check type
+            self.depend_on[area_id] = _get_depend(area_info)
+
+            # app_output_data: update app_output
+            self.app_output_data[area_id] = _get_app_output(self.depend_on[area_id])
+
+
+    def _init_event_param(self,event_save_folder:str="event"):
+        """ Initialize Event Parameters """
+        self.logic_operator = {}
+        self.logic_value = {}
+        self.event_title = {}
+        self.cooldown_time = {}
+        self.sensitivity ={}
+        self.event_handler={}
+        self.event_save_folder=event_save_folder
+        self.event_uid={}
+
+    # def _update_event_param(self):
+    #     """ Update event parameters """
+    #     for area_id ,area_info in enumerate(self.params["application"]["areas"]):
+            
+    #         # get events data
+    #         events_info = area_info.get("events", None )      
+    #         # if not setup events
+    #         if not events_info: continue
+    #         # check events_info type
+    #         self._check_type(events_info, dict)
+            
+    #         # get logic_operator
+            
         
-        self.event_title.update({area_id:area_info['events']['title']})
+            
+    #         pass
+    #     pass
 
-        if area_info['events'].__contains__('cooldown_time'):
-            self.cooldown_time.update({area_id:self.params['application']['areas'][i]['events']['cooldown_time']})
-        else :
-            self.cooldown_time.update({area_id:10})   
-        if area_info['events'].__contains__('sensitivity'):
-              self.sensitivity.update({area_id:self._get_sensitivity_event(area_info['events']['sensitivity'])})
+
+    def _update_event_param(self):
+        """ Update the parameters of the event, which only happend at first time. 
         
-        if area_info['events'].__contains__('uid'):
-          if not isinstance(area_info['events']['uid'],str):
-            logging.error("Event key uid type is str! but your type is {} ,please correct it."\
-                        .format(type(area_info['events']['uid'])))
-            raise TypeError("Event key uid type is str! but your type is {} ,please correct it."\
-                        .format(type(area_info['events']['uid'])))
-          self.event_uid.update({area_id:area_info['events']['uid']})
-        else:
-          self.event_uid.update({area_id:None})
+        1. Check events type
+        2. Check logic_operator is exist
+        3. update self.logic_operator via self._get_logic_event
+        4. Check logic_value is exist
+        5. update self.logic_value
+        6. check title is exist
+        7. update self.event_title
+        8. check cooldown_time is exist
+        9. update self.cooldown_time
+        10. check sensitivity is exist
+        11. update self.sensitivity
+        12. check uid is exist
+        13. update self.event_uid
+        """
+        for area_id ,area_info in enumerate(self.params['application']['areas']):
 
-      else:
-        logging.warning("No set event!")
-      
-  def _get_logic_event(self, operator):
-    """ Define the logic event """
-    greater = lambda x,y: x>y
-    greater_or_equal = lambda x,y: x>=y
-    less = lambda x,y: x<y
-    less_or_equal = lambda x,y: x<=y
-    equal = lambda x,y: x==y
-    logic_map = {
-        '>': greater,
-        '>=': greater_or_equal,
-        '<': less,
-        '<=': less_or_equal,
-        '=': equal,
-    }
-    return logic_map.get(operator)
+            if area_info.__contains__('events'):
+                if not isinstance(area_info['events'],dict):
+                    logging.error("Event type is dict! but your type is {} ,please correct it."\
+                                .format(type(area_info['events'])))
+                    raise TypeError("Event type is dict! but your type is {} ,please correct it."\
+                                .format(type(area_info['events'])))
+            
+                if not area_info['events'].__contains__('logic_operator'):
+                    logging.error("Events must have key 'logic_operator'! please correct it.")
+                    raise ValueError("Events must have key 'logic_operator'! please correct it.")
+                    
+                self.logic_operator.update({area_id:self._get_logic_event(area_info['events']['logic_operator'])})
 
-  def _get_sensitivity_event(self,sensitivity_str):
-    """ Define the sensitivity of event """
-    # sensitivity_map={
-    #     "low":0.3,
-    #     "medium" : 0.5,
-    #     "high":0.7,
-    # }
-    sensitivity_map={
-        "low":1,
-        "medium" : 3,
-        "high":5,
-    }
-    return sensitivity_map.get(sensitivity_str)
+                if not area_info['events'].__contains__('logic_value'):
+                    logging.error("Events must have key 'logic_value'! please correct it.")
+                    raise ValueError("Events must have key 'logic_value'! please correct it.")
+                
+                self.logic_value.update({area_id: area_info['events']['logic_value']})
 
-  def _sort_point_list(self,point_list:list):
+                if not area_info['events'].__contains__('title'):
+                    logging.error("Events must have key 'title'! please correct it.")
+                    raise ValueError("Events must have key 'title'! please correct it.")
+            
+                self.event_title.update({area_id:area_info['events']['title']})
+
+                if area_info['events'].__contains__('cooldown_time'):
+                    self.cooldown_time.update({area_id:self.params['application']['areas'][i]['events']['cooldown_time']})
+                else :
+                    self.cooldown_time.update({area_id:10})   
+                
+                if area_info['events'].__contains__('sensitivity'):
+                    self.sensitivity.update({area_id:self._get_sensitivity_event(area_info['events']['sensitivity'])})
+            
+                if area_info['events'].__contains__('uid'):
+                    if not isinstance(area_info['events']['uid'],str):
+                            logging.error("Event key uid type is str! but your type is {} ,please correct it."\
+                                        .format(type(area_info['events']['uid'])))
+                            raise TypeError("Event key uid type is str! but your type is {} ,please correct it."\
+                                        .format(type(area_info['events']['uid'])))
+                    self.event_uid.update({area_id:area_info['events']['uid']})
+                else:
+                    self.event_uid.update({area_id:None})
+
+            else:
+                logging.warning("No set event!")
+            
+    def _get_logic_event(self, operator):
+        """ Define the logic event """
+        greater = lambda x,y: x>y
+        greater_or_equal = lambda x,y: x>=y
+        less = lambda x,y: x<y
+        less_or_equal = lambda x,y: x<=y
+        equal = lambda x,y: x==y
+        logic_map = {
+            '>': greater,
+            '>=': greater_or_equal,
+            '<': less,
+            '<=': less_or_equal,
+            '=': equal,
+        }
+        return logic_map.get(operator)
+
+    def _get_sensitivity_event(self,sensitivity_str):
+        """ Define the sensitivity of event """
+        # sensitivity_map={
+        #     "low":0.3,
+        #     "medium" : 0.5,
+        #     "high":0.7,
+        # }
+        sensitivity_map={
+            "low":1,
+            "medium" : 3,
+            "high":5,
+        }
+        return sensitivity_map.get(sensitivity_str)
+
+    def _sort_point_list(self,point_list:list):
         """
         This function will help user to sort the point in the list counterclockwise.
         step 1 : We will calculate the center point of the cluster of point list.
@@ -465,24 +523,24 @@ class Detection_Zone(iAPP_OBJ):
         temp_point_list = sorted(temp_point_list, key=lambda x:x[1])
         for x in temp_point_list:
             sorted_point_list.append(x[0])
-       
+    
         
         return sorted_point_list
 
-  def _convert_area_point(self,frame):
-    #convert point value.
+    def _convert_area_point(self,frame):
+        #convert point value.
 
-    temp_point=[]
-    for area_id, area_point in self.normalize_area_pts.items():
-              
-        for point in area_point:
-          if point[0]>1: return
-          temp_point.append([math.ceil(point[0]*frame.shape[1]),math.ceil(point[1]*frame.shape[0])])
-        temp_point = self._sort_point_list(temp_point)
-        self.area_pts.update({area_id:temp_point})
-        temp_point = []
+        temp_point=[]
+        for area_id, area_point in self.normalize_area_pts.items():
+                
+            for point in area_point:
+                if point[0]>1: return
+                temp_point.append([math.ceil(point[0]*frame.shape[1]),math.ceil(point[1]*frame.shape[0])])
+            temp_point = self._sort_point_list(temp_point)
+            self.area_pts.update({area_id:temp_point})
+            temp_point = []
 
-  def _check_depend(self, label:str):
+    def _check_depend(self, label:str):
         """
             Check label whether in the depend on or not.
         Args:
@@ -500,148 +558,147 @@ class Detection_Zone(iAPP_OBJ):
                 area_id.append(_temp_area_id)
         
         return ret ,area_id
-  
-  def _cal_app_output_data(self,label:str,area_id:int):
-    """
-      combined data from all area.
-    Args:
-        label (str): output from model.
-        area_id (int): area_id
-    """
     
-    for id ,val in enumerate(self.app_output_data[area_id]):
-      if val['label']==label:
-        self.app_output_data[area_id][id]['num']+=1
-    
-
-  def _combined_app_output(self):
-    app_output={"areas": []}
-    for area_id,val in self.app_output_data.items():
-      app_output["areas"].append({
-                  "id":area_id,
-                  "name":self.area_name[area_id],
-                  "data":val
-      })
-    return app_output
-
-  def _init_event_object(self):
-
-   for area_id ,val in self.logic_operator.items():
-      event_obj = event_handle(val,self.logic_value[area_id],self.cooldown_time[area_id]\
-                               ,self.event_title[area_id],area_id,self.event_save_folder,self.event_uid) 
-      self.event_handler.update( { area_id: event_obj }  )  
-
-  def draw_app_result(self,frame:np.ndarray,result:dict,outer_clor:tuple=(0,255,255),font_color:tuple=(0,0,0)):
-    sort_id=0
-    if self.draw_app_common_output == False:
-      return
-    for areas ,data in result.items():
-      # print(result)
-      for area_id ,area_info in enumerate(data):
-        for label_id,val in enumerate(area_info['data']):
-        #   if val['num']==0:
-        #      continue
-          temp_direction_result=" {} : {} object ".format(self.area_name[area_id],str(val['num']))
-          
-          
-          (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
-          
-          t_xmin, t_ymin, t_xmax, t_ymax = self.WIDTH_SPACE, self.HIGHT_SPACE+self.HIGHT_SPACE*sort_id+(sort_id*(t_hei+t_base)), \
-            self.WIDTH_SPACE+t_wid, self.HIGHT_SPACE+self.HIGHT_SPACE*sort_id+((sort_id+1)*(t_hei+t_base))
-          
-          cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
-          cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
-          cv2.putText(
-              frame, temp_direction_result, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
-              self.font_size, font_color, self.font_thick, cv2.LINE_AA
-          )
-          sort_id=sort_id+1
-
-  def draw_area_event(self, frame:np.ndarray, is_draw_area:bool, area_color:tuple=None, area_opacity:float=None, draw_points:bool=True):
-    """ Draw Detecting Area and update center point if need.
-    - args
-        - frame: input frame
-        - area_color: control the color of the area
-        - area_opacity: control the opacity of the area
-    """
-
-    if not is_draw_area: return frame
-    # Get Parameters
-    area_color = self.area_color if area_color is None else area_color
-    area_opacity = self.area_opacity if area_opacity is None else area_opacity
-    
-    # Parse All Area
-    overlay = frame.copy()
-
-    temp_area_next_point = []
-
-
-    for area_idx, area_pts in self.area_pts.items():
+    def _cal_app_output_data(self,label:str,area_id:int):
+        """
+        combined data from all area.
+        Args:
+            label (str): output from model.
+            area_id (int): area_id
+        """
         
+        for id ,val in enumerate(self.app_output_data[area_id]):
+            if val['label']==label:
+                self.app_output_data[area_id][id]['num']+=1
+
+    def _combined_app_output(self):
+        app_output={"areas": []}
+        for area_id,val in self.app_output_data.items():
+            app_output["areas"].append({
+                        "id":area_id,
+                        "name":self.area_name[area_id],
+                        "data":val
+            })
+        return app_output
+
+    def _init_event_object(self):
+
+        for area_id ,val in self.logic_operator.items():
+            event_obj = event_handle(val,self.logic_value[area_id],self.cooldown_time[area_id]\
+                                    ,self.event_title[area_id],area_id,self.event_save_folder,self.event_uid) 
+            self.event_handler.update( { area_id: event_obj }  )  
+
+    def draw_app_result(self,frame:np.ndarray,result:dict,outer_clor:tuple=(0,255,255),font_color:tuple=(0,0,0)):
+        sort_id=0
+        if self.draw_app_common_output == False:
+            return
+        for areas ,data in result.items():
+        # print(result)
+            for area_id ,area_info in enumerate(data):
+                for label_id,val in enumerate(area_info['data']):
+                    #   if val['num']==0:
+                    #      continue
+                    temp_direction_result=" {} : {} object ".format(self.area_name[area_id],str(val['num']))
                     
-        if area_pts==[]: continue
+                    
+                    (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
+                    
+                    t_xmin, t_ymin, t_xmax, t_ymax = self.WIDTH_SPACE, self.HIGHT_SPACE+self.HIGHT_SPACE*sort_id+(sort_id*(t_hei+t_base)), \
+                        self.WIDTH_SPACE+t_wid, self.HIGHT_SPACE+self.HIGHT_SPACE*sort_id+((sort_id+1)*(t_hei+t_base))
+                    
+                    cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
+                    cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
+                    cv2.putText(
+                        frame, temp_direction_result, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
+                        self.font_size, font_color, self.font_thick, cv2.LINE_AA
+                    )
+                sort_id=sort_id+1
 
-        # draw area point
-        if  draw_points: 
-            
-            [ cv2.circle(frame, tuple(pts), 3, area_color, -1) for pts in area_pts ]
+    def draw_area_event(self, frame:np.ndarray, is_draw_area:bool, area_color:tuple=None, area_opacity:float=None, draw_points:bool=True):
+        """ Draw Detecting Area and update center point if need.
+        - args
+            - frame: input frame
+            - area_color: control the color of the area
+            - area_opacity: control the opacity of the area
+        """
 
-        # if delet : referenced before assignment
-        minxy,maxxy=(max(area_pts),min(area_pts))
-
-        for pts in area_pts:
-            if temp_area_next_point == []:
-                cv2.line(frame,pts,area_pts[-1], (0, 0, 255), 3)
-                
-            else:
-            
-                cv2.line(frame, temp_area_next_point, pts, (0, 0, 255), 3)
-            temp_area_next_point= pts
-                
-            if (tuple(pts)[0]+tuple(pts)[1])<(minxy[0]+minxy[1]): 
-                minxy= pts
-
-        #draw area name for each area            
-        area_name =self.area_name[area_idx]     
-        (t_wid, t_hei), t_base = cv2.getTextSize(area_name, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
-        t_xmin, t_ymin, t_xmax, t_ymax = minxy[0], minxy[1], minxy[0]+t_wid, minxy[1]+(t_hei+t_base)
+        if not is_draw_area: return frame
+        # Get Parameters
+        area_color = self.area_color if area_color is None else area_color
+        area_opacity = self.area_opacity if area_opacity is None else area_opacity
         
-        cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,255) , -1)
-        cv2.putText(
-            frame, area_name, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
-            self.font_size, (0,0,0), self.font_thick, cv2.LINE_AA
-        )
+        # Parse All Area
+        overlay = frame.copy()
 
-        #draw area 
-        cv2.fillPoly(overlay, pts=[ np.array(area_pts) ], color=area_color)
         temp_area_next_point = []
-    
-    return cv2.addWeighted( frame, 1-area_opacity, overlay, area_opacity, 0 ) 
 
-    
-  def inpolygon(self,px,py,poly):
-      is_in = False
-      for i , corner in enumerate(poly):
-          
-          next_i = i +1 if i +1 < len(poly) else 0
-          x1 ,y1 = corner
-          x2 , y2=poly[next_i]
-          if (x1 == px and y1 ==py) or (x2==px and y2 ==py):
-            is_in = False
+
+        for area_idx, area_pts in self.area_pts.items():
             
-            break
-          if min(y1,y2) <py <= max(y1 ,y2):
-              
-            x =x1+(py-y1)*(x2-x1)/(y2-y1)
-            if x ==px:
-              is_in = False
-              break
-            elif x > px:
-              
-              is_in = not is_in
-      return is_in
+                        
+            if area_pts==[]: continue
 
-  def get_color(self, label:str):
+            # draw area point
+            if  draw_points: 
+                
+                [ cv2.circle(frame, tuple(pts), 3, area_color, -1) for pts in area_pts ]
+
+            # if delet : referenced before assignment
+            minxy,maxxy=(max(area_pts),min(area_pts))
+
+            for pts in area_pts:
+                if temp_area_next_point == []:
+                    cv2.line(frame,pts,area_pts[-1], (0, 0, 255), 3)
+                    
+                else:
+                
+                    cv2.line(frame, temp_area_next_point, pts, (0, 0, 255), 3)
+                temp_area_next_point= pts
+                    
+                if (tuple(pts)[0]+tuple(pts)[1])<(minxy[0]+minxy[1]): 
+                    minxy= pts
+
+            #draw area name for each area            
+            area_name =self.area_name[area_idx]     
+            (t_wid, t_hei), t_base = cv2.getTextSize(area_name, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
+            t_xmin, t_ymin, t_xmax, t_ymax = minxy[0], minxy[1], minxy[0]+t_wid, minxy[1]+(t_hei+t_base)
+            
+            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,255) , -1)
+            cv2.putText(
+                frame, area_name, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
+                self.font_size, (0,0,0), self.font_thick, cv2.LINE_AA
+            )
+
+            #draw area 
+            cv2.fillPoly(overlay, pts=[ np.array(area_pts) ], color=area_color)
+            temp_area_next_point = []
+        
+        return cv2.addWeighted( frame, 1-area_opacity, overlay, area_opacity, 0 ) 
+
+    
+    def inpolygon(self,px,py,poly):
+        is_in = False
+        for i , corner in enumerate(poly):
+        
+            next_i = i +1 if i +1 < len(poly) else 0
+            x1 ,y1 = corner
+            x2 , y2=poly[next_i]
+            if (x1 == px and y1 ==py) or (x2==px and y2 ==py):
+                is_in = False
+                break
+
+            if min(y1,y2) <py <= max(y1 ,y2):
+                
+                x =x1+(py-y1)*(x2-x1)/(y2-y1)
+                if x ==px:
+                    is_in = False
+                    break
+                elif x > px:
+                
+                    is_in = not is_in
+        return is_in
+
+    def get_color(self, label:str):
         """
             Get color of label.
         Args:
@@ -651,8 +708,8 @@ class Detection_Zone(iAPP_OBJ):
             list: (B,G,R).
         """
         return self.palette[label]
-  
-  def custom_function(self, frame:np.ndarray, color:tuple, label:str,score:float,\
+    
+    def custom_function(self, frame:np.ndarray, color:tuple, label:str,score:float,\
                        left_top:tuple, right_down:tuple,draw_bbox:bool=True,draw_result:bool=True):
         
         """
@@ -691,7 +748,7 @@ class Detection_Zone(iAPP_OBJ):
             )
         return frame
 
-  def set_draw(self,params:dict):
+    def set_draw(self,params:dict):
         """
         Control anything about drawing.
         Which params you can contral :
@@ -757,74 +814,74 @@ class Detection_Zone(iAPP_OBJ):
             logging.error("Not set palette or your type {} is error.".format(type(palette)))
 
 
-  def _init_app_output(self):
-    """
-        return count to 0
-    """
-    for area_id ,val in self.app_output_data.items():
-        for id ,val in enumerate(val):
-            self.app_output_data[area_id][id]['num']=0
+    def _init_app_output(self):
+        """
+            return count to 0
+        """
+        for area_id ,val in self.app_output_data.items():
+            for id ,val in enumerate(val):
+                self.app_output_data[area_id][id]['num']=0
    
-  def _get_total(self,area_id:int):
-    """
-        get total object num
-    """
-    _temp=0
-    
-    for id ,val in enumerate(self.app_output_data[area_id]):
-        _temp = _temp +val['num']
+    def _get_total(self,area_id:int):
+        """
+            get total object num
+        """
+        _temp=0
+        
+        for id ,val in enumerate(self.app_output_data[area_id]):
+            _temp = _temp +val['num']
 
-    return _temp
+        return _temp
 
-  def __call__(self,frame:np.ndarray, detections:list):
+    def __call__(self,frame:np.ndarray, detections:list):
 
-    #step1 : Update draw param.
-    self._update_draw_param(frame)
-    self._convert_area_point(frame) #{0: [[0.256, 0.583], [0.658, 0.503], [0.848, 0.712], [0.356, 0.812]]} {0: [[1629, 769], [684, 877], [492, 630], [1264, 544]]}
-    ori_frame = frame.copy()
-    self._init_app_output()
+        #step1 : Update draw param.
+        self._update_draw_param(frame)
+        self._convert_area_point(frame) #{0: [[0.256, 0.583], [0.658, 0.503], [0.848, 0.712], [0.356, 0.812]]} {0: [[1629, 769], [684, 877], [492, 630], [1264, 544]]}
+        ori_frame = frame.copy()
+        self._init_app_output()
 
-    if cv2.waitKey(1) in [ ord('c'), 99 ]: self.draw_area= self.draw_area^1
-    frame = self.draw_area_event(frame, self.draw_area)
-    
-    #step2 : Strat detection for each area.
+        if cv2.waitKey(1) in [ ord('c'), 99 ]: self.draw_area= self.draw_area^1
+        frame = self.draw_area_event(frame, self.draw_area)
+        
+        #step2 : Strat detection for each area.
 
-    for detection in detections:
-        # Check Label is what we want
-        ( label, score, xmin, ymin, xmax, ymax ) \
-                = detection.label, detection.score, detection.xmin, detection.ymin, detection.xmax, detection.ymax  
-        # if user have set depend on
-        ret , _total_area =self._check_depend(label)
-        if ret:
-            for id ,area_id in enumerate(_total_area):
-                if self.inpolygon(((xmin+xmax)//2),((ymin+ymax)//2),self.area_pts[area_id]): 
-                    #step3 : draw bbox and result. 
-                    frame = self.custom_function(
-                        frame = frame,
-                        color = self.get_color(label) ,
-                        label = label,
-                        score=score,
-                        left_top = (xmin, ymin),
-                        right_down = (xmax, ymax)
-                    )
-                    #update app_output
-                    self._cal_app_output_data(label,area_id)
+        for detection in detections:
+            # Check Label is what we want
+            ( label, score, xmin, ymin, xmax, ymax ) \
+                    = detection.label, detection.score, detection.xmin, detection.ymin, detection.xmax, detection.ymax  
+            # if user have set depend on
+            ret , _total_area =self._check_depend(label)
+            if ret:
+                for id ,area_id in enumerate(_total_area):
+                    if self.inpolygon(((xmin+xmax)//2),((ymin+ymax)//2),self.area_pts[area_id]): 
+                        #step3 : draw bbox and result. 
+                        frame = self.custom_function(
+                            frame = frame,
+                            color = self.get_color(label) ,
+                            label = label,
+                            score=score,
+                            left_top = (xmin, ymin),
+                            right_down = (xmax, ymax)
+                        )
+                        #update app_output
+                        self._cal_app_output_data(label,area_id)
 
-    #step4: combined app_output.
-    app_output = self._combined_app_output()
+        #step4: combined app_output.
+        app_output = self._combined_app_output()
 
-    #step5: draw total result on the left top.
-    self.draw_app_result(frame,app_output)
+        #step5: draw total result on the left top.
+        self.draw_app_result(frame,app_output)
 
-    #step6: deal event.
-    #if the area don't have set event. 
-    event_output=[]
-    for area_id , event_handler in self.event_handler.items():
-      event_handler(frame,ori_frame,area_id,self._get_total(area_id),app_output)
-      if event_handler.event_output !={}:
-        event_output.append(event_handler.event_output)
+        #step6: deal event.
+        #if the area don't have set event. 
+        event_output=[]
+        for area_id , event_handler in self.event_handler.items():
+            event_handler(frame,ori_frame,area_id,self._get_total(area_id),app_output)
+            if event_handler.event_output !={}:
+                event_output.append(event_handler.event_output)
 
-    return (frame ,app_output,event_output)   
+        return (frame ,app_output,event_output)   
            
 if __name__=='__main__':
     import logging as log
