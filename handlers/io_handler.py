@@ -15,6 +15,8 @@ except:
     from common import RT_CONF, SERV_CONF
     from utils import gen_uid
 
+from .sys_handler import get_v4l2
+
 from .db_handler import (
     select_data, 
     insert_data,
@@ -153,9 +155,20 @@ def create_source(source_uid:str) -> SourceV2:
     # Parse Source Information
     src_info = parse_source_data(source[0])
 
+
     # Check Source
     if is_src_loaded(source_uid):
         return RT_CONF[K_SRC].get(source_uid)
+
+    # NOTE: if it's camera then have to check twice
+    if src_info["type"]=="CAM":
+        ret, available_cams = get_v4l2()
+        
+        # if not in available camera list
+        # NOTE: have to add more behaviour
+        if src_info["input"] not in available_cams:
+            update_src_status(src_info["uid"], "error")
+            raise RuntimeError("Camera not found.")
 
     # Initialize Source         
     src_object = SourceV2(
@@ -299,6 +312,8 @@ def get_source_frame(source_uid:str, resolution:list=None) -> np.ndarray:
     # Check source is exist or not
     source = select_data(   table='source', data="*",
                             condition=f"WHERE uid='{source_uid}'" )
+    
+    # Check camera is alive or not
     if not is_list_empty(source):
         src = create_source(source_uid=source_uid)
         frame = copy.deepcopy(src.frame)
