@@ -11,7 +11,221 @@ from ivit_i.common.app import iAPP_OBJ
 import os
 import numpy as np
 import time
-from typing import Tuple
+from typing import Tuple, Callable
+from collections import defaultdict
+
+def draw_area(
+        frame:np.ndarray,
+        area_name:str,
+        area_points:list,
+        is_draw_area:bool,
+        area_color:tuple=(0,0,255), 
+        area_opacity:float=0.4,
+        font_size:int = 1,
+        font_thick:int = 1, 
+        is_draw_points:bool=True) -> np.ndarray:
+    """ Draw Detecting Area and update center point if need.
+    - args
+        - frame: input frame
+        - area_color: control the color of the area
+        - area_opacity: control the opacity of the area
+    """
+
+    if not is_draw_area: return frame
+        
+    # Parse All Area
+    overlay = frame.copy()
+
+    temp_area_next_point = []
+
+
+    # draw area point
+    if  is_draw_points: 
+        
+        [ cv2.circle(frame, tuple(pts), 3, area_color, -1) for pts in area_points ]
+
+    # if delet : referenced before assignment
+    minxy,maxxy=(max(area_points),min(area_points))
+
+    for pts in area_points:
+        if temp_area_next_point == []:
+            cv2.line(frame,pts,area_points[-1], (0, 0, 255), 3)            
+        else:
+            cv2.line(frame, temp_area_next_point, pts, (0, 0, 255), 3)
+        temp_area_next_point= pts
+            
+        if (tuple(pts)[0]+tuple(pts)[1])<(minxy[0]+minxy[1]): 
+            minxy= pts
+
+    #draw area name for each area            
+    (t_wid, t_hei), t_base = cv2.getTextSize(area_name, cv2.FONT_HERSHEY_SIMPLEX, font_size, font_thick)
+    t_xmin, t_ymin, t_xmax, t_ymax = minxy[0], minxy[1], minxy[0]+t_wid, minxy[1]+(t_hei+t_base)
+    
+    cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,255) , -1)
+    cv2.putText(
+        frame, area_name, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
+        font_size, (0,0,0), font_thick, cv2.LINE_AA
+    )
+
+    #draw area 
+    cv2.fillPoly(overlay, pts=[ np.array(area_points) ], color=area_color)
+    temp_area_next_point = []
+
+    return cv2.addWeighted( frame, 1-area_opacity, overlay, area_opacity, 0 ) 
+
+
+
+class EventHandler(threading.Thread):
+
+    def __init__(   self, 
+                    operator, thres:int, cooldown_time:int, 
+                    event_title:str, area_name:str, norm_area_points:list, area_id:int, 
+                    event_folder:str, uid:str ):
+        threading.Thread.__init__(self)
+        # Event
+        self.operator = operator
+        self.thres = thres
+        self.event_title = event_title
+        self.norm_area_points = norm_area_points
+        self.area_name = area_name
+        self.area_points = None
+        self.area_id = area_id
+        self.uid = uid
+        self.event_folder = os.path.join(event_folder, uid)
+        
+        # About timestamp
+        self.t_cooldown = cooldown_time
+        self.t_trigger = time.time()
+        self.t_pass = 0
+        
+    def _create_folder(self, folder_path: str) -> None:
+        if os.path.isdir(folder_path): return
+        os.makedirs(folder_path)
+
+
+    def _sort_point_list(self, point_list: list) -> list:
+        """
+        This function will help user to sort the point in the list counterclockwise.
+        step 1 : We will calculate the center point of the cluster of point list.
+        step 2 : calculate arctan for each point in point list.
+        step 3 : sorted by arctan.
+
+        Args:
+            point_list (list): not sort point.
+
+        Returns:
+            sorted_point_list(list): after sort.
+        
+        """
+
+        cen_x, cen_y = np.mean(point_list, axis=0)
+        #refer_line = np.array([10,0]) 
+        temp_point_list = []
+        sorted_point_list = []
+        for i in range(len(point_list)):
+
+            o_x = point_list[i][0] - cen_x
+            o_y = point_list[i][1] - cen_y
+            atan2 = np.arctan2(o_y, o_x)
+            # angle between -180~180
+            if atan2 < 0:
+                atan2 += np.pi * 2
+            temp_point_list.append([point_list[i], atan2])
+        print(temp_point_list)
+        
+        temp_point_list = sorted(temp_point_list, key=lambda x:x[1])
+        for x in temp_point_list:
+            sorted_point_list.append(x[0])
+        print(sorted_point_list)
+        return sorted_point_list
+
+
+    def _convert_area_point(self, frame:np.ndarray) -> None:
+        """convert area point from normalize area point 
+
+        Args:
+            frame (np.ndarray): input frame
+        """
+        if self.area_points: return
+
+        temp_point = []
+        for point in self.norm_area_points:
+            temp_point.append([math.ceil(point[0]*frame.shape[1]),math.ceil(point[1]*frame.shape[0])])
+        self.area_points = self._sort_point_list(temp_point)
+
+    def __call__(   self, 
+                    frame, 
+                    ori_frame,  
+                    total_object_number, 
+                    app_output,
+                    detections ) -> dict:
+        """
+        1. 先檢查 Event 是否觸發
+        2. 檢查 Cooldown 是否結束了
+        """
+        
+        # Initialize variable
+        event_output = {}
+
+        # Pre-requirement
+        self._convert_area_point(frame=frame)
+
+        # Not trigger
+        if not self.operator(total_object_number, self.thres):
+            return event_output
+        
+        # If less than cooldown time, update t_pass with current time.
+        if self.t_pass < self.t_cooldown:
+            self.t_pass = time.time() - self.t_trigger
+            return event_output
+            
+        # When Event happend
+        self.t_trigger = time.time()
+
+        # Create folder with timestamp
+        timestamp_folder = os.path.join(self.event_folder, str(self.t_trigger))
+        self._create_folder(timestamp_folder)
+        
+        # Write Image
+        ori_path = os.path.join(timestamp_folder, "original.jpg" )
+        cv2.imwrite(ori_path, ori_frame)
+
+        # NOTE: Draw Area
+        overlay_path = os.path.join(timestamp_folder, "overlay.jpg" )
+        overlay = draw_area(
+            frame=frame,
+            area_name= self.area_name,
+            area_points= self.area_points,
+            is_draw_area=True
+        )
+        # NOTE: Draw detections
+        for detection in detections:
+            # Check Label is what we want
+            ( label, score, xmin, ymin, xmax, ymax ) \
+                    = detection.label, detection.score, detection.xmin, detection.ymin, detection.xmax, detection.ymax  
+        (xmin, ymin, xmax, ymax) = map(int, (xmin, ymin, xmax, ymax))
+        cv2.rectangle(overlay, (xmin, ymin), (xmax, ymax), (0,255,0) , 1)
+
+        cv2.imwrite(overlay_path, overlay)
+    
+        # Combine Output
+        event_output = {
+            "uid": self.uid,
+            "title": self.event_title,
+            "areas": app_output["areas"],
+            "timesamp":str(self.t_trigger),
+            "screenshot": { 
+                "overlay": overlay_path,
+                "original": ori_path
+            } 
+        }
+
+        # Update Pass Time
+        self.t_pass = 0
+
+        # Return Value
+        return event_output
+    
 
 class event_handle(threading.Thread):
   def __init__(self ,operator,thres:dict,cooldown_time:dict,event_title:dict,area_id:int,event_save_folder:str,uid:dict):
@@ -93,6 +307,7 @@ class event_handle(threading.Thread):
       self.info = "The {} area : ".format(area_id)+self.event_title+\
         ' , '.join([ 'total:{}  , cool down time:{}/{}'.format(total_object_number,self.pass_time,self.cooldown_time)])
 
+
 class Detection_Zone(iAPP_OBJ):
 
     def __init__(self, params:dict, label:str, event_save_folder:str="event", palette:dict=palette):
@@ -111,6 +326,7 @@ class Detection_Zone(iAPP_OBJ):
         # put here reason is in there we need self.label_list but self.label_list get value after _init_palette
         # self.depend_on , self.app_output_data = self._get_depend_on()
         self.depend_on , self.app_output_data = None, None
+
         # Draw
         self._init_draw_params()
         self._update_area_params()
@@ -122,9 +338,18 @@ class Detection_Zone(iAPP_OBJ):
 
     # ----------------------------------------------------------------------------
     # Helper Function
+    def _get_var_name(self, variable):
+        for name, value in globals().items():
+            if value is variable:
+                return name
+
     def _check_type(self, data, type):
         if isinstance( data, type): return
-        raise TypeError(f"The area data should be {str(type)}, but get {type(data)}")
+        raise TypeError(f"The data type should be {str(type)}, but get {type(data)}")
+
+    def _check_key(self, data:dict, key:str):
+        if key in data: return
+        raise KeyError(f"Can not find {key} in {self._get_var_name(data)}")
 
     def _check_params(self, params:dict) -> dict:
         """Initailize and check parameters
@@ -143,22 +368,23 @@ class Detection_Zone(iAPP_OBJ):
             dict: params after checking
         """
         #check config type
-        self._check_type(params, dict)
+        if not isinstance( params, dict ):
+            raise TypeError(f"The application parameter should be dict, but get {type(params)}")
         
         #check config key ( application ) is exist or not and the type is correct or not
         app_info =  params.get("application", None)
         if not app_info:
-           raise ValueError("The app_config must have key 'application'.")
-        
-        self._check_type(app_info, dict)
+            raise ValueError("The app_config must have key 'application'.")
+        if not isinstance( app_info, dict ):
+            raise TypeError(f"The application information in application should be dict, but get {type(params)}")
         
         #check area setting is exist or not and the type is correct or not
         areas_info = app_info.get("areas", None)
         if not areas_info:
            raise ValueError("The app_config['application'] must have key 'areas'.")
+        if not isinstance( areas_info, list ):
+            raise TypeError(f"The area information in application should be list, but get {type(params)}")
 
-        self._check_type(areas_info, list)
-        
         return params
 
     # ----------------------------------------------------------------------------
@@ -365,6 +591,29 @@ class Detection_Zone(iAPP_OBJ):
             self.app_output_data[area_id] = _get_app_output(self.depend_on[area_id])
 
 
+    # ----------------------------------------------------------------------------
+    # Event Parameters
+    def _init_logic_helper(self) -> dict:
+        greater = lambda x,y: x>y
+        greater_or_equal = lambda x,y: x>=y
+        less = lambda x,y: x<y
+        less_or_equal = lambda x,y: x<=y
+        equal = lambda x,y: x==y
+        return {
+            '>': greater,
+            '>=': greater_or_equal,
+            '<': less,
+            '<=': less_or_equal,
+            '=': equal,
+        }
+    
+    def _get_logic_operator(self, operator: str) -> Callable[[str], bool]:
+        """ Get the callable logic operator function """
+        if operator not in self.logic_helper:
+            raise KeyError('Get unexpected operator')
+        
+        return self.logic_helper["operator"]
+
     def _init_event_param(self,event_save_folder:str="event"):
         """ Initialize Event Parameters """
         self.logic_operator = {}
@@ -376,23 +625,51 @@ class Detection_Zone(iAPP_OBJ):
         self.event_save_folder=event_save_folder
         self.event_uid={}
 
-    # def _update_event_param(self):
-    #     """ Update event parameters """
-    #     for area_id ,area_info in enumerate(self.params["application"]["areas"]):
+        # Initialize logic helper
+        self.logic_helper = self._init_logic_helper()
+
+    def _get_logic_event(self, operator):
+        """ Define the logic event """
+        greater = lambda x,y: x>y
+        greater_or_equal = lambda x,y: x>=y
+        less = lambda x,y: x<y
+        less_or_equal = lambda x,y: x<=y
+        equal = lambda x,y: x==y
+        logic_map = {
+            '>': greater,
+            '>=': greater_or_equal,
+            '<': less,
+            '<=': less_or_equal,
+            '=': equal,
+        }
+        return logic_map.get(operator)
+
+
+    def _update_event_param_v2(self):
+        """ Update event parameters """
+        for area_id ,area_info in enumerate(self.params["application"]["areas"]):
             
-    #         # get events data
-    #         events_info = area_info.get("events", None )      
-    #         # if not setup events
-    #         if not events_info: continue
-    #         # check events_info type
-    #         self._check_type(events_info, dict)
+            # get events data, if not setup then continue
+            events_info = area_info.get("events", None )
+            if not events_info: continue
+
+            # CHECK: events_info type
+            self._check_type(events_info, dict)
             
-    #         # get logic_operator
+            # get logic_operator
+            _logic_op = events_info.get("logic_operator")
+            if not _logic_op: raise KeyError()
+            self.logic_operator[area_id] = \
+                self._get_logic_operator(events_info["logic_operator"])
+
+            # get logic_value
+            self.logic_value[area_id] = events_info["logic_value"]
             
-        
             
-    #         pass
-    #     pass
+
+
+            pass
+        pass
 
 
     def _update_event_param(self):
@@ -442,7 +719,7 @@ class Detection_Zone(iAPP_OBJ):
                 if area_info['events'].__contains__('cooldown_time'):
                     self.cooldown_time.update({area_id:self.params['application']['areas'][i]['events']['cooldown_time']})
                 else :
-                    self.cooldown_time.update({area_id:10})   
+                    self.cooldown_time.update({area_id:5})   
                 
                 if area_info['events'].__contains__('sensitivity'):
                     self.sensitivity.update({area_id:self._get_sensitivity_event(area_info['events']['sensitivity'])})
@@ -455,26 +732,12 @@ class Detection_Zone(iAPP_OBJ):
                                         .format(type(area_info['events']['uid'])))
                     self.event_uid.update({area_id:area_info['events']['uid']})
                 else:
-                    self.event_uid.update({area_id:None})
+                    # NOTE: if no uid then generate it
+                    _uid = str(uuid.uuid4())[:8]
+                    self.event_uid.update({area_id:_uid})
 
             else:
                 logging.warning("No set event!")
-            
-    def _get_logic_event(self, operator):
-        """ Define the logic event """
-        greater = lambda x,y: x>y
-        greater_or_equal = lambda x,y: x>=y
-        less = lambda x,y: x<y
-        less_or_equal = lambda x,y: x<=y
-        equal = lambda x,y: x==y
-        logic_map = {
-            '>': greater,
-            '>=': greater_or_equal,
-            '<': less,
-            '<=': less_or_equal,
-            '=': equal,
-        }
-        return logic_map.get(operator)
 
     def _get_sensitivity_event(self,sensitivity_str):
         """ Define the sensitivity of event """
@@ -490,7 +753,7 @@ class Detection_Zone(iAPP_OBJ):
         }
         return sensitivity_map.get(sensitivity_str)
 
-    def _sort_point_list(self,point_list:list):
+    def _sort_point_list(self, point_list: list) -> list:
         """
         This function will help user to sort the point in the list counterclockwise.
         step 1 : We will calculate the center point of the cluster of point list.
@@ -498,11 +761,10 @@ class Detection_Zone(iAPP_OBJ):
         step 3 : sorted by arctan.
 
         Args:
-            pts_2ds (list): not sort point.
-
+            point_list (list): not sort point.
 
         Returns:
-            point_list(list): after sort.
+            sorted_point_list(list): after sort.
         
         """
 
@@ -581,12 +843,35 @@ class Detection_Zone(iAPP_OBJ):
             })
         return app_output
 
+    # def _init_event_object(self):
+
+    #     for area_id ,val in self.logic_operator.items():
+    #         event_obj = event_handle(
+    #             val,
+    #             self.logic_value[area_id],
+    #             self.cooldown_time[area_id],
+    #             self.event_title[area_id],
+    #             area_id,
+    #             self.event_save_folder,
+    #             self.event_uid) 
+    #         self.event_handler.update( { area_id: event_obj }  )  
+
     def _init_event_object(self):
 
-        for area_id ,val in self.logic_operator.items():
-            event_obj = event_handle(val,self.logic_value[area_id],self.cooldown_time[area_id]\
-                                    ,self.event_title[area_id],area_id,self.event_save_folder,self.event_uid) 
+        for area_id , op in self.logic_operator.items():
+            event_obj = EventHandler(
+                operator= op,
+                thres= self.logic_value[area_id],
+                cooldown_time= self.cooldown_time[area_id],
+                event_title= self.event_title[area_id],
+                area_name= self.area_name[area_id],
+                norm_area_points= self.normalize_area_pts[area_id],
+                area_id= area_id,
+                event_folder= self.event_save_folder,
+                uid= self.event_uid[area_id])
+             
             self.event_handler.update( { area_id: event_obj }  )  
+
 
     def draw_app_result(self,frame:np.ndarray,result:dict,outer_clor:tuple=(0,255,255),font_color:tuple=(0,0,0)):
         sort_id=0
@@ -845,27 +1130,37 @@ class Detection_Zone(iAPP_OBJ):
         frame = self.draw_area_event(frame, self.draw_area)
         
         #step2 : Strat detection for each area.
-
+        cur_detections = defaultdict(list)
         for detection in detections:
             # Check Label is what we want
             ( label, score, xmin, ymin, xmax, ymax ) \
                     = detection.label, detection.score, detection.xmin, detection.ymin, detection.xmax, detection.ymax  
             # if user have set depend on
-            ret , _total_area =self._check_depend(label)
-            if ret:
-                for id ,area_id in enumerate(_total_area):
-                    if self.inpolygon(((xmin+xmax)//2),((ymin+ymax)//2),self.area_pts[area_id]): 
-                        #step3 : draw bbox and result. 
-                        frame = self.custom_function(
-                            frame = frame,
-                            color = self.get_color(label) ,
-                            label = label,
-                            score=score,
-                            left_top = (xmin, ymin),
-                            right_down = (xmax, ymax)
-                        )
-                        #update app_output
-                        self._cal_app_output_data(label,area_id)
+            in_depend , _total_area =self._check_depend(label)
+            if not in_depend:
+                continue
+            
+            # filter each area
+            for area_id in _total_area:
+                
+                in_area = self.inpolygon(((xmin+xmax)//2),((ymin+ymax)//2),self.area_pts[area_id])
+
+                if not in_area: continue
+
+                #step3 : draw bbox and result. 
+                frame = self.custom_function(
+                    frame = frame,
+                    color = self.get_color(label) ,
+                    label = label,
+                    score=score,
+                    left_top = (xmin, ymin),
+                    right_down = (xmax, ymax)
+                )
+                #update app_output
+                self._cal_app_output_data(label,area_id)
+
+                #add detection into cur_detections
+                cur_detections[area_id].append(detection)
 
         #step4: combined app_output.
         app_output = self._combined_app_output()
@@ -877,11 +1172,16 @@ class Detection_Zone(iAPP_OBJ):
         #if the area don't have set event. 
         event_output=[]
         for area_id , event_handler in self.event_handler.items():
-            event_handler(frame,ori_frame,area_id,self._get_total(area_id),app_output)
-            if event_handler.event_output !={}:
-                event_output.append(event_handler.event_output)
-
-        return (frame ,app_output,event_output)   
+            cur_event_output = event_handler(
+                frame,
+                ori_frame,
+                self._get_total(area_id),
+                app_output,
+                cur_detections[area_id] )
+            if cur_event_output !={}:
+                event_output.append(cur_event_output)
+            
+        return ( frame, app_output, event_output )   
            
 if __name__=='__main__':
     import logging as log
@@ -1056,16 +1356,17 @@ if __name__=='__main__':
             
             # infer_metrx.paint_metrics(frame)
             
-            # Draw FPS: default is left-top                     
-            dpr.show(frame=frame)
+            # Draw FPS: default is left-top    
+            if not args.no_show:                 
+                dpr.show(frame=frame)
 
-            # Display
-            if dpr.get_press_key() == ord('+'):
-                model.set_thres( model.get_thres() + 0.05 )
-            elif dpr.get_press_key() == ord('-'):
-                model.set_thres( model.get_thres() - 0.05 )
-            elif dpr.get_press_key() == ord('q'):
-                break
+                # Display
+                if dpr.get_press_key() == ord('+'):
+                    model.set_thres( model.get_thres() + 0.05 )
+                elif dpr.get_press_key() == ord('-'):
+                    model.set_thres( model.get_thres() - 0.05 )
+                elif dpr.get_press_key() == ord('q'):
+                    break
 
             # Update Metrix
             infer_metrx.update()
@@ -1076,4 +1377,5 @@ if __name__=='__main__':
     finally:
         model.release()
         src.release()
-        dpr.release()
+        if not args.no_show:
+            dpr.release()
