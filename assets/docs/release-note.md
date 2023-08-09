@@ -1,5 +1,18 @@
 # Release Note
 
+## r1.1.4
+* Web API
+  1. Feat: Check the value of the source when editing the AI task. Avoid writing the empty into the database.
+  2. Feat: Avoid SQL injection when editing and deleting the AI task.
+  3. Fix: Change the workflow to capture the USB camera to avoid buffer conflict.
+  4. Fix: The application ( Detection_Zone ) should draw the correct label name on the left-top corner.
+
+* Website
+  1. Feat: Add an error message in the entrance when the Web API is unavailable.
+  2. Fix: When editing the AI task that uses the USB camera, the save button will be disabled when unplugging the camera.
+  3. Fix: Check whether the source dropdown list is empty when editing the AI task.
+  4. Fix: Use the default color palette if the Web API doesn't provide it. 
+
 ## r1.1.3
 1. Fix: Can not choose the USB camera running with another AI task when adding a new AI Task.
 2. Fix: Can not run the object detection model because of losing `libyololayer.so` in the `NVIDIA` platform.
