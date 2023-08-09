@@ -13,7 +13,7 @@ import numpy as np
 from multiprocessing.pool import ThreadPool
 from fastapi import File
 import shutil
-
+import re
 
 # Custom
 try:
@@ -175,6 +175,19 @@ def update_task_status(uid, status, err_mesg:dict = {}):
     }
     update_data(table='task', data=write_data, condition=f"WHERE uid='{uid}'")
 
+
+def avoid_sql_injection(data:str) -> str:
+    """Avoid SQL injection
+
+    Args:
+        data (str): input string data
+
+    Returns:
+        str: output string data
+    """
+    new_data = re.sub(r'[^a-zA-Z0-9_\.\s\-\/\u4E00-\u9FFF]+', '', data)
+    print(f'Avoid SQL Injection: {data} -> {new_data}')    
+    return new_data
 
 def verify_task_exist(uid):
     
@@ -503,7 +516,7 @@ def edit_ai_task(edit_data):
         * app
     """
     # Get Task UUID and Application UUID    
-    task_uid = app_uid = edit_data.task_uid
+    task_uid = app_uid = avoid_sql_injection(edit_data.task_uid)
 
     # CHECK: AI task is exist or not
     verify_task_exist(task_uid)
@@ -581,18 +594,18 @@ def del_ai_task(uid:str):
     1. Delete task information into database ( table: task )
     2. Delete application information into database ( table: app )
     """
-
-    verify_task_exist(uid)
+    task_uid = avoid_sql_injection(uid)
+    verify_task_exist(task_uid)
 
     # Del Task
     delete_data(
         table='task',
-        condition=f"WHERE uid='{uid}'")
+        condition=f"WHERE uid='{task_uid}'")
     
     # Del App
     delete_data(
         table='app',
-        condition=f"WHERE uid='{uid}'")
+        condition=f"WHERE uid='{task_uid}'")
 
 
 def export_ai_task(export_uids:list, to_icap:bool=False) -> list:
