@@ -12,12 +12,122 @@ import os
 import numpy as np
 import time
 from typing import Tuple, Callable
+from collections import defaultdict
 
+# Parameters
+FRAME_SCALE     = 0.0005    # Custom Value which Related with Resolution
+BASE_THICK      = 1         # Setup Basic Thick Value
+BASE_FONT_SIZE  = 0.5   # Setup Basic Font Size Value
+FONT_SCALE      = 0.2   # Custom Value which Related with the size of the font.
+WIDTH_SPACE = 10
+HIGHT_SPACE = 10
 
-class DrawHelper:
+def denorm_area_point(frame: np.ndarray, norm_points: list) -> list:
+    ret_point = []
+    return ret_point
 
+class DrawTooler:
+    """ Draw Tool for Label, Bounding Box, Area ... etc. """
 
-    pass
+    def __init__(self, label_path:str, palette:dict) -> None:
+            
+        # palette[cat] = (0,0,255), labels = [ cat, dog, ... ]
+        self.label_palette, self.labels = \
+            self._get_palette_and_labels(palette=palette, label_path=label_path)
+
+        # Initialize draw params
+        self.font_size = 1
+        self.font_thick = 1
+        self.line_thick = 1        
+        self.area_color = [ 0,0,255 ]
+        self.area_opacity = 0.4          
+        self.draw_params_is_ready = False
+
+    def _get_palette_and_labels(self, palette:dict, label_path:str) -> Tuple[dict, list]:
+        """update the color palette ( self.palette ) which key is label name and label list ( self.labels).
+
+        Args:
+            palette (dict): the default palette
+            label_path (str): the path to label file
+
+        Raises:
+            TypeError: if the default palette with wrong type
+            FileNotFoundError: if not find label file
+
+        Returns:
+            Tuple[dict, list]: palette, labels
+        """
+        
+        # check type and path is available
+        if not isinstance(palette, dict):
+            raise TypeError(f"Expect palette type is dict, but get {type(palette)}.")
+        if not os.path.exists(label_path):
+            raise FileNotFoundError(f"Can not find label file in '{label_path}'.")
+        
+        # params
+        ret_palette = {}
+        ret_labels = []
+
+        # update custom color if need
+        custom_palette = self.params["application"].get("palette", {})
+        
+        # update palette and label
+        idx = 1
+        f = open(label_path, 'r')
+        for raw_label in f.readlines():
+
+            label = raw_label.strip()
+            
+            # if setup custom palette
+            if label in custom_palette:
+                color = custom_palette[label]
+            
+            # use default palette 
+            else:
+                color = palette[str(idx)]
+            
+            # update palette, labels and idx
+            ret_palette[label] = color
+            ret_labels.append(label)
+            idx += 1
+
+        f.close()
+
+        return ret_palette, ret_labels
+
+    def update_draw_params(self, frame: np.ndarray):
+        
+        if self.draw_params_is_ready: return
+
+        # Get Frame Size
+        self.frame_size = frame.shape[:2]
+        
+        # Calculate the common scale
+        scale = FRAME_SCALE * sum(self.frame_size)
+        
+        # Get dynamic thick and dynamic size 
+        self.line_thick  = BASE_THICK + round( scale )
+        self.font_thick = self.line_thick//2
+        self.font_size = BASE_FONT_SIZE + ( scale*FONT_SCALE )
+        self.width_space = int(scale*WIDTH_SPACE) 
+        self.height_space = int(scale*HIGHT_SPACE) 
+
+        # Change Flag
+        self.draw_params_is_ready = True
+        print('Updated draw parameters !!!')
+
+    def draw_area(self, frame: np.ndarray, points: list, name: str, color = None, thick = None) -> np.ndarray:
+        pass
+    
+    def draw_bbox(self, frame: np.ndarray, left_top: list, right_bottom: list, color = None, thick = None) -> np.ndarray:
+        # Draw bbox
+        pass
+
+    def draw_label(self, frame: np.ndarray, label: str, position: list) -> np.ndarray:
+        # Draw label
+        pass
+
+    
 
 class Detection_Zone(iAPP_OBJ):
 
@@ -132,7 +242,7 @@ class Detection_Zone(iAPP_OBJ):
             # check has depend_on and type is correct
             _depend_on = data.get("depend_on", None)
             if not _depend_on:
-                raise ValueError(f"Can not find 'depend_on' in area ({area_id}) ")
+                raise ValueError(f"Can not find 'depend_on' in area setting ")
             elif _depend_on==[]:
                 _depend_on = self.labels
             else:
@@ -197,14 +307,6 @@ class Detection_Zone(iAPP_OBJ):
 
         # if frame_size not None means it was already init 
         if( self.frame_idx >= 1): return None
-
-        # Parameters
-        FRAME_SCALE     = 0.0005    # Custom Value which Related with Resolution
-        BASE_THICK      = 1         # Setup Basic Thick Value
-        BASE_FONT_SIZE  = 0.5   # Setup Basic Font Size Value
-        FONT_SCALE      = 0.2   # Custom Value which Related with the size of the font.
-        WIDTH_SPACE = 10
-        HIGHT_SPACE = 10
 
         # Get Frame Size
         self.frame_size = frame.shape[:2]
