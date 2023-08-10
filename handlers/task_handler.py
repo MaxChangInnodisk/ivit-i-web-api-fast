@@ -352,31 +352,38 @@ def run_ai_task(uid:str, data:dict=None) -> str:
         raise RuntimeError("Load Application Failed: {}".format(simple_exception(e)[1]))
     
     # Create Threading
-    try:
-        # Check Keyword in RT_CONF
-        if RT_CONF.get(uid) is None:
-            RT_CONF.update( {uid: {'EXEC': None}} )
-        
-        RT_CONF[uid].update({ 
-            'EXEC': InferenceLoop(
-                uid=uid,
-                src=src,
-                model=model,
-                app=app,
-                src_uid = source_uid,
-                model_uid = model_uid,
-                dpr=dpr 
-            ),
-            'DATA': {} 
-        })
+    # Check Keyword in RT_CONF
+    if RT_CONF.get(uid) is None:
+        RT_CONF.update( {uid: {'EXEC': None}} )
+    
+    RT_CONF[uid].update({ 
+        'EXEC': InferenceLoop(
+            uid=uid,
+            src=src,
+            model=model,
+            app=app,
+            src_uid = source_uid,
+            model_uid = model_uid,
+            dpr=dpr 
+        ),
+        'DATA': {} 
+    })
 
+    # Start Source Thread
+    try:
         # Start each threading
         start_source(source_uid)
-        RT_CONF[uid]['EXEC'].start()
 
     except Exception as e:
-        del RT_CONF[uid]['EXEC']
+        # del RT_CONF[uid]['EXEC']
+        # RT_CONF[uid]['EXEC'].stop()
+        raise RuntimeError("Launch Source Thread Failed: {}".format(simple_exception(e)[1]))
+
+    try:
+        RT_CONF[uid]['EXEC'].start()
+    except Exception as e:
         raise RuntimeError("Launch AI Task Failed: {}".format(simple_exception(e)[1]))
+
 
     # End
     mesg = 'Run AI Task ( {}: {} )'.format(uid, task_info['name'] )
