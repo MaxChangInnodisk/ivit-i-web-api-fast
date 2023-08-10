@@ -106,7 +106,7 @@ def is_src_loaded(source_uid) -> bool:
         
         if status in [ 'run',  "loaded" ]:
             src = RT_CONF[K_SRC].get(source_uid)
-            if src is None:
+            if src is None or not src.is_ready:
                 break
             return True
     
@@ -155,9 +155,9 @@ def create_source(source_uid:str) -> SourceV2:
     # Parse Source Information
     src_info = parse_source_data(source[0])
 
-
     # Check Source
     if is_src_loaded(source_uid):
+        print(f"\n\nThe Source ({src_info['input']}) is loaded.")
         return RT_CONF[K_SRC].get(source_uid)
 
     # NOTE: if it's camera then have to check twice
@@ -170,11 +170,14 @@ def create_source(source_uid:str) -> SourceV2:
             update_src_status(src_info["uid"], "error")
             raise RuntimeError("Camera not found.")
 
-    # Initialize Source         
-    src_object = SourceV2(
-        input=src_info['input'], 
-        resolution=src_info.get('resolution'), 
-        fps=src_info.get('fps') )
+    # Initialize Source
+    try: 
+        src_object = SourceV2(
+            input=src_info['input'], 
+            resolution=src_info.get('resolution'), 
+            fps=src_info.get('fps') )
+    except Exception as e:
+        log.exception(e)
 
     # Update into RT_CONF
     RT_CONF[K_SRC].update( { source_uid: src_object } )
@@ -188,10 +191,21 @@ def create_source(source_uid:str) -> SourceV2:
 
 def start_source(source_uid:str):
     """Start source"""
+
     src = create_source(source_uid)
     src.start()
     update_src_status(source_uid, 'run')
 
+    # try:
+    #     src = create_source(source_uid)
+    #     src.start()
+    #     update_src_status(source_uid, 'run')
+
+    # except Exception as e:
+    #     # src.release()
+    #     print('Start source object failed')
+    #     update_src_status(source_uid, 'error')
+        # raise RuntimeError("Start Source Object Failed.")
 
 def stop_source(source_uid:str):
     """Stop source
