@@ -49,8 +49,8 @@ case ${OPT_ARR[0]} in
         ;;
     *)
         echo "Not detect platform !!!!"
-        echo "Usage     : run.sh [PLATFORM] [OPTION]"
-        echo "Example   : run.sh intel -q"
+        echo "Usage     : build.sh [PLATFORM]"
+        echo "Example   : build.sh intel"
         exit
         ;;
 
