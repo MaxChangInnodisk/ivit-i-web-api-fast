@@ -24,6 +24,8 @@ from .db_handler import (
     is_list_empty
 )
 
+from sys_handler import get_v4l2
+
 from .err_handler import InvalidUidError
 
 # iVIT Libraray
@@ -153,15 +155,30 @@ def create_source(source_uid:str) -> SourceV2:
     # Parse Source Information
     src_info = parse_source_data(source[0])
 
+    # NOTE: if it's camera then have to check twice
+    if src_info["type"]=="CAM":
+        ret, available_cams = get_v4l2()
+        print('\n\n', available_cams)
+        # if not in available camera list
+        # NOTE: have to add more behaviour
+        if src_info["input"] not in available_cams:
+            update_src_status(src_info["uid"], "error")
+            raise RuntimeError("Camera not found.")
+
     # Check Source
     if is_src_loaded(source_uid):
+        print(f"\n\nThe Source ({src_info['input']}) is loaded.")
         return RT_CONF[K_SRC].get(source_uid)
 
-    # Initialize Source         
-    src_object = SourceV2(
-        input=src_info['input'], 
-        resolution=src_info.get('resolution'), 
-        fps=src_info.get('fps') )
+
+    # Initialize Source
+    try: 
+        src_object = SourceV2(
+            input=src_info['input'], 
+            resolution=src_info.get('resolution'), 
+            fps=src_info.get('fps') )
+    except Exception as e:
+        log.exception(e)
 
     # Update into RT_CONF
     RT_CONF[K_SRC].update( { source_uid: src_object } )
