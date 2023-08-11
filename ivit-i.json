@@ -1,8 +1,8 @@
 {
   "PROJECT": "ivit-i",
   "PLATFORM": "intel",
-  "VERSION": "v1.1",
-  "IVIT_VERSION": "v1.1",
+  "VERSION": "v1.2",
+  "IVIT_VERSION": "v1.2",
   "TAG": "service",
   "SERVICE": {
     "HOST": "127.0.0.1",
