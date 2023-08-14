@@ -24,7 +24,7 @@ from .db_handler import (
     is_list_empty
 )
 
-from sys_handler import get_v4l2
+from .sys_handler import get_v4l2
 
 from .err_handler import InvalidUidError
 
