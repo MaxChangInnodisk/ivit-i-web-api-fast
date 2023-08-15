@@ -168,3 +168,10 @@ event
 ivit_i.sqlite
 !**/*/.gitkeep
 test-*
+
+# Temp file
+core
+**/*/core
+
+# Event
+events
