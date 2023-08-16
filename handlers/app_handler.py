@@ -57,7 +57,11 @@ def create_app(app_uid:str, label_path:str) -> Union[iAPP_CLS, iAPP_OBJ, iAPP_SE
     # NOTE: check enable is True
     # We have multiple area have to check
     for idx, area_info in enumerate(app_info["app_setting"]["application"]["areas"]):
-        if not area_info["events"]["enable"]:
+        if "events" not in area_info: 
+            print("{} not setup events".format(area_info["name"] ))
+            continue
+        # NOTE: default is True
+        if not area_info["events"].get("enable", True):
             del app_info["app_setting"]["application"]["areas"][idx]["events"]
             
     # Instance App Object
