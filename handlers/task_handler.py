@@ -13,6 +13,7 @@ import numpy as np
 from multiprocessing.pool import ThreadPool
 from fastapi import File
 import shutil
+import wget
 
 
 # Custom
@@ -1043,21 +1044,22 @@ class InferenceLoop:
             # Run Application
             try:
                 _draw, _results, _event = self.app(copy.deepcopy(frame), cur_data)
-                
-                # NOTE: If get data then send websocket to frontend
-                if _event:
-                    # NOTE: store in database
-                    print('has event: ', _event)
-                    # if "WS" in WS_CONF:
-                    #     t1 = time.time()
-                    #     asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=json_to_str(_event) )) )
-                    #     print('Send event output to WebSocket ( Cost {}s)'.format(round(time.time()-t1, 5)))
-
                 # Not replace directly to avoid variable is replaced when interrupted                
                 self.draw, self.results, self.event = _draw, _results, _event
+
             except Exception as e:
                 log.warning('Run Application Error')
                 log.exception(e)
+
+            # Trigger Event
+            if _event and _event["event"]:
+
+                # NOTE: store in database
+
+                # Send to front end via WebSocket
+                if "WS" in WS_CONF:
+                    asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=json_to_str(_event) )) )
+                
 
             # Display
             self.dpr.show(self.draw)
