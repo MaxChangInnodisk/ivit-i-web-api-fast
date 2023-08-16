@@ -55,6 +55,7 @@ case ${OPT_ARR[0]} in
 
 esac
 
+# ========================================================
 # Get platform
 PLATFORM=${OPT_ARR[0]}
 
@@ -64,6 +65,14 @@ OPTS=${OPT_ARR[@]}
 
 # Modify Configuration
 jq --arg a "${PLATFORM}" '.PLATFORM = $a' ${CONF} > ${TEMP} && mv -f ${TEMP} ${CONF} 
+
+# ========================================================
+# Disclaim
+${ROOT}/disclaim/disclaimer.sh
+ 
+if [ $? -eq 1 ];then 
+    exit 0 
+fi
 
 # Update Docker Compose
 # ========================================================
