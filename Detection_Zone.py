@@ -14,7 +14,7 @@ import time
 from typing import Tuple, Callable, List
 from collections import defaultdict
 from multiprocessing.pool import ThreadPool
-
+import json
 
 # Parameters
 FRAME_SCALE     = 0.0005    # Custom Value which Related with Resolution
@@ -313,7 +313,7 @@ class EventHandler:
         self.logic_event = self.logic_map[operator]
     
         # Timer
-        self.trigger_time = time.time()
+        self.trigger_time = time.time_ns()
 
         # Generate uuid
         self.folder = self.check_folder(folder)
@@ -321,12 +321,16 @@ class EventHandler:
         self.uuid_folder = self.check_folder(os.path.join(self.folder, self.uuid))
         
         # Dynamic Variable
-        self.current_time = time.time()
+        self.current_time = time.time_ns()
         self.current_value = None
 
         # Custom Threading Pool
         self.exec_pool = []
         self.pools = ThreadPool(processes=4)
+
+        # Flag
+        self.event_status = False
+
     
     def check_folder(self, folder_path: str) -> None:
         if not os.path.exists(folder_path):        
@@ -338,44 +342,81 @@ class EventHandler:
 
     def is_ready(self) -> bool:
         if (self.current_time - self.trigger_time) <= self.cooldown:
+            print('Not ready, still have {} seconds'.format(round(self.current_time - self.trigger_time, 5)))
             return False
         self.trigger_time = self.current_time
         return True
     
     def save_image(self, save_path: str, image: np.ndarray) -> None:
         cv2.imwrite(save_path, image)
-        print(f"Saved Image to {save_path}")
-    
-    def __call__(self, original: np.ndarray, overlay: np.ndarray, value: int) -> Union[None, dict]:
-                # Update variable
-        self.current_time = time.time()
-        self.current_value = value
+        
+    def save_meta_data(self, path: str, detections: list, params: list) -> None:
+        
+        # Clear detection
+        pure_det_data = [{
+            "xmin": det.xmin,
+            "ymin": det.ymin,
+            "xmax": det.xmax,
+            "ymax": det.ymax,
+            "label": det.label,
+            "score": det.score
+        } for det in detections ]
+            
+        data = {
+            "detections": pure_det_data,
+            "params": params
+        }
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
 
-        # Check whether event happend or not
-        if not ( self.is_trigger() and self.is_ready()):
-            return
 
+    def event_behavi(self, original: np.ndarray, detections: list, params: list) -> dict:
         # timestamp is folder name
         timestamp = str(self.current_time)
         target_folder = self.check_folder(os.path.join(self.uuid_folder, timestamp))
 
-        # Save Image
-        original_frame_path = os.path.join(target_folder, "original.jpg")
-        overlay_frame_path = os.path.join(target_folder, "overlay.jpg")
+        # Save Data: Image, Metadata
+        image_path = os.path.join(target_folder, f"{timestamp}.jpg")
+        data_path = os.path.join(target_folder, f"{timestamp}.json")
+        self.pools.apply_async( self.save_image, args=(image_path, original))
+        self.pools.apply_async( self.save_meta_data, args=(data_path, detections, params))
         
-        for image_name, image_buf in zip( ["original.jpg", "overlay.jpg"], [original, overlay]):
-            image_path = os.path.join(target_folder, image_name)
-            self.pools.apply_async( self.save_image, args=(image_path, image_buf))
-    
         return {
             "uid": self.uuid,
             "title": self.title,
             "timestamp": self.current_time,
-            "screenshot": {
-                "overlay": overlay_frame_path,
-                "original": original_frame_path
-            }
+            "event_status": self.event_status,
         }
+
+
+    def __call__(self, original: np.ndarray, value: int, detections: list, params: list) -> Union[None, dict]:
+        # Update variable
+        self.current_time = time.time_ns()
+        self.current_value = value
+
+        # Check whether event happend or not
+        if self.event_status and self.is_trigger(): 
+            # True and True
+            # False and False
+            return
+        
+        elif self.event_status and not self.is_trigger():
+            print(f'Event ({self.title}) End !!!')
+            # Stop event: status = False
+            self.event_status = False
+        else:
+            print(f'Event ({self.title}) Start !!!')
+            # Start event: status = True
+            self.event_status = True
+
+        # Cooldown time
+        if not self.is_ready(): return        
+        
+        return self.event_behavi(
+                original= original,
+                detections= detections,
+                params= params
+        )
 
     def __del__(self):
         # Close threading pool iterminate
@@ -385,7 +426,7 @@ class EventHandler:
 
 class Detection_Zone(iAPP_OBJ):
 
-    def __init__(self, params:dict, label:str, event_save_folder:str="event", palette:dict=palette):
+    def __init__(self, params:dict, label:str, event_behavi_save_folder:str="event", palette:dict=palette):
         """_summary_
 
         Args:
@@ -411,6 +452,7 @@ class Detection_Zone(iAPP_OBJ):
         self.areas = []
 
         # Update setting
+        self.params = params
         app_setting = self._get_app_setting(params)
         self.draw_area = app_setting.get("draw_area", True) 
         self.draw_bbox = app_setting.get("draw_bbox", True)
@@ -466,7 +508,7 @@ class Detection_Zone(iAPP_OBJ):
         if not data:
             raise KeyError("The app_config must have key 'application'.")
         if not isinstance( data, dict ):
-            raise TypeError(f"The application information in application should be dict, but get {type(params)}")
+            raise TypeError(f"The application information in application should be dict, but get {type(input_params)}")
         
         return data
 
@@ -536,7 +578,7 @@ class Detection_Zone(iAPP_OBJ):
             drawer = drawer,
             operator = events["logic_operator"],
             threshold = events["logic_value"],
-            cooldown = 5
+            cooldown = events.get("cooldown", 15)
         )
         return event_obj
 
@@ -665,7 +707,7 @@ class Detection_Zone(iAPP_OBJ):
     # ------------------------------------------------
 
     # NOTE: __call__ function is requirements
-    @timeit
+    # @timeit
     def __call__(self, frame:np.ndarray, detections:list) -> Tuple[np.ndarray, list, list]:
         """
         1. Update basic parameters
@@ -720,13 +762,26 @@ class Detection_Zone(iAPP_OBJ):
         app_output, total_obj_nums = [], 0
         event_output = []
         for area_idx, area in enumerate(self.areas):
+            
             area_output = dict(area["output"])
+
+            # Current area has nothing
+            if not area_output: continue
+
+            # Re-Combine new area output for v1.1 version
+            new_area_output = []
+            for label, num in area_output.items():
+                new_area_output.append({
+                    "label": label,
+                    "num": num
+                })
+
+            # Combine app_output
             app_output.append({
                 "id": area_idx,
                 "name": area["name"],
-                "data": area_output 
+                "data": new_area_output 
             })
-
 
             # Event
             total_obj_nums += sum(area_output.values())
@@ -734,13 +789,14 @@ class Detection_Zone(iAPP_OBJ):
             if not event: continue
             
             cur_output = event( original= original,
-                                overlay= overlay, 
-                                value=total_obj_nums )
+                                value= total_obj_nums,
+                                detections= detections,
+                                params= self.params )
             if not cur_output: continue
 
             event_output.append( cur_output )
 
-        return overlay, app_output, event_output
+        return overlay, {"areas": app_output}, {"event": event_output}
 
 
 # ------------------------------------------------------------------------
@@ -863,7 +919,7 @@ def main():
                         "uid":"",
                         "title": "Traffic in Area 1 is very heavy",
                         "logic_operator": ">",
-                        "logic_value": 1,
+                        "logic_value": 3,
                     }
                 },
                 {
@@ -893,7 +949,7 @@ def main():
                         "uid":"",
                         "title": "GGGGG",
                         "logic_operator": ">",
-                        "logic_value": 1,
+                        "logic_value": 3,
                     }
                 }
             ]
