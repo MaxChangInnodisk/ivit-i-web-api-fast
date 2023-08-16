@@ -310,7 +310,13 @@ def intel_sample_detection_zone(db_path: str = SERV_CONF["DB_PATH"]):
                             0.356,
                             0.812
                         ]
-                    ]
+                    ],
+                    "events": {
+                        "uid":"",
+                        "title": "Traffic in Area 1 is very heavy",
+                        "logic_operator": ">",
+                        "logic_value": 1,
+                    }
                 }
             ]
         }
