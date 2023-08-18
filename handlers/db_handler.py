@@ -272,9 +272,12 @@ def init_tables(db_path:str):
     
     # Event
     ivit_db.execute("CREATE TABLE IF NOT EXISTS event ("
-                    "uid TEXT PRIMARY KEY,"
-                    "event_setting TEXT,"
-                    "annotation TEXT"
+                    "uid TEXT,"
+                    "app_uid TEXT,"
+                    "start_time INTEGER PRIMARY KEY,"
+                    "end_time INTEGER,"
+                    "annotation TEXT,"
+                    "FOREIGN KEY(app_uid) REFERENCES app(uid) ON DELETE CASCADE"
                     ");" )
     
     ivit_db.close()
@@ -372,5 +375,14 @@ def parse_app_data(data: dict):
         "app_setting": json.loads(data[3]),
         "event_uid": data[4],
         "annotation": data[5]
+    }
+
+def parse_event_data(data: dict):
+    return {
+        "uid": data[0],
+        "app_uid": data[1],
+        "start_time": data[2],
+        "end_time": data[3],
+        "annotation": json.loads(data[4])
     }
 
