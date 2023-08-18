@@ -152,7 +152,6 @@ class DrawTool:
     """ Draw Tool for Label, Bounding Box, Area ... etc. """
 
     def __init__(self, labels:list, palette:dict) -> None:
-            
         # palette[cat] = (0,0,255), labels = [ cat, dog, ... ]
         self.palette, self.labels = palette, labels
         
@@ -216,11 +215,10 @@ class DrawTool:
         
         overlay = frame.copy()
 
-
         for area in areas:
             
-            area_pts = area["area_pts"]
-
+            area_pts = area["area_point"]
+            
             # draw poly
             cv2.fillPoly(overlay, pts=[ np.array(area_pts) ], color=color)
 
@@ -346,14 +344,9 @@ class EventHandler:
             return False
         self.trigger_time = self.current_time
         return True
-    
-    def save_image(self, save_path: str, image: np.ndarray) -> None:
-        cv2.imwrite(save_path, image)
-        
-    def save_meta_data(self, path: str, detections: list, params: list) -> None:
-        
-        # Clear detection
-        pure_det_data = [{
+
+    def get_pure_dets(self, detections: list):
+        return [{
             "xmin": det.xmin,
             "ymin": det.ymin,
             "xmax": det.xmax,
@@ -361,61 +354,93 @@ class EventHandler:
             "label": det.label,
             "score": det.score
         } for det in detections ]
-            
-        data = {
-            "detections": pure_det_data,
-            "params": params
+
+    def get_pure_area(self, area:dict) -> dict:
+        return {
+            'name':area['name'],
+            'area_point': area['area_point']
         }
+
+    def save_image(self, save_path: str, image: np.ndarray) -> None:
+        cv2.imwrite(save_path, image)
+
+    def get_meta_data(self, pure_dets: list, pure_area: dict) -> dict:
+        return {
+            "detections": pure_dets,
+            "area": pure_area
+        }
+
+    def save_meta_data(self, path: str, meta_data: dict) -> None:
         with open(path, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=4)
+            json.dump(meta_data, f, ensure_ascii=False, indent=4)
 
 
-    def event_behavi(self, original: np.ndarray, detections: list, params: list) -> dict:
+    def event_behaviour(self, original: np.ndarray, meta_data: dict) -> dict:
         # timestamp is folder name
         timestamp = str(self.current_time)
-        target_folder = self.check_folder(os.path.join(self.uuid_folder, timestamp))
+        target_folder = self.uuid_folder
+        # target_folder = self.check_folder(os.path.join(self.uuid_folder, timestamp))
 
         # Save Data: Image, Metadata
         image_path = os.path.join(target_folder, f"{timestamp}.jpg")
         data_path = os.path.join(target_folder, f"{timestamp}.json")
+
         self.pools.apply_async( self.save_image, args=(image_path, original))
-        self.pools.apply_async( self.save_meta_data, args=(data_path, detections, params))
+        self.pools.apply_async( self.save_meta_data, args=(meta_data))
         
+        if self.event_status:
+            self.start_time = self.current_time
+            self.end_time = None
+        else:
+            self.end_time = self.current_time
+
         return {
             "uid": self.uuid,
             "title": self.title,
             "timestamp": self.current_time,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
             "event_status": self.event_status,
+            "meta": meta_data,
         }
 
+    def _reset_timestamp(self):
+        self.start_time = None
+        self.end_time = None
+        
 
-    def __call__(self, original: np.ndarray, value: int, detections: list, params: list) -> Union[None, dict]:
+    def __call__(self, original: np.ndarray, value: int, detections: list, area: dict) -> Union[None, dict]:
         # Update variable
         self.current_time = time.time_ns()
         self.current_value = value
 
-        # Check whether event happend or not
-        if self.event_status and self.is_trigger(): 
-            # True and True
-            # False and False
-            return
-        
-        elif self.event_status and not self.is_trigger():
-            print(f'Event ({self.title}) End !!!')
-            # Stop event: status = False
-            self.event_status = False
-        else:
-            print(f'Event ({self.title}) Start !!!')
-            # Start event: status = True
-            self.event_status = True
+        # Event triggered
+        if self.is_trigger():
+            # Event is on going
+            if self.event_status: return
 
-        # Cooldown time
-        if not self.is_ready(): return        
+        # Event not triggered and event not started
+        elif not self.event_status: 
+            self._reset_timestamp()
+            return
+
+        # Update Status
+        self.event_status = not self.event_status
         
-        return self.event_behavi(
+        # Cooldown time: avoid trigger too fast
+        if not self.is_ready(): return        
+
+        print('Event {} ( Total: {})'.format('Start' if self.event_status else 'Stop', value))
+
+        # get data
+        pure_dets = self.get_pure_dets(detections)
+        pure_area = self.get_pure_area(area)
+        meta_data = self.get_meta_data(pure_dets=pure_dets, pure_area=pure_area)
+
+        # Event
+        return self.event_behaviour(
                 original= original,
-                detections= detections,
-                params= params
+                meta_data= meta_data
         )
 
     def __del__(self):
@@ -453,11 +478,14 @@ class Detection_Zone(iAPP_OBJ):
 
         # Update setting
         self.params = params
-        app_setting = self._get_app_setting(params)
-        self.draw_area = app_setting.get("draw_area", True) 
-        self.draw_bbox = app_setting.get("draw_bbox", True)
-        self.draw_label = app_setting.get("draw_label", True)
-        self.draw_result = app_setting.get("draw_result", True)
+        self.app_setting = self._get_app_setting(params)
+        self.draw_area = self.app_setting.get("draw_area", True) 
+        self.draw_bbox = self.app_setting.get("draw_bbox", True)
+        self.draw_label = self.app_setting.get("draw_label", True)
+        self.draw_result = self.app_setting.get("draw_result", True)
+        
+        # Event
+        self.force_close_event = False
 
         # Palette and labels
         self.custom_palette = params.get("palette", {})
@@ -474,9 +502,10 @@ class Detection_Zone(iAPP_OBJ):
        
         # NOTE: main parameter object
         self.areas = self.get_areas_setting(
-            app_setting= app_setting,
+            app_setting= self.app_setting,
             labels= self.labels
         )
+        
         # helper
         self.frame_h, self.frame_w = None, None
 
@@ -623,7 +652,7 @@ class Detection_Zone(iAPP_OBJ):
         def map_wraper(area):
             denorm_area_pts = denorm_area_points( self.frame_w, self.frame_h, area["norm_area_pts"])
             sorted_area_pts = sort_area_points(denorm_area_pts)
-            area["area_pts"] = sorted_area_pts
+            area["area_point"] = sorted_area_pts
 
         # NOTE: map is faster than for loop
         # areas = list(map(map_wraper, areas))
@@ -688,7 +717,7 @@ class Detection_Zone(iAPP_OBJ):
         cnt_px, cnt_py = (xmin+xmax)//2, (ymin+ymax)//2
             
         for area_idx, area in enumerate(self.areas):
-            area_pts = area["area_pts"]
+            area_pts = area["area_point"]
             depend = area["depend_on"]
 
             if label in depend and self.obj_in_area(cnt_px, cnt_py, area_pts):
@@ -786,12 +815,12 @@ class Detection_Zone(iAPP_OBJ):
             # Event
             total_obj_nums += sum(area_output.values())
             event = area.get("event", None)
-            if not event: continue
+            if self.force_close_event or not event: continue
             
             cur_output = event( original= original,
                                 value= total_obj_nums,
                                 detections= detections,
-                                params= self.params )
+                                area= area )
             if not cur_output: continue
 
             event_output.append( cur_output )
@@ -965,7 +994,6 @@ def main():
             
             results = model.inference(frame=frame)
             frame , app_output , event_output =app(frame,results)
-            
             # infer_metrx.paint_metrics(frame)
             
             # Draw FPS: default is left-top                     
