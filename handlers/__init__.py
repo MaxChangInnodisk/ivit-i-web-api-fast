@@ -15,7 +15,8 @@ from . import (
     io_handler,
     db_handler,
     task_handler,
-    sys_handler
+    sys_handler,
+    event_handler
 )
 
 
