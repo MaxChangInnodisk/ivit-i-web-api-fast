@@ -1020,6 +1020,41 @@ class InferenceLoop:
         # Clear dara
         RT_CONF[self.uid]['DATA']={}
 
+    def _launch_event(self) -> None:
+        """Launch event function """
+        
+        if not self.event_output or not self.event_output["event"]:
+            return
+
+        # NOTE: store in database, event start if status is True else False
+        for event in self.event_output["event"]:
+
+            # Combine data
+            data = {
+                "uid": event["uid"],
+                "app_uid": self.uid,
+                "start_time": event["start_time"],
+                "end_time": event["end_time"],
+                "annotation": event["meta"]
+            }
+            # Add new data
+            if event["event_status"]:
+                insert_data( table= 'event', data= data )
+                continue
+            
+            # Update old data
+            start_time = event["start_time"]
+            update_data( table= 'event', data= data,
+                condition= f"WHERE start_time={start_time}" )
+
+            # Send to front end via WebSocket
+            if "WS" not in WS_CONF: return
+
+            # Tidy up data
+            data["annotation"].pop("detections")
+            asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=data )) )
+        
+    # NOTE: MAIN LOOP
     def _infer_loop(self):
 
         log.warning('Start AI Task Inference Stream')
@@ -1045,21 +1080,14 @@ class InferenceLoop:
             try:
                 _draw, _results, _event = self.app(copy.deepcopy(frame), cur_data)
                 # Not replace directly to avoid variable is replaced when interrupted                
-                self.draw, self.results, self.event = _draw, _results, _event
+                self.draw, self.results, self.event_output = _draw, _results, _event
 
             except Exception as e:
                 log.warning('Run Application Error')
                 log.exception(e)
 
             # Trigger Event
-            if _event and _event["event"]:
-
-                # NOTE: store in database
-
-                # Send to front end via WebSocket
-                if "WS" in WS_CONF:
-                    asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=json_to_str(_event) )) )
-                
+            self._launch_event()
 
             # Display
             self.dpr.show(self.draw)
