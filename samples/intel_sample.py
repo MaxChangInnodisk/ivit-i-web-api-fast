@@ -289,9 +289,10 @@ def intel_sample_detection_zone(db_path: str = SERV_CONF["DB_PATH"]):
             },
             "areas": [
                 {
-                    "name": "Area0",
+                    "name": "intersection",
                     "depend_on": [
                         "car",
+                        "truck"
                     ],
                     "area_point": [
                         [
@@ -313,9 +314,9 @@ def intel_sample_detection_zone(db_path: str = SERV_CONF["DB_PATH"]):
                     ],
                     "events": {
                         "uid":"",
-                        "title": "Traffic in Area 1 is very heavy",
+                        "title": "Traffic in intersection is very heavy",
                         "logic_operator": ">",
-                        "logic_value": 1,
+                        "logic_value": 4,
                     }
                 }
             ]
