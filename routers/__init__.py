@@ -13,6 +13,7 @@ from .device import device_router
 from .icap import icap_router
 from .process import proc_router
 from .system import sys_router
+from .event import event_router
 
 routers = [
     task_router,
@@ -22,5 +23,6 @@ routers = [
     device_router,
     icap_router,
     proc_router,
-    sys_router
+    sys_router,
+    event_router
 ]
