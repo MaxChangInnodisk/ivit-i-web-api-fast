@@ -386,7 +386,7 @@ class EventHandler:
         data_path = os.path.join(target_folder, f"{timestamp}.json")
 
         self.pools.apply_async( self.save_image, args=(image_path, original))
-        self.pools.apply_async( self.save_meta_data, args=(meta_data))
+        self.pools.apply_async( self.save_meta_data, args=(data_path, meta_data))
         
         if self.event_status:
             self.start_time = self.current_time
