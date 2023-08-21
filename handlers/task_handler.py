@@ -967,11 +967,8 @@ class InferenceLoop:
     def create_thread(self) -> threading.Thread:
         return threading.Thread(target=self._infer_thread, daemon=True)
 
-    def _app_setup_event(self, data):
-        # Debug: with raise key
-        if getattr(data, 'raise', False):
-            raise RuntimeError('Raise Testing when AI Task Running')
-
+    def _update_app_setup_func(self, data):
+        """Update the parameters of the application, like: palette, draw_bbox, etc."""
         try:
             # Area Event: Color, ... etc
             palette = getattr(data, 'palette', None)
@@ -1005,7 +1002,7 @@ class InferenceLoop:
         finally:
             log.warning('App Setup Finished')
 
-    def _dynamic_change_app_setup_event(self):
+    def _dynamic_change_app_setup(self):
         """ Dynamic Modify Varaible of the Application """
 
         # Return: No dynamic variable setting
@@ -1015,7 +1012,7 @@ class InferenceLoop:
         data = copy.deepcopy(RT_CONF[self.uid]['DATA'])
         
         # Create a thread to update task value 
-        threading.Thread(target=self._app_setup_event, args=(data, ), daemon=True).start()
+        threading.Thread(target=self._update_app_setup_func, args=(data, ), daemon=True).start()
         
         # Clear dara
         RT_CONF[self.uid]['DATA']={}
@@ -1053,6 +1050,8 @@ class InferenceLoop:
 
             # Tidy up data
             data["annotation"].pop("detections")
+            data["start_time"] = str(data["start_time"])
+            data["end_time"] = str(data["end_time"])
             asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=data )) )
         
     # NOTE: MAIN LOOP
@@ -1068,7 +1067,7 @@ class InferenceLoop:
             self.stream_metric.update(); self.latency_limitor.update()
             
             # Setting Dynamic Variable ( thread )
-            self._dynamic_change_app_setup_event()
+            self._dynamic_change_app_setup()
 
             # Get data
             ret, frame = self.src.read()
