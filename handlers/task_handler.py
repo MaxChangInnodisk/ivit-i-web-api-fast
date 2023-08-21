@@ -228,7 +228,23 @@ def check_single_task_for_hailo():
     running_tasks = select_data(table='task', data=['uid'], condition=f"WHERE status='run'")
     if len(running_tasks) >0:
         raise RuntimeError('Not support multiple AI task !!!')
+
+
+def check_event_params(app_setting:dict):
+    """Check event parameters and update event status in application setting ( which key is 'enable'). """
     
+    # NOTE: check event first because the setting was in app_setting
+    # Add Event Information
+    for area_info in app_setting["application"]["areas"]:
+        
+        if "events" not in area_info: continue
+
+        log.info(f"Get event setting in area ( {area_info['name']} )")
+        for key in [ "enable", "uid", "title", "logic_operator", "logic_value" ]:
+            if key == "enable" and key not in area_info["events"]:
+                area_info["events"].update({"enable": True})
+            log.debug("\t* {}: {}".format(key, area_info["events"].get(key)))           
+    pass
 
 # --------------------------------------------------------
 # Execute AI Task
@@ -399,7 +415,8 @@ def stop_ai_task(uid:str, data:dict=None):
 
 def update_ai_task(uid:str, data:dict=None):
     """ update AI Task via uid """
-    
+    if uid not in RT_CONF:
+        raise RuntimeError("The AI task has not launch yet.")
     RT_CONF[uid]['DATA'] = data
     log.info('Update AI Task: {} With {}'.format(uid, data))    
     return 'Update success'
@@ -471,21 +488,10 @@ def add_ai_task(add_data):
             "status": "stop",
             "device": add_data.device
         }
+
     )
-
-    # NOTE: check event first because the setting was in app_setting
-    # Add Event Information
-    for area_info in add_data.app_setting["application"]["areas"]:
-        if "events" not in area_info:
-            continue
-
-        log.info(f"Get event setting in area ( {area_info['name']} )")
-        
-        for key in [ "enable", "uid", "title", "logic_operator", "logic_value" ]:
-            if key == "enable" and not area_info.get(key):
-                area_info.update({"enable": True})
-            log.debug("\t* {}: {}".format(key, area_info["events"].get(key)))           
-        
+    check_event_params(add_data.app_setting)    
+    
     # Add App Information into Database
     # app_type = select_data(table='app', data=['type'], condition=f"WHERE name='{add_data.app_name}'")[0][0]
     app_type = RT_CONF["IAPP"].get_app(add_data.app_name).get_type()
@@ -574,13 +580,17 @@ def edit_ai_task(edit_data):
         replace=True
     )
     
+    check_event_params(edit_data.app_setting)
+
     # Add App Information into Database
+    app_type = RT_CONF["IAPP"].get_app(edit_data.app_name).get_type()
+
     insert_data(
         table="app",
         data={
             "uid": app_uid,
             "name": edit_data.app_name,
-            "type": edit_data.app_name,
+            "type": app_type,
             "app_setting": json_to_str(edit_data.app_setting)
         },
         replace=True
