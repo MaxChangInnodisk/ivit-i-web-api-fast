@@ -1,0 +1,88 @@
+import time
+import os
+from typing import Tuple, Callable, List
+from collections import defaultdict
+
+
+
+def timeit(func):
+    def timed(*args, **kwargs):
+        ts = time.time()
+        result = func(*args, **kwargs)
+        te = time.time()
+        print('[Timeit] Function', func.__name__, 'time:', round((te -ts)*1000,1), 'ms')
+        return result
+    return timed
+
+
+def update_palette_and_labels(custom_palette:dict,  default_palette:dict, label_path:str) -> Tuple[dict, list]:
+    """update the color palette ( self.palette ) which key is label name and label list ( self.labels).
+
+    Args:
+        custom_palette (dict): the custom palette which key is the label name
+        default_palette (dict): the default palette which key is integer with string type.
+        label_path (str): the path to label file
+
+    Raises:
+        TypeError: if the default palette with wrong type
+        FileNotFoundError: if not find label file
+
+    Returns:
+        Tuple[dict, list]: palette, labels
+    """
+
+    # check type and path is available
+    if not os.path.exists(label_path):
+        raise FileNotFoundError(f"Can not find label file in '{label_path}'.")
+    
+    if not isinstance(custom_palette, dict):
+        raise TypeError(f"Expect custom palette type is dict, but get {type(custom_palette)}.")
+
+    # Params
+    ret_palette, ret_labels = {}, []
+
+    # update palette and label
+    idx = 1
+    f = open(label_path, 'r')
+    for raw_label in f.readlines():
+
+        label = raw_label.strip()
+        
+        # if setup custom palette
+        if label in custom_palette:
+            color = custom_palette[label]
+        
+        # use default palette 
+        else:
+            color = default_palette[str(idx)]
+        
+        # update palette, labels and idx
+        ret_palette[label] = color
+        ret_labels.append(label)
+        idx += 1
+
+    f.close()
+
+    return (ret_palette, ret_labels)
+
+
+def get_logic_map() -> dict:
+    greater = lambda x,y: x>y
+    greater_or_equal = lambda x,y: x>=y
+    less = lambda x,y: x<y
+    less_or_equal = lambda x,y: x<=y
+    equal = lambda x,y: x==y
+    return {
+        '>': greater,
+        '>=': greater_or_equal,
+        '<': less,
+        '<=': less_or_equal,
+        '=': equal,
+    }
+
+
+
+
+
+
+
