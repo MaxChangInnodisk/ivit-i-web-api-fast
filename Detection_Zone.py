@@ -479,7 +479,7 @@ class Detection_Zone(iAPP_OBJ):
         # Update setting
         self.params = params
         self.app_setting = self._get_app_setting(params)
-        self.draw_area = self.app_setting.get("draw_area", True) 
+        self.draw_area = self.app_setting.get("draw_area", False) 
         self.draw_bbox = self.app_setting.get("draw_bbox", True)
         self.draw_label = self.app_setting.get("draw_label", True)
         self.draw_result = self.app_setting.get("draw_result", True)
