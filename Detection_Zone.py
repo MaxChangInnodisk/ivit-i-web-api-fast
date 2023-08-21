@@ -6,8 +6,6 @@ import threading
 import math
 from typing import Any, Union, get_args
 from datetime import datetime
-from apps.palette import palette
-from ivit_i.common.app import iAPP_OBJ
 import os
 import numpy as np
 import time
@@ -15,6 +13,16 @@ from typing import Tuple, Callable, List
 from collections import defaultdict
 from multiprocessing.pool import ThreadPool
 import json
+
+# iVIT-I 
+from ivit_i.common.app import iAPP_OBJ
+
+# App utilities
+try:
+    from .palette import palette
+except:
+    from apps.palette import palette
+
 
 # Parameters
 FRAME_SCALE     = 0.0005    # Custom Value which Related with Resolution
@@ -35,11 +43,9 @@ def timeit(func):
         return result
     return timed
 
-
 # ------------------------------------------------------------------------    
 
 def denorm_area_points(width: int, height: int, area_points: list) -> list:
-    print(width, height, area_points)
 
     return [ [ math.ceil(x*width), math.ceil(y*height) ] for [x, y] in area_points ]
 
@@ -329,7 +335,6 @@ class EventHandler:
         # Flag
         self.event_status = False
 
-    
     def check_folder(self, folder_path: str) -> None:
         if not os.path.exists(folder_path):        
             os.makedirs(folder_path)
@@ -374,7 +379,6 @@ class EventHandler:
         with open(path, 'w', encoding='utf-8') as f:
             json.dump(meta_data, f, ensure_ascii=False, indent=4)
 
-
     def event_behaviour(self, original: np.ndarray, meta_data: dict) -> dict:
         # timestamp is folder name
         timestamp = str(self.current_time)
@@ -408,7 +412,6 @@ class EventHandler:
         self.start_time = None
         self.end_time = None
         
-
     def __call__(self, original: np.ndarray, value: int, detections: list, area: dict) -> Union[None, dict]:
         # Update variable
         self.current_time = time.time_ns()
