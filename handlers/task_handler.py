@@ -1032,6 +1032,7 @@ class InferenceLoop:
             # Combine data
             data = {
                 "uid": event["uid"],
+                "title": event["title"],
                 "app_uid": self.uid,
                 "start_time": event["start_time"],
                 "end_time": event["end_time"],
