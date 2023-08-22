@@ -22,6 +22,8 @@ try:
         timeit,
         update_palette_and_labels,
         get_logic_map,
+        denorm_area_points,
+        sort_area_points
     )
     from .drawer import DrawTool
 except:
@@ -30,50 +32,11 @@ except:
         timeit,
         update_palette_and_labels,
         get_logic_map,
+        denorm_area_points,
+        sort_area_points
     )
     from apps.drawer import DrawTool
 
-# ------------------------------------------------------------------------    
-
-def denorm_area_points(width: int, height: int, area_points: list) -> list:
-    return [ [ math.ceil(x*width), math.ceil(y*height) ] for [x, y] in area_points ]
-
-
-def sort_area_points(point_list: list) -> list:
-    """
-    This function will help user to sort the point in the list counterclockwise.
-    step 1 : We will calculate the center point of the cluster of point list.
-    step 2 : calculate arctan for each point in point list.
-    step 3 : sorted by arctan.
-
-    Args:
-        point_list (list): not sort point.
-
-    Returns:
-        sorted_point_list(list): after sort.
-    
-    """
-
-    cen_x, cen_y = np.mean(point_list, axis=0)
-    #refer_line = np.array([10,0]) 
-    temp_point_list = []
-    sorted_point_list = []
-    for i in range(len(point_list)):
-
-        o_x = point_list[i][0] - cen_x
-        o_y = point_list[i][1] - cen_y
-        atan2 = np.arctan2(o_y, o_x)
-        # angle between -180~180
-        if atan2 < 0:
-            atan2 += np.pi * 2
-        temp_point_list.append([point_list[i], atan2])
-    
-    temp_point_list = sorted(temp_point_list, key=lambda x:x[1])
-    for x in temp_point_list:
-        sorted_point_list.append(x[0])
-
-    return sorted_point_list
-        
 # ------------------------------------------------------------------------    
 
 class EventHandler:
@@ -548,7 +511,7 @@ class Detection_Zone(iAPP_OBJ):
             
             # get available areas and update area["output"]
             available_areas = self.get_available_areas_and_update_output(
-                label, xmin, ymax, xmax, ymax)
+                label, xmin, ymin, xmax, ymax)
             
             # no available area
             if len(available_areas)==0: continue

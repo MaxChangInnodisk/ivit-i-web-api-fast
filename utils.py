@@ -2,7 +2,8 @@ import time
 import os
 from typing import Tuple, Callable, List
 from collections import defaultdict
-
+import numpy as np
+import math
 
 
 def timeit(func):
@@ -12,6 +13,15 @@ def timeit(func):
         te = time.time()
         print('[Timeit] Function', func.__name__, 'time:', round((te -ts)*1000,1), 'ms')
         return result
+    return timed
+
+def get_time(func):
+    def timed(*args, **kwargs):
+        ts = time.time()
+        result = func(*args, **kwargs)
+        te = time.time()
+        print('[Timeit] Function', func.__name__, 'time:', round((te -ts)*1000,1), 'ms')
+        return (result, te-ts)
     return timed
 
 
@@ -79,6 +89,49 @@ def get_logic_map() -> dict:
         '<=': less_or_equal,
         '=': equal,
     }
+
+
+
+def denorm_area_points(width: int, height: int, area_points: list) -> list:
+    return [ [ math.ceil(x*width), math.ceil(y*height) ] for [x, y] in area_points ]
+
+
+def sort_area_points(point_list: list) -> list:
+    """
+    This function will help user to sort the point in the list counterclockwise.
+    step 1 : We will calculate the center point of the cluster of point list.
+    step 2 : calculate arctan for each point in point list.
+    step 3 : sorted by arctan.
+
+    Args:
+        point_list (list): not sort point.
+
+    Returns:
+        sorted_point_list(list): after sort.
+    
+    """
+
+    cen_x, cen_y = np.mean(point_list, axis=0)
+    #refer_line = np.array([10,0]) 
+    temp_point_list = []
+    sorted_point_list = []
+    for i in range(len(point_list)):
+
+        o_x = point_list[i][0] - cen_x
+        o_y = point_list[i][1] - cen_y
+        atan2 = np.arctan2(o_y, o_x)
+        # angle between -180~180
+        if atan2 < 0:
+            atan2 += np.pi * 2
+        temp_point_list.append([point_list[i], atan2])
+    
+    temp_point_list = sorted(temp_point_list, key=lambda x:x[1])
+    for x in temp_point_list:
+        sorted_point_list.append(x[0])
+
+    return sorted_point_list
+        
+
 
 
 
