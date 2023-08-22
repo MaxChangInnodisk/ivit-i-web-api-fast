@@ -1035,7 +1035,7 @@ class InferenceLoop:
 
         # NOTE: store in database, event start if status is True else False
         for event in self.event_output["event"]:
-
+            
             # Combine data
             data = {
                 "uid": event["uid"],
@@ -1045,25 +1045,32 @@ class InferenceLoop:
                 "end_time": event["end_time"],
                 "annotation": event["meta"]
             }
-            # Add new data
+
+            # Event Trigger First Time: status=True and event_output!=[]
             if event["event_status"]:
+
+                # Add new data            
                 insert_data( table= 'event', data= data )
-                continue
             
-            # Update old data
-            start_time = event["start_time"]
-            update_data( table= 'event', data= data,
-                condition= f"WHERE start_time={start_time}" )
+            else:
+                # Update old data ( update end_time )
+                update_data( table= 'event', data= data,
+                    condition= f"WHERE start_time={event['start_time']}" )
+                
+                # No need to send websocket
+                continue
 
             # Send to front end via WebSocket
             if "WS" not in WS_CONF: return
-
+            
             # Tidy up data
             data["annotation"].pop("detections")
             data["start_time"] = str(data["start_time"])
             data["end_time"] = str(data["end_time"])
+            # Send data to front end
             asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=data )) )
-        
+
+
     # NOTE: MAIN LOOP
     def _infer_loop(self):
 
