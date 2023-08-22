@@ -1,9 +1,7 @@
-import sys, os, cv2, logging, time
+import os, cv2, time
 import numpy as np
 import uuid
 import os
-import threading
-import math
 from typing import Any, Union, get_args
 from datetime import datetime
 from apps.palette import palette
@@ -13,1097 +11,896 @@ import numpy as np
 import time
 from filterpy.kalman import KalmanFilter
 
-class event_handle(threading.Thread):
-  def __init__(self ,operator:dict,thres:dict,cooldown_time:dict,event_title:dict,area_id:int,event_save_folder:str,uid:dict):
-    threading.Thread.__init__(self)
-    self.operator = operator
-    self.thres = thres
-    self.cooldown_time = cooldown_time
-    self.event_title = event_title
-    self.event_output={}
-    self.area_id =area_id
-    self.pass_time = self.cooldown_time+1
-    self.event_time=datetime.now()
-    self.trigger_time=datetime.now()        
-    self.info =" "
-    self.event_save_folder=event_save_folder
-    self.uid=uid
 
-  def get_logic_event(self, operator):
-    """ Define the logic event """
-    greater = lambda x,y: x>y
-    greater_or_equal = lambda x,y: x>=y
-    less = lambda x,y: x<y
-    less_or_equal = lambda x,y: x<=y
-    equal = lambda x,y: x==y
-    logic_map = {
-        '>': greater,
-        '>=': greater_or_equal,
-        '<': less,
-        '<=': less_or_equal,
-        '=': equal,
-    }
-    return logic_map.get(operator)
+from typing import Tuple, List
+from collections import defaultdict
+from multiprocessing.pool import ThreadPool
+import json
 
-  def logic_event(self, value,thres):
-    return self.operator(value,thres)    
+# iVIT-I 
+from ivit_i.common.app import iAPP_OBJ
 
-  def __call__(self,frame,ori_frame,area_id,total_object_number,app_output):
-    self.event_output={}
-    self.event_time=datetime.now()
-    self.info =""
-    # area have operator
-    # if self.operator.__contains__(area_id) == False:
-    #   return
-    
-    # when object in area 
-    # if total_object_number.__contains__(area_id) == False: 
-    #   return
-    
-    if self.logic_event(total_object_number,self.thres) == False:
-      return
-    
-    
-    if self.pass_time > self.cooldown_time:
-        
-      self.eventflag=True
-      self.trigger_time=datetime.now()
-      self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))
-      uid=self.uid[area_id] if not (self.uid[area_id]==None) else str(uuid.uuid4())[:8]
-      path='./'+self.event_save_folder+'/'+str(uid)+'/'+str(time.time())+'/'
-      if not os.path.isdir(path):
-          os.makedirs(path)
-      cv2.imwrite(path+'original.jpg', frame)
-      cv2.imwrite(path+'overlay.jpg', ori_frame)
-      self.event_output.update({"uuid":uid,"title":self.event_title,"areas":app_output["areas"],\
-                                "timesamp":self.trigger_time,"screenshot":{"overlay": path+str(self.trigger_time)+'.jpg',
-      "original": path+str(self.trigger_time)+"_org"+'.jpg'}}) 
-      # Draw Inforamtion
-      
-      self.info = "The {} area : ".format(area_id)+self.event_title+\
-        ' , '.join([ 'total:{}  , cool down time:{}/{}'.format(total_object_number,0,self.cooldown_time)])
-      
-    else :
-        
-      self.pass_time = (int(self.event_time.minute)*60+int(self.event_time.second))-(int(self.trigger_time.minute)*60+int(self.trigger_time.second))    
-      self.info = "The {} area : ".format(area_id)+self.event_title+\
-        ' , '.join([ 'total:{}  , cool down time:{}/{}'.format(total_object_number,self.pass_time,self.cooldown_time)])
+# App utilities
+try:
+    from .palette import palette
+    from .utils import ( 
+        timeit, get_time,
+        update_palette_and_labels,
+        get_logic_map,
+        denorm_area_points,
+        sort_area_points
+    )
+    from .drawer import DrawTool
+except:
+    from apps.palette import palette
+    from apps.utils import ( 
+        timeit, get_time,
+        update_palette_and_labels,
+        get_logic_map,
+        denorm_area_points,
+        sort_area_points
+    )
+    from apps.drawer import DrawTool
+
+# ------------------------------------------------------------------------    
 
 class KalmanBoxTracker(object):
-  """
-  This class represents the internal state of individual tracked objects observed as bbox.
-  """
-  
-  def __init__(self,bbox, count,label):
     """
-    Initialises a tracker using initial bounding box.
-    """
-    #define constant velocity model
-    self.kf = KalmanFilter(dim_x=7, dim_z=4) 
-    self.kf.F = np.array([[1,0,0,0,1,0,0],[0,1,0,0,0,1,0],[0,0,1,0,0,0,1],[0,0,0,1,0,0,0],  [0,0,0,0,1,0,0],[0,0,0,0,0,1,0],[0,0,0,0,0,0,1]])
-    self.kf.H = np.array([[1,0,0,0,0,0,0],[0,1,0,0,0,0,0],[0,0,1,0,0,0,0],[0,0,0,1,0,0,0]])
-
-    self.kf.R[2:,2:] *= 10.
-    self.kf.P[4:,4:] *= 1000. #give high uncertainty to the unobservable initial velocities
-    self.kf.P *= 10.
-    self.kf.Q[-1,-1] *= 0.01
-    self.kf.Q[4:,4:] *= 0.01
-
-    self.kf.x[:4] = self.convert_bbox_to_z(bbox)
-    self.time_since_update = 0
-    self.id = count
- 
-    self.history = []
-    self.hits = 0
-    self.hit_streak = 0
-    self.age = 0
-    self.current_idx=None
-    self.label = label 
-
-  def convert_x_to_bbox(self,x,score=None):
-    """
-    Takes a bounding box in the centre form [x,y,s,r] and returns it in the form
-      [x1,y1,x2,y2] where x1,y1 is the top left and x2,y2 is the bottom right
-    """
-    w = np.sqrt(x[2] * x[3])
-    h = x[2] / w
-    if(score==None):
-      return np.array([x[0]-w/2.,x[1]-h/2.,x[0]+w/2.,x[1]+h/2.]).reshape((1,4))
-    else:
-      return np.array([x[0]-w/2.,x[1]-h/2.,x[0]+w/2.,x[1]+h/2.,score]).reshape((1,5))
-
-  def convert_bbox_to_z(self,bbox):
-    """
-    Takes a bounding box in the form [x1,y1,x2,y2] and returns z in the form
-      [x,y,s,r] where x,y is the centre of the box and s is the scale/area and r is
-      the aspect ratio
-    """
-    w = bbox[2] - bbox[0]
-    h = bbox[3] - bbox[1]
-    x = bbox[0] + w/2.
-    y = bbox[1] + h/2.
-    s = w * h    #scale is just area
-    r = w / float(h)
-    return np.array([x, y, s, r]).reshape((4, 1))
-
-  def update(self,bbox):
-    """
-    Updates the state vector with observed bbox.
+    This class represents the internal state of individual tracked objects observed as bbox.
     """
     
-    self.time_since_update = 0
-    self.history = []
-    self.hits += 1
-    self.hit_streak += 1
-    self.kf.update(self.convert_bbox_to_z(bbox))
+    def __init__(self,bbox, count,label):
+        """
+        Initialises a tracker using initial bounding box.
+        """
+        #define constant velocity model
+        self.kf = KalmanFilter(dim_x=7, dim_z=4) 
+        self.kf.F = np.array([[1,0,0,0,1,0,0],[0,1,0,0,0,1,0],[0,0,1,0,0,0,1],[0,0,0,1,0,0,0],  [0,0,0,0,1,0,0],[0,0,0,0,0,1,0],[0,0,0,0,0,0,1]])
+        self.kf.H = np.array([[1,0,0,0,0,0,0],[0,1,0,0,0,0,0],[0,0,1,0,0,0,0],[0,0,0,1,0,0,0]])
 
-  def predict(self):
-    """
-    Advances the state vector and returns the predicted bounding box estimate.
-    """
-    if((self.kf.x[6]+self.kf.x[2])<=0):
-      self.kf.x[6] *= 0.0
-    self.kf.predict()
-    self.age += 1
-    if(self.time_since_update>0):
-      self.hit_streak = 0
-    self.time_since_update += 1
-    self.history.append(self.convert_x_to_bbox(self.kf.x))
-    return self.history[-1]
+        self.kf.R[2:,2:] *= 10.
+        self.kf.P[4:,4:] *= 1000. #give high uncertainty to the unobservable initial velocities
+        self.kf.P *= 10.
+        self.kf.Q[-1,-1] *= 0.01
+        self.kf.Q[4:,4:] *= 0.01
 
-  def get_state(self):
-    """
-    Returns the current bounding box estimate.
-    """
-    return self.convert_x_to_bbox(self.kf.x)
-
-class Sort(object):
-
-  def __init__(self, max_age=1, min_hits=3, iou_threshold=0.3,app_output_data:dict=None,area_id:int=None):
-    """
-    Sets key parameters for SORT
-    """
-    self.max_age = max_age
-    self.min_hits = min_hits
-    self.iou_threshold = iou_threshold
-    self.trackers = []
-    self.area_id = area_id
-    self.app_output_data = app_output_data[self.area_id]
-    self.changeable_total = 0
-    self.frame_count = 0
-  
-  def iou_batch(self,bb_test, bb_gt):
-    """
-    From SORT: Computes IOU between two bboxes in the form [x1,y1,x2,y2]
-    """
-    bb_gt = np.expand_dims(bb_gt, 0)
-    bb_test = np.expand_dims(bb_test, 1)
+        self.kf.x[:4] = self.convert_bbox_to_z(bbox)
+        self.time_since_update = 0
+        self.id = count
     
-    xx1 = np.maximum(bb_test[..., 0], bb_gt[..., 0])
-    yy1 = np.maximum(bb_test[..., 1], bb_gt[..., 1])
-    xx2 = np.minimum(bb_test[..., 2], bb_gt[..., 2])
-    yy2 = np.minimum(bb_test[..., 3], bb_gt[..., 3])
-    w = np.maximum(0., xx2 - xx1)
-    h = np.maximum(0., yy2 - yy1)
-    wh = w * h
-    o = wh / ((bb_test[..., 2] - bb_test[..., 0]) * (bb_test[..., 3] - bb_test[..., 1])                                      
-      + (bb_gt[..., 2] - bb_gt[..., 0]) * (bb_gt[..., 3] - bb_gt[..., 1]) - wh)                                              
-    return(o)  
+        self.history = []
+        self.hits = 0
+        self.hit_streak = 0
+        self.age = 0
+        self.current_idx=None
+        self.label = label 
 
-  def linear_assignment(self,cost_matrix):
-    try:
-      import lap
-      _, x, y = lap.lapjv(cost_matrix, extend_cost=True)
-      return np.array([[y[i],i] for i in x if i >= 0]) #
-    except ImportError:
-      from scipy.optimize import linear_sum_assignment
-      x, y = linear_sum_assignment(cost_matrix)
-      return np.array(list(zip(x, y)))
-
-  def _count_object_num(self,label:str):
-    """
-      Get the max number as total tracking number.
-    Args:
-      track_object (tuple): format is (label , tracking tag). 
-      area_id(int):area id.
-    """
-    for id,label_info in enumerate(self.app_output_data):
-       if label_info['label']==label:
-          self.app_output_data[id]['num'] += 1
-
-  def _asign_new_id(self,label:str):
-    for id,label_info in enumerate(self.app_output_data):
-      if label_info['label']==label:
-        return label_info['num']
-
-
-  def associate_detections_to_trackers(self,detections,trackers,iou_threshold = 0.3):
-    """
-    Assigns detections to tracked object (both represented as bounding boxes)
-
-    Returns 3 lists of matches, unmatched_detections and unmatched_trackers
-    """
-    if(len(trackers)==0):
-      return np.empty((0,2),dtype=int), np.arange(len(detections)), np.empty((0,5),dtype=int)
-    
-    iou_matrix = self.iou_batch(detections, trackers)
-    
-    if min(iou_matrix.shape) > 0:
-
-      a = (iou_matrix > iou_threshold).astype(np.int32)
-      if a.sum(1).max() == 1 and a.sum(0).max() == 1:
-        matched_indices = np.stack(np.where(a), axis=1)
-      else:
-        matched_indices = self.linear_assignment(-iou_matrix)
-    else:
-      matched_indices = np.empty(shape=(0,2))
-
-    unmatched_detections = []
-    for d, det in enumerate(detections):
-      if(d not in matched_indices[:,0]):
-        unmatched_detections.append(d)
-
-    unmatched_trackers = []
-    for t, trk in enumerate(trackers):
-      if(t not in matched_indices[:,1]):
-        unmatched_trackers.append(t)
-
-    #filter out matched with low IOU
-    matches = []
-
-    for m in matched_indices:
-      if(iou_matrix[m[0], m[1]]<iou_threshold):
-        unmatched_detections.append(m[0])
-        unmatched_trackers.append(m[1])
-      else:
-        matches.append(m.reshape(1,2))
-    if(len(matches)==0):
-      matches = np.empty((0,2),dtype=int)
-    else:
-      matches = np.concatenate(matches,axis=0)
-
-    return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
-
-  def update(self, dets,dets_label):
-    """
-    Params:
-      dets - a numpy array of detections in the format [[x1,y1,x2,y2,score],[x1,y1,x2,y2,score],...]
-    Requires: this method must be called once for each frame even with empty detections (use np.empty((0, 5)) for frames without detections).
-    Returns the a similar array, where the last column is the object ID.
-
-    NOTE: The number of objects returned may differ from the number of detections provided.
-    """
-    self.frame_count += 1
-    # get predicted locations from existing trackers.
-    trks = np.zeros((len(self.trackers), 5))
-    to_del = []
-    ret = []
-    for t, trk in enumerate(trks):
-      pos = self.trackers[t].predict()[0]
-      trk[:] = [pos[0], pos[1], pos[2], pos[3], 0]
-      if np.any(np.isnan(pos)):
-        to_del.append(t)
-    trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
-    for t in reversed(to_del):
-      self.trackers.pop(t)
-    
-    matched, unmatched_dets, unmatched_trks = self.associate_detections_to_trackers(dets,trks, self.iou_threshold)
-   
-    # update matched trackers with assigned detections
-    for m in matched:
-      self.trackers[m[1]].update(dets[m[0]])
-      self.trackers[m[1]].current_idx = m[0]
-      
-    # create and initialise new trackers for unmatched detections
-    
-    for i in unmatched_dets:
-        self._count_object_num(dets_label)
-
-        trk = KalmanBoxTracker(dets[i],self._asign_new_id(dets_label),dets_label)
-        self.trackers.append(trk)
-        self.trackers[-1].current_idx = i
-        self.changeable_total+=1
-        
-        
-
-    i = len(self.trackers)
-    for trk in reversed(self.trackers):
-        d = trk.get_state()[0]
-        
-        if (trk.time_since_update < 1) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits):
-          ret.append(np.concatenate((d,[trk.id],[trk.current_idx])).reshape(1,-1)) # +1 as MOT benchmark requires positive
-        i -= 1
-        # remove dead tracklet
-        if(trk.time_since_update > self.max_age):
-          self.trackers.pop(i)
-    if(len(ret)>0):
-      return np.concatenate(ret)
-        
-    return np.empty((0,5))
-
-class Tracking_Zone(iAPP_OBJ, event_handle):
-
-  def __init__(self, params:dict, label:str,event_save_folder:str="event", palette:dict=palette):
-      self.app_type = 'obj'
-
-      #this step will check application and areas whether with standards or not .
-      self.params = self._check_params(params)
-
-      self.palette={}
-      self.label_path = label
-      self.label_list =[]
-      
-      # Update each Variable
-      self._init_palette(palette)
-
-      #put here reason is in there we need self.label_list but self.label_list get value after _init_palette
-      self.depend_on , self.app_output_data = self._get_depend_on()
-
-      self._init_draw_params()
-      self._update_area_params()
-      self._init_event_param(event_save_folder)
-      self._update_event_param()
-      self._init_event_object()
-      self.MOT_tracker= self._creat_MOT_tracker_for_each_area()
-
-  def _check_params(self,params:dict):
-    """
-      Ensure params with the standards.
-    Args:
-        params (dict): app config.
-    """
-    #judge type
-    if not isinstance(params,dict):
-      logging.error("app config type is dict! but your type is {} ,Please check and correct it.".format(type(params)))
-      raise TypeError("app config type is dict! but your type is {} ,Please check and correct it.".format(type(params)))
-    #judge container
-    if not params.__contains__('application'):
-      logging.error("app config must have key 'application'! Please check and correct it.")
-      raise ValueError("app config must have key 'application'! Please check and correct it.")
-    
-    if not isinstance(params['application'],dict):
-      logging.error("app config key 'application' type is dict! but your type is {} ,Please check and correct it.".format(type(params['application'])))
-      raise TypeError("app config key 'application' type is dict! but your type is {} ,Please check and correct it.".format(type(params['application'])))
-    
-    if not params['application'].__contains__('areas'):
-      logging.error("app config must have key 'areas'! Please check and correct it.")
-      raise ValueError("app config must have key 'areas'! Please check and correct it.")
-    
-    if not isinstance(params['application']['areas'],list):
-      logging.error("app config key 'areas' type is list! but your type is {} ,Please check and correct it.".format(type(params['application']['areas'])))
-      raise TypeError("app config key 'areas' type is list! but your type is {} ,Please check and correct it.".format(type(params['application']['areas'])))
-    
-    return params
-
-  def _get_depend_on(self):
-    """
-      Getd epend on info. 
-    Returns:
-      list : depend on object for each area.
-    """
-    temp_depend ={}
-    temp_app_output_data={}
-    for area_id in range(len(self.params['application']['areas'])):
-      if not isinstance(self.params['application']['areas'][area_id],dict):
-        logging.error("app config each areas info in key 'areas' type is dict! but your type is {} ,Please check and correct it."\
-                      .format(type(self.params['application']['areas'][area_id])))
-        raise TypeError("app config each areas info in key 'areas' type is dict! but your type is {} ,Please check and correct it."\
-                        .format(type(self.params['application']['areas'][area_id])))
-      
-      if not self.params['application']['areas'][area_id].__contains__('depend_on'):
-        logging.error("app config must have key 'depend_on'! Please check and correct it.")
-        raise ValueError("app config must have key 'depend_on'! Please check and correct it.")
-
-      if not isinstance(self.params['application']['areas'][area_id]['depend_on'],list):
-        logging.error("app config depend_on type is dict! but your type is {} ,Please check and correct it."\
-                      .format(type(self.params['application']['areas'][area_id]['depend_on'])))
-        raise TypeError("app config depend_on type is dict! but your type is {} ,Please check and correct it."\
-                        .format(type(self.params['application']['areas'][area_id]['depend_on'])))
-      
-      
-      _label=[]
-      if self.params['application']['areas'][area_id]['depend_on']==[]:
-        
-        temp_depend.update({area_id:self.label_list})
-        for label in self.label_list:
-           _label.append({
-                          "label":label,
-                          "num":0
-                          })
-        temp_app_output_data.update({area_id:_label})
-      else:
-        temp_depend.update({area_id:self.params['application']['areas'][area_id]['depend_on']})
-        
-        for label in self.params['application']['areas'][area_id]['depend_on']:
-          if not (label in self.label_list):
-            logging.error("The label {} you set not in the label path! Please check and correct it!".format(label))
-            raise ValueError("The label '{}' you set not in the label file! Please check and correct it!".format(label))
-          _label.append({
-                          "label":label,
-                          "num":0
-                          })
-        temp_app_output_data.update({area_id:_label})
-
-    return temp_depend , temp_app_output_data
-
-  def _init_draw_params(self):
-      """ Initialize Draw Parameters """
-      #for draw result and boundingbox
-      self.frame_idx = 0
-      self.frame_size = None
-      self.font_size  = None
-      self.font_thick = None
-      self.thick      = None
-      
-      #for draw area
-      self.area_name={}
-      self.area_opacity=None
-      self.area_color=None
-      self.area_pts = {}
-      self.area_cnt = {}
-      self.normalize_area_pts = {}
-      self.area_pts = {}
-
-      #control draw
-      self.draw_bbox=self.params['application']['draw_bbox'] if self.params['application'].__contains__('draw_bbox') else False
-      self.draw_result=self.params['application']['draw_result'] if self.params['application'].__contains__('draw_result') else False
-      self.draw_tracking=True
-      self.draw_area=False
-      self.draw_app_common_output = True
-
-  def _creat_MOT_tracker_for_each_area(self):
-    """
-      Init MOT_tracker for each area.
-    Returns:
-        dict: init MOT_tracker for each area.
-    """
-    _temp = {}
-    for area_id ,depend_info in self.depend_on.items():
-      if not _temp.__contains__(area_id):
-           _temp.update({area_id:{}})
-      for idx , label in enumerate(depend_info):
-
-        _temp[area_id].update({label:Sort(max_age=1, 
-                                          min_hits=3,
-                                          iou_threshold=0.3,
-                                          app_output_data=self.app_output_data,
-                                          area_id =area_id )})
-    return _temp
-
-  def _update_area_params(self):
-    """
-      Get area point from app config. defalt is full screen.
-    """
-    for area_id ,area_info in enumerate(self.params['application']['areas']):
-      
-      if not area_info.__contains__('area_point'): 
-        logging.error("app config must have key 'area_point'! please correct it.")
-        raise ValueError("app config must have key 'area_point'! please correct it.")
-      if not isinstance(area_info['area_point'],list):
-        logging.error("app config each areas info in key 'area_point' type is list! but your type is {} ,please correct it."\
-                      .format(type(area_info['area_point'])))
-        raise TypeError("app config each areas info in key 'area_point' type is list! but your type is {} ,please correct it."\
-                        .format(type(area_info['area_point']))) 
-      
-      if not area_info.__contains__('name'): 
-        logging.error("app config must have key 'name'! please correct it.")
-        raise ValueError("app config must have key 'name'! please correct it.")
-      if not isinstance(area_info['name'],str):
-        logging.error("app config each areas info in key 'name' type is str! but your type is {} ,please correct it."\
-                      .format(type(area_info['name'])))
-        raise TypeError("app config each areas info in key 'name' type is str! but your type is {} ,please correct it."\
-                        .format(type(area_info['name']))) 
-
-      if area_info['area_point']!=[]:
-        self.normalize_area_pts.update({area_id:area_info['area_point']})
-        self.area_name.update({area_id:area_info['name']})
-        # self.area_color.update({i:[random.randint(0,255),random.randint(0,255),random.randint(0,255)]})
-      else:
-        self.normalize_area_pts.update({area_id:[[0,0],[1,0],[1,1],[0,1]]})
-        self.area_name.update({area_id:"The defalt area"})
-      
-      if area_info['name']!="":
-        self.area_name.update({area_id:area_info['name']})
-        # self.area_color.update({i:[random.randint(0,255),random.randint(0,255),random.randint(0,255)]})
-      else:
-        self.area_name.update({area_id:"The defalt area"})
-
-  def _update_draw_param(self, frame:np.ndarray):
-      """ Update the parameters of the drawing tool, which only happend at first time. """
-      
-      # if frame_size not None means it was already init 
-      if( self.frame_idx > 1): return None
-
-      # Parameters
-      FRAME_SCALE     = 0.0005    # Custom Value which Related with Resolution
-      BASE_THICK      = 1         # Setup Basic Thick Value
-      BASE_FONT_SIZE  = 0.5   # Setup Basic Font Size Value
-      FONT_SCALE      = 0.2   # Custom Value which Related with the size of the font.
-      WIDTH_SPACE = 10
-      HIGHT_SPACE = 10
-      # Get Frame Size
-      self.frame_size = frame.shape[:2]
-      
-      # Calculate the common scale
-      scale = FRAME_SCALE * sum(self.frame_size)
-      
-      # Get dynamic thick and dynamic size 
-      self.thick  = BASE_THICK + round( scale )
-      self.font_thick = self.thick//2
-      self.font_size = BASE_FONT_SIZE + ( scale*FONT_SCALE )
-
-      self.area_color=[0,0,255]
-      self.area_opacity=0.4  
-
-      self.WIDTH_SPACE = int(scale*WIDTH_SPACE) 
-      self.HIGHT_SPACE = int(scale*HIGHT_SPACE) 
-
-  def _init_event_param(self,event_save_folder:str="event"):
-    """ Initialize Event Parameters """
-    self.logic_operator = {}
-    self.logic_value = {}
-    self.event_title = {}
-    self.cooldown_time = {}
-    self.sensitivity ={}
-    self.event_handler={}
-    self.event_save_folder=event_save_folder
-    self.event_uid={}
-
-  def _update_event_param(self):
-    """ Update the parameters of the event, which only happend at first time. """    
-    for area_id ,area_info in enumerate(self.params['application']['areas']):
-
-      if area_info.__contains__('events'):
-        if not isinstance(area_info['events'],dict):
-          logging.error("Event type is dict! but your type is {} ,please correct it."\
-                      .format(type(area_info['events'])))
-          raise TypeError("Event type is dict! but your type is {} ,please correct it."\
-                      .format(type(area_info['events'])))
-        
-        if not area_info['events'].__contains__('logic_operator'):
-          logging.error("Events must have key 'logic_operator'! please correct it.")
-          raise ValueError("Events must have key 'logic_operator'! please correct it.")
-        
-        self.logic_operator.update({area_id:self._get_logic_event(area_info['events']['logic_operator'])})
-
-        if not area_info['events'].__contains__('logic_value'):
-          logging.error("Events must have key 'logic_value'! please correct it.")
-          raise ValueError("Events must have key 'logic_value'! please correct it.")
-        
-        self.logic_value.update({area_id: area_info['events']['logic_value']})
-
-        if not area_info['events'].__contains__('title'):
-          logging.error("Events must have key 'title'! please correct it.")
-          raise ValueError("Events must have key 'title'! please correct it.")
-        
-        self.event_title.update({area_id:area_info['events']['title']})
-
-        if area_info['events'].__contains__('cooldown_time'):
-            self.cooldown_time.update({area_id:self.params['application']['areas'][i]['events']['cooldown_time']})
-        else :
-            self.cooldown_time.update({area_id:10})   
-        if area_info['events'].__contains__('sensitivity'):
-              self.sensitivity.update({area_id:self._get_sensitivity_event(area_info['events']['sensitivity'])})
-        
-        if area_info['events'].__contains__('uid'):
-          if not isinstance(area_info['events']['uid'],str):
-            logging.error("Event key uid type is str! but your type is {} ,please correct it."\
-                        .format(type(area_info['events']['uid'])))
-            raise TypeError("Event key uid type is str! but your type is {} ,please correct it."\
-                        .format(type(area_info['events']['uid'])))
-          self.event_uid.update({area_id:area_info['events']['uid']})
+    def convert_x_to_bbox(self,x,score=None):
+        """
+        Takes a bounding box in the centre form [x,y,s,r] and returns it in the form
+        [x1,y1,x2,y2] where x1,y1 is the top left and x2,y2 is the bottom right
+        """
+        w = np.sqrt(x[2] * x[3])
+        h = x[2] / w
+        if(score==None):
+            return np.array([x[0]-w/2.,x[1]-h/2.,x[0]+w/2.,x[1]+h/2.]).reshape((1,4))
         else:
-          self.event_uid.update({area_id:None})
+            return np.array([x[0]-w/2.,x[1]-h/2.,x[0]+w/2.,x[1]+h/2.,score]).reshape((1,5))
 
-      else:
-        logging.warning("No set event!")
-      
-  def _get_logic_event(self, operator):
-    """ Define the logic event """
-    greater = lambda x,y: x>y
-    greater_or_equal = lambda x,y: x>=y
-    less = lambda x,y: x<y
-    less_or_equal = lambda x,y: x<=y
-    equal = lambda x,y: x==y
-    logic_map = {
-        '>': greater,
-        '>=': greater_or_equal,
-        '<': less,
-        '<=': less_or_equal,
-        '=': equal,
-    }
-    return logic_map.get(operator)
-
-  def _get_sensitivity_event(self,sensitivity_str):
-    """ Define the sensitivity of event """
-    # sensitivity_map={
-    #     "low":0.3,
-    #     "medium" : 0.5,
-    #     "high":0.7,
-    # }
-    sensitivity_map={
-        "low":1,
-        "medium" : 3,
-        "high":5,
-    }
-    return sensitivity_map.get(sensitivity_str)
-
-  def _sort_point_list(self,point_list:list):
+    def convert_bbox_to_z(self,bbox):
         """
-        This function will help user to sort the point in the list counterclockwise.
-        step 1 : We will calculate the center point of the cluster of point list.
-        step 2 : calculate arctan for each point in point list.
-        step 3 : sorted by arctan.
-
-        Args:
-            pts_2ds (list): not sort point.
-
-
-        Returns:
-            point_list(list): after sort.
-        
+        Takes a bounding box in the form [x1,y1,x2,y2] and returns z in the form
+        [x,y,s,r] where x,y is the centre of the box and s is the scale/area and r is
+        the aspect ratio
         """
+        w = bbox[2] - bbox[0]
+        h = bbox[3] - bbox[1]
+        x = bbox[0] + w/2.
+        y = bbox[1] + h/2.
+        s = w * h    #scale is just area
+        r = w / float(h)
+        return np.array([x, y, s, r]).reshape((4, 1))
 
-        cen_x, cen_y = np.mean(point_list, axis=0)
-        #refer_line = np.array([10,0]) 
-        temp_point_list = []
-        sorted_point_list = []
-        for i in range(len(point_list)):
-
-            o_x = point_list[i][0] - cen_x
-            o_y = point_list[i][1] - cen_y
-            atan2 = np.arctan2(o_y, o_x)
-            # angle between -180~180
-            if atan2 < 0:
-                atan2 += np.pi * 2
-            temp_point_list.append([point_list[i], atan2])
+    def update(self,bbox):
+        """
+        Updates the state vector with observed bbox.
+        """
         
-        temp_point_list = sorted(temp_point_list, key=lambda x:x[1])
-        for x in temp_point_list:
-            sorted_point_list.append(x[0])
-       
+        self.time_since_update = 0
+        self.history = []
+        self.hits += 1
+        self.hit_streak += 1
+        self.kf.update(self.convert_bbox_to_z(bbox))
+
+    def predict(self):
+        """
+        Advances the state vector and returns the predicted bounding box estimate.
+        """
+        if((self.kf.x[6]+self.kf.x[2])<=0):
+            self.kf.x[6] *= 0.0
+        self.kf.predict()
+        self.age += 1
+        if(self.time_since_update>0):
+            self.hit_streak = 0
+        self.time_since_update += 1
+        self.history.append(self.convert_x_to_bbox(self.kf.x))
+        return self.history[-1]
+
+    def get_state(self):
+        """
+        Returns the current bounding box estimate.
+        """
+        return self.convert_x_to_bbox(self.kf.x)
+
+
+class TrackerHanlder(object):
+
+    def __init__(self, max_age=1, min_hits=3, iou_threshold=0.3):
+        """
+        Sets key parameters for SORT
+        """
+        self.max_age = max_age
+        self.min_hits = min_hits
+        self.iou_threshold = iou_threshold
+        self.trackers = []
+        self.changeable_total = 0
+        self.frame_count = 0
+
+        self.output = defaultdict(int)
+        self.tracking_obj = defaultdict(int)
+
+
+        self.tracked = defaultdict(int)
+        self.next_idx = 0
+  
+    def iou_batch(self,bb_test, bb_gt):
+        """
+        From SORT: Computes IOU between two bboxes in the form [x1,y1,x2,y2]
+        """
+        bb_gt = np.expand_dims(bb_gt, 0)
+        bb_test = np.expand_dims(bb_test, 1)
         
-        return sorted_point_list
+        xx1 = np.maximum(bb_test[..., 0], bb_gt[..., 0])
+        yy1 = np.maximum(bb_test[..., 1], bb_gt[..., 1])
+        xx2 = np.minimum(bb_test[..., 2], bb_gt[..., 2])
+        yy2 = np.minimum(bb_test[..., 3], bb_gt[..., 3])
+        w = np.maximum(0., xx2 - xx1)
+        h = np.maximum(0., yy2 - yy1)
+        wh = w * h
+        o = wh / ((bb_test[..., 2] - bb_test[..., 0]) * (bb_test[..., 3] - bb_test[..., 1])                                      
+        + (bb_gt[..., 2] - bb_gt[..., 0]) * (bb_gt[..., 3] - bb_gt[..., 1]) - wh)                                              
+        return(o)  
 
-  def _convert_area_point(self,frame):
-    #convert point value.
+    def linear_assignment(self,cost_matrix):
+        try:
+            import lap
+            _, x, y = lap.lapjv(cost_matrix, extend_cost=True)
+            return np.array([[y[i],i] for i in x if i >= 0]) #
+        except ImportError:
+            from scipy.optimize import linear_sum_assignment
+            x, y = linear_sum_assignment(cost_matrix)
+            return np.array(list(zip(x, y)))
 
-    temp_point=[]
-    for area_id, area_point in self.normalize_area_pts.items():
-              
-        for point in area_point:
-          if point[0]>1: return
-          temp_point.append([math.ceil(point[0]*frame.shape[1]),math.ceil(point[1]*frame.shape[0])])
-        temp_point = self._sort_point_list(temp_point)
-        self.area_pts.update({area_id:temp_point})
-        temp_point = []
-
-  def _init_palette(self,palette:dict):
-    """
-      We will deal all color we need there.
-      Step 1 : assign color for each label.
-      Step 2 : if app_config have palette that user stting we will change the color follow user setting.
-    Args:
-        palette (dict): palette list.
-    """
-    color = None
-    with open(self.label_path,'r') as f:
-        # lines = f.read().splitlines()
-        for idx, line in enumerate(f.readlines()):
-            idx+=1
-            if self.params['application'].__contains__('palette'):
-                
-                if self.params['application']['palette'].__contains__(line.strip()):
-                    color = self.params['application']['palette'][line.strip()]
-                else:
-                    color = palette[str(idx)]
-            else :         
-                color = palette[str(idx)]
-            
-            self.palette.update({line.strip():color})
-            self.label_list.append(line.strip())
-
-  def _check_depend_and_area(self,dets:list):
-    """
-        According to the depend on to filter the detections.
-    Args:
-        dets : (list): output of model predict.
-        traking_dets (list): output of MOT tracker.
-
-    Returns:
-        dict : According to the depend on to filter the detections. 
-    """
-
-    _dets = {}
-    for area_id, depend in self.depend_on.items():
-      _temp_dets={}
-      for id,val in enumerate(dets):
-        if self.inpolygon(((val.xmin+val.xmax)//2),((val.ymin+val.ymax)//2),self.area_pts[area_id]): 
-          if val.label in depend:
-            if not _temp_dets.__contains__(val.label):
-              _temp_dets.update({val.label:[]})
-            _temp_dets[val.label].append([val.xmin,val.ymin,val.xmax,val.ymax ,val.score])
-            
-      _dets.update({area_id:_temp_dets})
-      
-    return _dets 
-  
-  def _combined_app_output_data(self,data:list,area_id:int):
-    """
-      combined data from all area.
-    Args:
-        data (list): total object number .format [{'label': str, 'num': int},{'label': str, 'num': int},...]
-        area_id (int): area_id
-    """
-    _temp_data=[]
-    for id ,val in enumerate(data):
-      if val['num']!=0:
-        _temp_data.append(val)
-    self.app_output_data[area_id]=_temp_data
-
-  def _combined_app_output(self):
-    app_output={"areas": []}
-    for area_id,val in self.app_output_data.items():
-      app_output["areas"].append({
-                  "id":area_id,
-                  "name":self.area_name[area_id],
-                  "data":val
-      })
-    return app_output
-
-  def _init_event_object(self):
-
-   for area_id ,val in self.logic_operator.items():
-      event_obj = event_handle(val,self.logic_value[area_id],self.cooldown_time[area_id]\
-                               ,self.event_title[area_id],area_id,self.event_save_folder,self.event_uid) 
-      self.event_handler.update( { area_id: event_obj }  )  
-
-  def _deal_changeable_total(self,return_to_zero:bool=False):
-    _temp_count = 0
-    if return_to_zero:
-      for area_id , area_tracker in self.MOT_tracker.items():
-        for label , tracker in area_tracker.items():
-          tracker.changeable_total=0
-    else : 
-      for area_id , area_tracker in self.MOT_tracker.items():
-        for label , tracker in area_tracker.items():
-          _temp_count=_temp_count+tracker.changeable_total
-    return _temp_count
-  
-  def draw_app_result(self,frame:np.ndarray,result:dict,outer_clor:tuple=(0,255,255),font_color:tuple=(0,0,0)):
-    sort_id=0
-    if self.draw_app_common_output == False:
-      return
-    for areas ,data in result.items():
-      # print(result)
-      for area_id ,area_info in enumerate(data):
-        for label_id,val in enumerate(area_info['data']):
-          if val['num']==0:
-             continue
-          temp_direction_result=" {} : {} {} ".format(self.area_name[area_id],str(val['num']),str(val['label']))
-          
-          
-          (t_wid, t_hei), t_base = cv2.getTextSize(temp_direction_result, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
-          
-          t_xmin, t_ymin, t_xmax, t_ymax = self.WIDTH_SPACE, self.HIGHT_SPACE+self.HIGHT_SPACE*sort_id+(sort_id*(t_hei+t_base)), \
-            self.WIDTH_SPACE+t_wid, self.HIGHT_SPACE+self.HIGHT_SPACE*sort_id+((sort_id+1)*(t_hei+t_base))
-          
-          cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), outer_clor , -1)
-          cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,0) , 1)
-          cv2.putText(
-              frame, temp_direction_result, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
-              self.font_size, font_color, self.font_thick, cv2.LINE_AA
-          )
-          sort_id=sort_id+1
-
-  def draw_area_event(self, frame:np.ndarray, is_draw_area:bool, area_color:tuple=None, area_opacity:float=None, draw_points:bool=True):
-    """ Draw Detecting Area and update center point if need.
-    - args
-        - frame: input frame
-        - area_color: control the color of the area
-        - area_opacity: control the opacity of the area
-    """
-
-    if not is_draw_area: return frame
-    # Get Parameters
-    area_color = self.area_color if area_color is None else area_color
-    area_opacity = self.area_opacity if area_opacity is None else area_opacity
+    def _count_object_num(self, label:str):
+        self.tracked[label]+=1
+        
+    def _asign_new_id(self, label: str):
+        return self.tracked[label]
     
-    # Parse All Area
-    overlay = frame.copy()
+    def get_total_nums(self, label: str) -> int:
+        return self.tracked[label]
 
-    temp_area_next_point = []
+    def associate_detections_to_trackers(self,detections,trackers,iou_threshold = 0.3):
+        """
+        Assigns detections to tracked object (both represented as bounding boxes)
 
+        Returns 3 lists of matches, unmatched_detections and unmatched_trackers
+        """
+        if(len(trackers)==0):
+            return np.empty((0,2),dtype=int), np.arange(len(detections)), np.empty((0,5),dtype=int)
+    
+        iou_matrix = self.iou_batch(detections, trackers)
+    
+        if min(iou_matrix.shape) > 0:
 
-    for area_idx, area_pts in self.area_pts.items():
-        
-                    
-        if area_pts==[]: continue
-
-        # draw area point
-        if  draw_points: 
-            
-            [ cv2.circle(frame, tuple(pts), 3, area_color, -1) for pts in area_pts ]
-
-        # if delet : referenced before assignment
-        minxy,maxxy=(max(area_pts),min(area_pts))
-
-        for pts in area_pts:
-            if temp_area_next_point == []:
-                cv2.line(frame,pts,area_pts[-1], (0, 0, 255), 3)
-                
+            a = (iou_matrix > iou_threshold).astype(np.int32)
+            if a.sum(1).max() == 1 and a.sum(0).max() == 1:
+                matched_indices = np.stack(np.where(a), axis=1)
             else:
-            
-                cv2.line(frame, temp_area_next_point, pts, (0, 0, 255), 3)
-            temp_area_next_point= pts
-                
-            if (tuple(pts)[0]+tuple(pts)[1])<(minxy[0]+minxy[1]): 
-                minxy= pts
+                matched_indices = self.linear_assignment(-iou_matrix)
+        else:
+            matched_indices = np.empty(shape=(0,2))
 
-        #draw area name for each area            
-        area_name =self.area_name[area_idx]     
-        (t_wid, t_hei), t_base = cv2.getTextSize(area_name, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
-        t_xmin, t_ymin, t_xmax, t_ymax = minxy[0], minxy[1], minxy[0]+t_wid, minxy[1]+(t_hei+t_base)
+        unmatched_detections = []
+        for d, det in enumerate(detections):
+            if(d not in matched_indices[:,0]):
+                unmatched_detections.append(d)
+
+        unmatched_trackers = []
+        for t, trk in enumerate(trackers):
+            if(t not in matched_indices[:,1]):
+                unmatched_trackers.append(t)
+
+        #filter out matched with low IOU
+        matches = []
+
+        for m in matched_indices:
+            if(iou_matrix[m[0], m[1]]<iou_threshold):
+                unmatched_detections.append(m[0])
+                unmatched_trackers.append(m[1])
+            else:
+                matches.append(m.reshape(1,2))
+
+        if(len(matches)==0):
+            matches = np.empty((0,2),dtype=int)
+        else:
+            matches = np.concatenate(matches,axis=0)
+
+        return matches, np.array(unmatched_detections), np.array(unmatched_trackers)
+
+    def update(self, dets, dets_label):
+        """
+        Params:
+        dets - a numpy array of detections in the format [[x1,y1,x2,y2,score],[x1,y1,x2,y2,score],...]
+        Requires: this method must be called once for each frame even with empty detections (use np.empty((0, 5)) for frames without detections).
+        Returns the a similar array, where the last column is the object ID.
+
+        NOTE: The number of objects returned may differ from the number of detections provided.
+        """
         
-        cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax+t_base), (0,0,255) , -1)
-        cv2.putText(
-            frame, area_name, (t_xmin, t_ymax), cv2.FONT_HERSHEY_SIMPLEX,
-            self.font_size, (0,0,0), self.font_thick, cv2.LINE_AA
+        self.frame_count += 1
+        
+        # get predicted locations from existing trackers.
+        trks = np.zeros((len(self.trackers), 5))
+        to_del = []
+        ret = []
+
+        for t, trk in enumerate(trks):
+
+            # update position
+            pos = self.trackers[t].predict()[0]
+            trk[:] = [pos[0], pos[1], pos[2], pos[3], 0]
+            
+            # the position have to delete
+            if np.any(np.isnan(pos)):
+                to_del.append(t)
+        
+        # find the index of invalid value
+        trks = np.ma.compress_rows(np.ma.masked_invalid(trks))
+        for t in reversed(to_del):
+            self.trackers.pop(t)
+    
+        matched, unmatched_dets, unmatched_trks = \
+            self.associate_detections_to_trackers(dets, trks, self.iou_threshold)
+   
+        # update matched trackers with assigned detections
+        for m in matched:
+            self.trackers[m[1]].update(dets[m[0]])
+            self.trackers[m[1]].current_idx = m[0]
+        
+        # create and initialise new trackers for unmatched detections
+    
+        for i in unmatched_dets:
+            # Count new object
+            self._count_object_num(dets_label)
+            
+            # Add new object to track
+            trk = KalmanBoxTracker(dets[i],self._asign_new_id(dets_label),dets_label)
+            self.trackers.append(trk)
+            self.trackers[-1].current_idx = i
+            self.changeable_total+=1
+
+        i = len(self.trackers)
+        for trk in reversed(self.trackers):
+            d = trk.get_state()[0]
+            
+            if (trk.time_since_update < 1) and (trk.hit_streak >= self.min_hits or self.frame_count <= self.min_hits):
+                ret.append(np.concatenate((d,[trk.id],[trk.current_idx])).reshape(1,-1)) # +1 as MOT benchmark requires positive
+            i -= 1
+            # remove dead tracklet
+            if(trk.time_since_update > self.max_age):
+                self.trackers.pop(i)
+
+        if(len(ret)>0):
+            return np.concatenate(ret)
+        
+        return np.empty((0,5))
+
+# ------------------------------------------------------------------------    
+
+class EventHandler:
+
+    def __init__(   self, 
+                    title: str, 
+                    folder: str,
+                    drawer: DrawTool, 
+                    operator: str, 
+                    threshold: float, 
+                    cooldown: float ):
+        # Basic
+        self.title = title
+        self.drawer = drawer
+        self.threshold = threshold
+        self.cooldown = cooldown
+
+        # Logic
+        self.logic_map = get_logic_map()
+        self.logic_event = self.logic_map[operator]
+    
+        # Timer
+        self.trigger_time = time.time_ns()
+
+        # Generate uuid
+        self.folder = self.check_folder(folder)
+        self.uuid = str(uuid.uuid4())[:8]
+        self.uuid_folder = self.check_folder(os.path.join(self.folder, self.uuid))
+        
+        # Dynamic Variable
+        self.current_time = time.time_ns()
+        self.current_value = None
+
+        # Custom Threading Pool
+        self.exec_pool = []
+        self.pools = ThreadPool(processes=4)
+
+        # Flag
+        self.event_status = False
+
+    def check_folder(self, folder_path: str) -> None:
+        if not os.path.exists(folder_path):        
+            os.makedirs(folder_path)
+        return folder_path
+
+    def is_trigger(self) -> bool:
+        return self.logic_event(self.current_value , self.threshold)
+
+    def is_ready(self) -> bool:
+        if (self.current_time - self.trigger_time) <= self.cooldown:
+            print('Not ready, still have {} seconds'.format(round(self.current_time - self.trigger_time, 5)))
+            return False
+        self.trigger_time = self.current_time
+        return True
+
+    def get_pure_dets(self, detections: list):
+        return [{
+            "xmin": det.xmin,
+            "ymin": det.ymin,
+            "xmax": det.xmax,
+            "ymax": det.ymax,
+            "label": det.label,
+            "score": det.score
+        } for det in detections ]
+
+    def get_pure_area(self, area:dict) -> dict:
+        return {
+            'name':area['name'],
+            'area_point': area['area_point']
+        }
+
+    def save_image(self, save_path: str, image: np.ndarray) -> None:
+        cv2.imwrite(save_path, image)
+
+    def get_meta_data(self, pure_dets: list, pure_area: dict) -> dict:
+        return {
+            "detections": pure_dets,
+            "area": pure_area
+        }
+
+    def save_meta_data(self, path: str, meta_data: dict) -> None:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump(meta_data, f, ensure_ascii=False, indent=4)
+
+    def event_behaviour(self, original: np.ndarray, meta_data: dict) -> dict:
+        # timestamp is folder name
+        timestamp = str(self.current_time)
+        target_folder = self.uuid_folder
+        # target_folder = self.check_folder(os.path.join(self.uuid_folder, timestamp))
+
+        # Save Data: Image, Metadata
+        image_path = os.path.join(target_folder, f"{timestamp}.jpg")
+        data_path = os.path.join(target_folder, f"{timestamp}.json")
+
+        self.pools.apply_async( self.save_image, args=(image_path, original))
+        self.pools.apply_async( self.save_meta_data, args=(data_path, meta_data))
+        
+        if self.event_status:
+            self.start_time = self.current_time
+            self.end_time = None
+        else:
+            self.end_time = self.current_time
+
+        return {
+            "uid": self.uuid,
+            "title": self.title,
+            "timestamp": self.current_time,
+            "start_time": self.start_time,
+            "end_time": self.end_time,
+            "event_status": self.event_status,
+            "meta": meta_data,
+        }
+
+    def _reset_timestamp(self):
+        self.start_time = None
+        self.end_time = None
+        
+    def __call__(self, original: np.ndarray, value: int, detections: list, area: dict) -> Union[None, dict]:
+        # Update variable
+        self.current_time = time.time_ns()
+        self.current_value = value
+
+        # Event triggered
+        if self.is_trigger():
+            # Event is on going
+            if self.event_status: return
+
+        # Event not triggered and event not started
+        elif not self.event_status: 
+            self._reset_timestamp()
+            return
+
+        # Update Status
+        self.event_status = not self.event_status
+        
+        # Cooldown time: avoid trigger too fast
+        if not self.is_ready(): return        
+
+        print('Event {} ( Total: {})'.format('Start' if self.event_status else 'Stop', value))
+
+        # get data
+        pure_dets = self.get_pure_dets(detections)
+        pure_area = self.get_pure_area(area)
+        meta_data = self.get_meta_data(pure_dets=pure_dets, pure_area=pure_area)
+
+        # Event
+        return self.event_behaviour(
+                original= original,
+                meta_data= meta_data
         )
 
-        #draw area 
-        cv2.fillPoly(overlay, pts=[ np.array(area_pts) ], color=area_color)
-        temp_area_next_point = []
-    
-    return cv2.addWeighted( frame, 1-area_opacity, overlay, area_opacity, 0 ) 
+    def __del__(self):
+        # Close threading pool iterminate
+        self.pools.terminate()
 
-  def draw_tracking_tag(self,frame:np.ndarray,tracking_tag:str,left_top:tuple, right_down:tuple,outer_clor:tuple,font_color:tuple=(255,255,255),draw_tracking:bool=True):
 
-    draw_tracking = self.draw_tracking if self.draw_tracking is not None else draw_tracking
-    xmin ,ymin=left_top
-    xmax ,ymax=right_down
-    if not draw_tracking: return
-    (t_wid, t_hei), t_base = cv2.getTextSize(str(tracking_tag), cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
-    half_wid, half_hei = t_wid//2, t_hei//2
-    [cnt_x, cnt_y] = [(xmin+xmax)//2,(ymin+ymax)//2]
-    t_xmin, t_ymin, t_xmax, t_ymax = cnt_x-half_wid, cnt_y-half_hei, cnt_x+half_wid, cnt_y+half_hei
-    cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax), outer_clor , -1)
-    cv2.putText(
-        frame, str(tracking_tag), (t_xmin, t_ymin+t_hei), cv2.FONT_HERSHEY_SIMPLEX,
-        self.font_size, font_color, self.font_thick, cv2.LINE_AA
-    )
-    
-  def inpolygon(self,px,py,poly):
-      is_in = False
-      for i , corner in enumerate(poly):
-          
-          next_i = i +1 if i +1 < len(poly) else 0
-          x1 ,y1 = corner
-          x2 , y2=poly[next_i]
-          if (x1 == px and y1 ==py) or (x2==px and y2 ==py):
-            is_in = False
-            
-            break
-          if min(y1,y2) <py <= max(y1 ,y2):
-              
-            x =x1+(py-y1)*(x2-x1)/(y2-y1)
-            if x ==px:
-              is_in = False
-              break
-            elif x > px:
-              
-              is_in = not is_in
-      return is_in
+class Tracking_Zone(iAPP_OBJ):
 
-  def get_color(self, label:str):
-        """
-            Get color of label.
+    def __init__(self, params:dict, label:str, event_behavi_save_folder:str="event", palette:dict=palette):
+        """_summary_
+
         Args:
-            label (str): label of object.
-
-        Returns:
-            list: (B,G,R).
-        """
-        return self.palette[label]
-  
-  def custom_function(self, frame:np.ndarray, color:tuple, label:str,score:float,\
-                       left_top:tuple, right_down:tuple,draw_bbox:bool=True,draw_result:bool=True):
+            params (dict): _description_
+            label (str): _description_
+            event_save_folder (str, optional): _description_. Defaults to "event".
+            palette (dict, optional): _description_. Defaults to palette.
         
+        Workflows:
+            1. Setup app_type.
+            2. Initailize all parameters.
+            3. Update palette and labels.
+            4. Update each area informations into self.areas.
+                * name
+                * depend_on
+                * norm_area_pts
+                * output
         """
-        The draw method customize by user .
+        # NOTE: Step 1. Define Application Type in __init__()
+        self.app_type = 'obj' 
+        
+        # Initailize app params
+        self.areas = []
 
-        Args:
-            frame (np.ndarray): The img that we want to deal with.
-            color (tuple): what color of label that you want to show.
-            label (str): label of object.
-            score (float): confidence of model predict.
-            left_top (tuple): bbox left top.
-            right_down (tuple): bbox right down
-            draw_bbox (bool, optional): Draw bbox or not . Defaults to True.
-            draw_result (bool, optional): Draw result on the bbox or not. Defaults to True.
+        # Update setting
+        self.params = params
+        self.app_setting = self._get_app_setting(params)
+        self.draw_area = self.app_setting.get("draw_area", False) 
+        self.draw_bbox = self.app_setting.get("draw_bbox", True)
+        self.draw_label = self.app_setting.get("draw_label", True)
+        self.draw_result = self.app_setting.get("draw_result", True)
+        
+        # Event
+        self.force_close_event = False
 
-        Returns:
-            np.ndarray: frame that finished painting
-        """
-        (xmin, ymin), (xmax, ymax) = map(int, left_top), map(int, right_down)
-        info = '{} {:.1%}'.format(label, score)
-        # Draw bounding box
-        draw_bbox = self.draw_bbox if self.draw_bbox is not None else draw_bbox
-        if draw_bbox:
-            cv2.rectangle(frame, (xmin, ymin), (xmax, ymax), color , self.thick)
-
-        draw_result = self.draw_result if self.draw_result is not None else draw_result
+        # Palette and labels
+        self.custom_palette = params.get("palette", {})
+        self.palette, self.labels = update_palette_and_labels(
+            custom_palette = self.custom_palette,
+            default_palette = palette,
+            label_path = label )
+ 
+        # init draw tool that share the same palette and labels
+        self.drawer = DrawTool(
+            labels = self.labels,
+            palette = self.palette
+        )
        
-        # Draw Text
-        if draw_result:
-            (t_wid, t_hei), t_base = cv2.getTextSize(info, cv2.FONT_HERSHEY_SIMPLEX, self.font_size, self.font_thick)
-            t_xmin, t_ymin, t_xmax, t_ymax = xmin, ymin-(t_hei+(t_base*2)), xmin+t_wid, ymin
-            cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax), color , -1)
-            cv2.putText(
-                frame, info, (xmin, ymin-(t_base)), cv2.FONT_HERSHEY_SIMPLEX,
-                self.font_size, (255,255,255), self.font_thick, cv2.LINE_AA
-            )
-        return frame
-
-  def set_draw(self,params:dict):
-    """
-    Control anything about drawing.
-    Which params you can contral :
-
-    { 
-        draw_area : bool , 
-        draw_bbox : bool ,
-        draw_result : bool ,
-        draw_tracking : bool ,
-        draw_app_common_output : bool ,
-        palette (dict) { label(str) : color(Union[tuple, list]) },
-    }
-    
-    Args:
-        params (dict): 
-    """
-    color_support_type = Union[tuple, list]
-    if not isinstance(params, dict):
-        logging.error("Input type is dict! but your type is {} ,please correct it.".format(type(params.get('draw_area', None))))
-        return
-
-    if isinstance(params.get('draw_area', self.draw_area) , bool):
-        self.draw_area= params.get('draw_area', self.draw_area) 
-        logging.info("Change draw_area mode , now draw_area mode is {} !".format(self.draw_area))
-    else:
-        logging.error("draw_area type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_area', self.draw_area))))
-
-    if isinstance(params.get('draw_bbox', self.draw_bbox) , bool):
-        self.draw_bbox= params.get('draw_bbox', self.draw_bbox)
-        logging.info("Change draw_bbox mode , now draw_bbox mode is {} !".format(self.draw_bbox))
-    else:
-        logging.error("draw_bbox type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_bbox', self.draw_bbox))))
-    
-    if isinstance(params.get('draw_result', self.draw_result) , bool):    
-        self.draw_result= params.get('draw_result', self.draw_result)
-        logging.info("Change draw_result mode , now draw_result mode is {} !".format(self.draw_result))
-    else:
-        logging.error("draw_result type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_result', self.draw_result))))
-    
-    if isinstance(params.get('draw_tracking', self.draw_tracking) , bool):    
-        self.draw_tracking= params.get('draw_tracking', self.draw_tracking)
-        logging.info("Change draw_tracking mode , now draw_tracking mode is {} !".format(self.draw_tracking))
-    else:
-        logging.error("draw_tracking type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_tracking', self.draw_tracking))))
-
-    if isinstance(params.get('draw_app_common_output', self.draw_app_common_output) , bool):    
-        self.draw_app_common_output= params.get('draw_app_common_output', self.draw_app_common_output)
-        logging.info("Change draw_app_common_output mode , now draw_line mode is {} !".format(self.draw_app_common_output))
-    else:
-        logging.error("draw_app_common_output type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_line', self.draw_app_common_output))))
-
-    palette = params.get('palette', None)
-    if isinstance(palette, dict):
-        if len(palette)==0:
-            logging.warning("Not set palette!")
-            pass
-        else:
-            for label,color in palette.items():
-
-                if isinstance(label, str) and isinstance(color, get_args(color_support_type)):
-                    if self.palette.__contains__(label):
-                        self.palette.update({label:color})
-                    else:
-                        logging.error("Model can't recognition the label {} , please checkout your label!.".format(label))
-                    logging.info("Label: {} , change color to {}.".format(label,color))
-                else:
-                    logging.error("Value in palette type must (label:str , color :Union[tuple , list] ),your type \
-                                  label:{} , color:{} is error.".format(type(label),type(color)))
-    else:
-        logging.error("Not set palette or your type {} is error.".format(type(palette)))
-
-  def __call__(self,frame:np.ndarray, detections:list):
-
-    #step1 : Update draw param.
-    self._update_draw_param(frame)
-    self._convert_area_point(frame) #{0: [[0.256, 0.583], [0.658, 0.503], [0.848, 0.712], [0.356, 0.812]]} {0: [[1629, 769], [684, 877], [492, 630], [1264, 544]]}
-    ori_frame = frame.copy()
-
-    if cv2.waitKey(1) in [ ord('c'), 99 ]: self.draw_area= self.draw_area^1
-    frame = self.draw_area_event(frame, self.draw_area)
-    
-    #step2 : According to the depend on to filter the detections.
-    dets = self._check_depend_and_area(detections)
-    
-    
-    #step3 : Strat tracking for each area.
-    for area_id , area_tracker in self.MOT_tracker.items():
-      for label , tracker in area_tracker.items():
-
-        if not dets[area_id].__contains__(label):
-          continue #this label no detect object 
-        #dets format {0: {'car': [[405, 338, 595, 476, 0.9736913473111674], [370, 446, 560, 584, 0.9719230118526662], [730, 367, 926, 592, 0.9635377428470362], [749, 351, 890, 408, 0.49872639775276184]]}, 1: {'car': [[469, 220, 559, 277, 0.4864683151245117]]}}
-        tracking_result = tracker.update(dets[area_id][label],label)
+        # NOTE: main parameter object
+        self.areas = self.get_areas_setting(
+            app_setting= self.app_setting,
+            labels= self.labels
+        )
         
-        self._combined_app_output_data(tracker.app_output_data,area_id)
-        #step4 : draw result.  
+        # helper
+        self.frame_h, self.frame_w = None, None
+
+        # NOTE: Add tracker
+        # self.mot_trackers= self._creat_mot_tracker_for_each_area()
+        self.mot_trackers = self._ger_tracker_in_each_areas(self.areas)
+
+    # ------------------------------------------------
+    # Update parameter in __init__
+
+    def _get_app_setting(self, input_params:dict) -> dict:
+        """Check the input parameters is available.
+
+        Args:
+            input_params (dict): the input parameters.
+
+        Raises:
+            TypeError: the input parameter should be dict.
+            KeyError: the input parameter must with key 'application'.
+            TypeError: the application content should be dict ( input_params['application'] ).
+
+        Returns:
+            dict: the data of application.
+        """
+
+
+        #check config type
+        if not isinstance( input_params, dict ):
+            raise TypeError(f"The application parameter should be dict, but get {type(input_params)}")
         
-        for id,val in enumerate(tracking_result):
-          
-          tracking_tag, idx_in_dets, xmin, ymin, xmax, ymax = int(float(val[4])), int(float(val[5])),int(float(val[0])),int(float(val[1])),int(float(val[2])),int(float(val[3]))
-          
+        #check config key ( application ) is exist or not and the type is correct or not
+        data =  input_params.get("application", None)
+        if not data:
+            raise KeyError("The app_config must have key 'application'.")
+        if not isinstance( data, dict ):
+            raise TypeError(f"The application information in application should be dict, but get {type(input_params)}")
+        
+        return data
 
-          frame = self.custom_function(
-                          frame = frame,
-                          color = self.get_color(label) ,
-                          label = label,
-                          score = dets[area_id][label][idx_in_dets][4],
-                          left_top = (xmin, ymin),
-                          right_down = (xmax, ymax)
-                      )
-          self.draw_tracking_tag(
-                        frame = frame,
-                        tracking_tag="{}:{}".format(label,str(tracking_tag)), 
-                        left_top = (xmin, ymin),
-                        right_down = (xmax, ymax),
-                        outer_clor =self.get_color(label) ,
-                      )
-    # print(self.area_name[0],"len : ",len(dets[0]),self.MOT_tracker[0].changeable_total)
-    # print(self.area_name[1],"len : ",len(dets[1]),self.MOT_tracker[1].changeable_total)
-    #step5: combined app_output.
+    def _get_area_from_setting(self, app_setting: dict) -> list:
+        areas  = app_setting.get("areas", None)
+        if not areas:
+            raise KeyError("Can not find areas key in application config.")
+        if not isinstance(areas, list):
+            raise TypeError("The expected type of the area setting shout be list.")
+        return areas
 
-    app_output = self._combined_app_output()
+    def _get_area_name(self, area_data: dict, default_name= "The defalt area") -> str:
+        _name = area_data.get("name", None)
+
+        if not _name:
+            raise ValueError(f"Can not find 'name' in config.")
+
+        elif _name == []:
+            _name = default_name
+
+        elif not isinstance(_name, str):
+            raise TypeError("The type of area name should be str")
+
+        return _name
     
-    #step6: deal event.
-    #if the area don't have set event. 
-    event_output=[]
-    for area_id , event_handler in self.event_handler.items():
+    def _get_area_depend(self, area_data: dict, default_depend: list) -> list:
+        # check has depend_on and type is correct
+        _depend_on = area_data.get("depend_on", None)
 
-      # self.pool.apply_async(event_handler,(frame,ori_frime,i,self.app_thread.total,self.app_thread.app_output))
-      event_handler(frame,ori_frame,area_id,self._deal_changeable_total(False),app_output)
-      if (event_handler.pass_time == event_handler.cooldown_time):
-        self._deal_changeable_total(True)
-      if event_handler.event_output !={}:
-        event_output.append(event_handler.event_output)
+        if not _depend_on:
+            raise ValueError(f"Can not find 'depend_on' in area setting ")
+        
+        elif _depend_on==[]:
+            _depend_on = default_depend
 
-    #step7: draw total result on the left top.
-    self.draw_app_result(frame,app_output)
-    return (frame ,app_output,event_output)
+        elif not isinstance(_depend_on, list):
+            raise TypeError("The type of area name should be list")
+
+        return _depend_on
+
+    def _get_norm_area_pts(self, area_data: dict, default_value: list= [[0,0],[1,0],[1,1],[0,1]]) -> list:
+        """get normalized area point, if not setup means the whole area"""
+        _area_point = area_data.get("area_point", None)
+
+        if not _area_point:
+            raise ValueError(f"Can not find 'area_point' in config.")
+        
+        elif _area_point == []:
+            _area_point = default_value
+
+        elif not isinstance(_area_point, list):
+            raise TypeError("The type of area name should be list")
+
+        return _area_point
+
+    # NOTE: Init Event function
+    def _get_event_obj(self, area_data: dict, event_func: EventHandler, drawer: DrawTool) -> Union[None, EventHandler]:
+        events = area_data.get("events", None)
+        if not events: return None 
+
+        if not isinstance(area_data, dict):
+            raise TypeError("Event setting should be dict.")
+        
+        event_obj = event_func(
+            title = events["title"],
+            folder = events.get("event_folder", "./events"),
+            drawer = drawer,
+            operator = events["logic_operator"],
+            threshold = events["logic_value"],
+            cooldown = events.get("cooldown", 15)
+        )
+        return event_obj
+
+    # NOTE: Get Area Setting function
+    def get_areas_setting(self, app_setting: dict, labels: list) -> List[dict]:
+        """Parse each area setting and generate a new area setting with new items.
+
+        Args:
+            app_setting (dict): the intput app setting ( params['application'] )
+            labels (list): the labels object
+
+        Returns:
+            List[dict]: the new area setting that include new key ( norm_area_pts, event )
+        """
+        # Parse each area data
+        new_areas = []
+        for area_data in self._get_area_from_setting(app_setting):
+            new_areas.append({
+                "name": self._get_area_name(area_data= area_data),
+                "depend_on": self._get_area_depend(area_data= area_data, default_depend=labels),
+                "norm_area_pts": self._get_norm_area_pts(area_data= area_data),
+                "event": self._get_event_obj(area_data= area_data, drawer= self.drawer, event_func= EventHandler)
+            })
+        
+        return new_areas
+    
+    def update_all_area_point(self, frame:np.ndarray, areas: list) -> None:
+        """ Denormalize all area point. 
+
+        Args:
+            frame (np.ndarray): the input frame
+            areas (list): the normalize area point
+        """
+        # denormalize area point and add new key into areas    
+        # get shape
+        h, w = frame.shape[:2]
+        if self.frame_h == h and self.frame_w == w:
+            return
+
+        self.frame_h, self.frame_w = h, w
+        
+        def map_wraper(area):
+            denorm_area_pts = denorm_area_points( self.frame_w, self.frame_h, area["norm_area_pts"])
+            sorted_area_pts = sort_area_points(denorm_area_pts)
+            area["area_point"] = sorted_area_pts
+
+        # NOTE: map is faster than for loop
+        # areas = list(map(map_wraper, areas))
+        for area in areas:
+            map_wraper(area)
+
+        print("Updated area point !!!")
+        
+    def obj_in_area(self, px:int, py:int, poly:list) -> bool:
+        """does the object in area or not
+
+        Args:
+            px (int): object center x
+            py (int): object center y
+            poly (list): area points
+
+        Returns:
+            bool: does object in area or not
+        """
+        is_in = False
+        length = len(poly)
+
+        for idx , corner in enumerate(poly):
+
+            next_idx = idx + 1 if idx +1 < length else 0
+            x1 , y1 = corner
+            x2 , y2 = poly[next_idx]
+            
+            # if on the line
+            if (x1 == px and y1 ==py) or (x2==px and y2 ==py):
+                is_in = False
+                break
+            
+            # if not in poly
+
+            if min(y1,y2) <py <= max(y1 ,y2):
+                
+                x =x1+(py-y1)*(x2-x1)/(y2-y1)
+                if x ==px:
+                    is_in = False
+                    break
+                elif x > px:
+                    is_in = not is_in
+        
+        return is_in
+
+    def get_available_areas_and_update_output(self, label:str, xmin:int, ymin:int, xmax:int, ymax:int) -> list:
+        """ parse all areas setting, check is label in depend_on and object in area,
+        if available then update area["output"] 
+
+        Args:
+            label (str): the detected label
+            xmin (int): the detected object position
+            ymin (int): the detected object position
+            xmax (int): the detected object position
+            ymax (int): the detected object position
+
+        Returns:
+            list: the available areas
+        """
+        ret = []
+        cnt_px, cnt_py = (xmin+xmax)//2, (ymin+ymax)//2
+            
+        for area_idx, area in enumerate(self.areas):
+            area_pts = area["area_point"]
+            depend = area["depend_on"]
+
+            if label in depend and self.obj_in_area(cnt_px, cnt_py, area_pts):
+                ret.append(area_idx)
+                area["output"][label] += 1
+
+        return ret
+
+    # ------------------------------------------------
+
+    def _ger_tracker_in_each_areas(self, areas):
+
+        trackers = defaultdict( lambda: defaultdict() )
+        
+        for area_idx, area in enumerate(areas):
+            
+            for label in area["depend_on"]:
+                trackers[area_idx][label] = TrackerHanlder(
+                    max_age=1,
+                    min_hits=3,
+                    iou_threshold=0.3
+                )
+        print(trackers)
+        return trackers
+
+    def _get_tracking_data_and_sorter(self, detections:list):
+        
+        areas_tracking_data = defaultdict(lambda: defaultdict(list))
+        
+        # Draw inference results
+        for det in detections:
+            
+            # get parameters
+            label, score = det.label, det.score
+            xmin, ymin, xmax, ymax = \
+                tuple(map(int, [ det.xmin, det.ymin, det.xmax, det.ymax ] ))            
+            
+            # get available areas and update area["output"]
+            available_areas = self.get_available_areas_and_update_output(
+                label, xmin, ymin, xmax, ymax)
+            
+            # no available area
+            if len(available_areas)==0: continue
+            
+            # parse each area
+            for area_id in available_areas:  
+                areas_tracking_data[area_id][label].append( 
+                    [xmin, ymin, xmax, ymax, score] )
+
+                # print(areas_tracking_data[area_id][label])
+        
+        return areas_tracking_data
+        
+    # ------------------------------------------------
+
+    def clear_app_output(self) -> None:
+        """clear app output ( self.areas ) """
+        for area in self.areas:
+            area["output"] = defaultdict(int)
+
+    # ------------------------------------------------
+
+    @get_time
+    def test(self,frame:np.ndarray, detections:list):
+        return self.__call__(frame, detections)
+
+    # NOTE: __call__ function is requirements
+    def __call__(self, frame:np.ndarray, detections:list) -> Tuple[np.ndarray, list, list]:
+        """
+        1. Update basic parameters
+        2. Parse detection and draw
+        3. Check the event is trigger or not
+        4. Return data
+        """
+
+        self.drawer.update_draw_params(frame=frame)
+        self.update_all_area_point(frame=frame, areas=self.areas)
+        self.clear_app_output()
+
+        # Draw area
+        original = frame.copy()
+        overlay = frame
+        
+        if self.draw_area:
+            overlay = self.drawer.draw_areas(overlay, self.areas )
+
+        """
+        # NOTE: NEW!!!!
+        修改 Area 的資訊才能讓 tracker 接到
+        
+        """
+        # Combine all app output and get total object number
+        app_output = []
+        event_output = []
+
+        # Get the tracking data ( which is different with detections )
+        tracking_dets = self._get_tracking_data_and_sorter(detections)
+
+        # track each areas
+        for area_idx, tracking_data in tracking_dets.items():
+            
+            all_label_infors = []
+            
+            # track each labels
+            for label, tracking_points in tracking_data.items():
+                
+                trg_label_tracker = self.mot_trackers[area_idx][label]
+                
+                # get the result of tracking object
+                tracking_result = trg_label_tracker.update(
+                    tracking_points, label)
+                                
+                # Draw results
+                color = self.drawer.get_color(label)
+                for result in tracking_result:
+
+                    xmin, ymin, xmax, ymax, tracked_idx, idx_in_dets = \
+                        map(int, map(float, result))
+
+                    if self.draw_bbox:                    
+                        self.drawer.draw_bbox(
+                            overlay, [xmin, ymin], [xmax, ymax], color )
+                        
+                    if self.draw_label:
+                        self.drawer.draw_label(
+                            overlay, f"{label}: {tracked_idx:03}", (xmin, ymin), color )
+
+                # Update areas
+                total_label_nums = trg_label_tracker.get_total_nums(label)
+                self.areas[area_idx]["output"][label] = total_label_nums
+                # Combine label informations
+                all_label_infors.append({
+                    "label": label,
+                    "num": total_label_nums
+                })
+
+            # Combine output
+            app_output.append({
+                "id": area_idx,
+                "name": self.areas[area_idx]["name"],
+                "data": all_label_infors
+            })
+
+            # Trigger event
+            event = self.areas[area_idx].get("event", None)
+            if self.force_close_event or not event: continue
+            cur_output = event( original= original,
+                                value= sum([ item["num"] for item in all_label_infors ]),
+                                detections= detections,
+                                area= self.areas[area_idx] )
+            if not cur_output: continue
+            event_output.append( cur_output )
+
+        # Draw app output
+        if self.draw_result:
+            self.drawer.draw_area_results(
+                overlay, self.areas )
+            
+
+        return overlay, {"areas": app_output}, {"event": event_output}
+
+
+    
+
+# ------------------------------------------------------------------------
+# Test
 
 if __name__=='__main__':
     import logging as log
@@ -1188,7 +985,7 @@ if __name__=='__main__':
     # 6. Setting iApp
     app_config = {
                 "application": {
-                            "palette": {
+                    "palette": {
                                 "car": [
                                     105,
                                     125,
@@ -1223,49 +1020,52 @@ if __name__=='__main__':
                                 "uid":"cfd1f399",
                                 "title": "The daily traffic is over 2",
                                 "logic_operator": ">",
-                                "logic_value": 100,
+                                "logic_value": 5,
                             }
                         },
-                        # {
-                        #         "name": "Area1",
-                        #         "depend_on": [
-                        #             "car",
-                        #         ],
-                        #         "area_point": [
-                        #             [
-                        #                 0.256,
-                        #                 0.303
-                        #             ],
-                        #             [
-                        #                 0.468,
-                        #                 0.203
-                        #             ],
-                        #             [
-                        #                 0.268,
-                        #                 0.392
-                        #             ],
-                        #             [
-                        #                 0.456,
-                        #                 0.392
-                        #             ]
-                        #         ],
-                        #     }
+                        {
+                            "name": "Area1",
+                            "depend_on": [
+                                "car",
+                            ],
+                            "area_point": [
+                                [
+                                    0.256,
+                                    0.303
+                                ],
+                                [
+                                    0.468,
+                                    0.203
+                                ],
+                                [
+                                    0.268,
+                                    0.392
+                                ],
+                                [
+                                    0.456,
+                                    0.392
+                                ]
+                            ],
+                        }
                     ],
-                    "draw_result":False,
-                    "draw_bbox":False
+                    "draw_result":True,
+                    "draw_bbox":True,
+                    "draw_area": False
                 }
             }
     app = Tracking_Zone(app_config,args.label )
 
     # 7. Start Inference
     try:
-        while True:
+        idx, t_cost_avg = 100, []
+        while idx>0:
             # Get frame & Do infernece
             frame = src.read()
             
             results = model.inference(frame=frame)
-            frame , app_output , event_output =app(frame,results)
-            
+            # frame , app_output , event_output =app(frame,results)
+            (frame , app_output , event_output), t_cost = app.test(frame,results)
+            t_cost_avg.append(t_cost)
             # print(app_output)
             # print(event_output)
             # infer_metrx.paint_metrics(frame)
@@ -1284,6 +1084,9 @@ if __name__=='__main__':
             # Update Metrix
             infer_metrx.update()
 
+            idx-=1
+
+        print('\n\nThe average cost: {} ms'.format( round(sum(t_cost_avg)/len(t_cost_avg)*1000, 5) ) )
     except KeyboardInterrupt:
         log.info('Detected Key Interrupt !')
 
@@ -1291,3 +1094,10 @@ if __name__=='__main__':
         model.release()
         src.release()
         dpr.release()
+
+"""
+python3 apps/Tracking_Zone.py \
+-m model/yolo-v3-tf/yolo-v3-tf.xml \
+-l model/yolo-v3-tf/coco.names \
+-i data/car.mp4 -at yolo
+"""
