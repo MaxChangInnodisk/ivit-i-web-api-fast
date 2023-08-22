@@ -105,7 +105,7 @@ class EventHandler:
     def get_pure_area(self, area:dict) -> dict:
         return {
             'name':area['name'],
-            'area_point': area['area_point']
+            'area_point': area['norm_area_point']
         }
 
     def save_image(self, save_path: str, image: np.ndarray) -> None:
@@ -212,7 +212,7 @@ class Detection_Zone(iAPP_OBJ):
             4. Update each area informations into self.areas.
                 * name
                 * depend_on
-                * norm_area_pts
+                * norm_area_point
                 * output
         """
         # NOTE: Step 1. Define Application Type in __init__()
@@ -365,7 +365,7 @@ class Detection_Zone(iAPP_OBJ):
             labels (list): the labels object
 
         Returns:
-            List[dict]: the new area setting that include new key ( norm_area_pts, event )
+            List[dict]: the new area setting that include new key ( norm_area_point, event )
         """
         # Parse each area data
         new_areas = []
@@ -373,7 +373,7 @@ class Detection_Zone(iAPP_OBJ):
             new_areas.append({
                 "name": self._get_area_name(area_data= area_data),
                 "depend_on": self._get_area_depend(area_data= area_data, default_depend=labels),
-                "norm_area_pts": self._get_norm_area_pts(area_data= area_data),
+                "norm_area_point": self._get_norm_area_pts(area_data= area_data),
                 "event": self._get_event_obj(area_data= area_data, drawer= self.drawer, event_func= EventHandler)
             })
         
@@ -395,7 +395,7 @@ class Detection_Zone(iAPP_OBJ):
         self.frame_h, self.frame_w = h, w
         
         def map_wraper(area):
-            denorm_area_pts = denorm_area_points( self.frame_w, self.frame_h, area["norm_area_pts"])
+            denorm_area_pts = denorm_area_points( self.frame_w, self.frame_h, area["norm_area_point"])
             sorted_area_pts = sort_area_points(denorm_area_pts)
             area["area_point"] = sorted_area_pts
 
