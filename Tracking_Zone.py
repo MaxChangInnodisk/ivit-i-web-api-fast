@@ -836,7 +836,7 @@ class Tracking_Zone(iAPP_OBJ):
         # track each areas
         for area_idx, tracking_data in tracking_dets.items():
             
-            all_label_infors = []
+            new_area_output = []
             
             # track each labels
             for label, tracking_points in tracking_data.items():
@@ -862,11 +862,11 @@ class Tracking_Zone(iAPP_OBJ):
                         self.drawer.draw_label(
                             overlay, f"{label}: {tracked_idx:03}", (xmin, ymin), color )
 
-                # Update areas
+                # Update areas and Re-Combine new area output for v1.1 version
                 total_label_nums = trg_label_tracker.get_total_nums(label)
                 self.areas[area_idx]["output"][label] = total_label_nums
                 # Combine label informations
-                all_label_infors.append({
+                new_area_output.append({
                     "label": label,
                     "num": total_label_nums
                 })
@@ -875,7 +875,7 @@ class Tracking_Zone(iAPP_OBJ):
             app_output.append({
                 "id": area_idx,
                 "name": self.areas[area_idx]["name"],
-                "data": all_label_infors
+                "data": new_area_output
             })
 
             # Trigger event
