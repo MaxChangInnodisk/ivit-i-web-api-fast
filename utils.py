@@ -95,6 +95,26 @@ def get_logic_map() -> dict:
 def denorm_area_points(width: int, height: int, area_points: list) -> list:
     return [ [ math.ceil(x*width), math.ceil(y*height) ] for [x, y] in area_points ]
 
+def denorm_line_points(width: int, height: int, line_points: dict) -> dict:
+    """Denormalize line points
+    
+    - Input Sample
+        "line_point": {
+            "line_1": [
+                [ 0.36666666666, 0.64074074074 ],
+                [ 0.67291666666, 0.52962962963 ]
+            ],
+            "line_2": [
+                [ 0.36041666666, 0.83333333333 ],
+                [ 0.72916666666, 0.62962962963 ]
+            ],
+        }
+    """
+    ret = defaultdict(list)
+    for line_name, line_point in line_points.items():
+        for [x, y] in line_point:
+            ret[line_name].append( [ math.ceil(x*width), math.ceil(y*height) ] )
+    return ret
 
 def sort_area_points(point_list: list) -> list:
     """
