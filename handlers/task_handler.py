@@ -1067,9 +1067,12 @@ class InferenceLoop:
             data["annotation"].pop("detections")
             data["start_time"] = str(data["start_time"])
             data["end_time"] = str(data["end_time"])
-            # Send data to front end
-            asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=data )) )
-
+            try:
+                # Send data to front end
+                asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=data )) )
+            except Exception as e:
+                log.warning('Send websocket failed!!!!')
+                log.exception(e)
 
     # NOTE: MAIN LOOP
     def _infer_loop(self):
@@ -1106,8 +1109,11 @@ class InferenceLoop:
             # Trigger Event
             self._launch_event()
 
-            # Display
-            self.dpr.show(self.draw)
+            try:
+                # Display
+                self.dpr.show(self.draw)        
+            except Exception as e:
+                log.exception(e)
 
             # Log
             # log.debug(cur_data)
