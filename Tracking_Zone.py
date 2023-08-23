@@ -897,8 +897,6 @@ class Tracking_Zone(iAPP_OBJ):
         return overlay, {"areas": app_output}, {"event": event_output}
 
 
-    
-
 # ------------------------------------------------------------------------
 # Test
 
