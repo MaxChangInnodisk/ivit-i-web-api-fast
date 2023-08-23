@@ -38,6 +38,9 @@ class DrawTool:
         self.out_color = [0, 255, 255]
         self.out_font_color = [0, 0, 0]
 
+        # line
+        self.line_color = [0, 255, 255]
+
     def update_draw_params(self, frame: np.ndarray) -> None:
         
         if self.draw_params_is_ready: return
@@ -149,5 +152,23 @@ class DrawTool:
                 )
                 cur_idx += 1
 
+    def draw_line(self, frame:np.ndarray, line_point: tuple, line_name:str=None, color: tuple=None):
+
+        color = color if color else self.line_color
+
+        if line_name:
+            cv2.putText( frame, line_name , line_point[1], FONT_TYPE,
+                    self.font_size, color, self.font_thick, LINE_TYPE
+                )
+        cv2.line(frame, line_point[0], line_point[1], color, 3)
+
+                
     def get_color(self, label:str) -> list:
         return self.palette[label]
+
+    def get_size(self, text: str) -> tuple:
+        (t_wid, t_hei), t_base = cv2.getTextSize(text, FONT_TYPE, self.font_size, self.font_thick)
+        return (t_wid, t_hei), t_base
+
+
+
