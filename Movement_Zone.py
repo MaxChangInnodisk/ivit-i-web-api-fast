@@ -526,8 +526,6 @@ class Movement_Zone(iAPP_OBJ):
 
         # NOTE: Movement
         self.tracked_status = defaultdict( lambda: defaultdict(dict) )
-        self.line_point = defaultdict( list )
-
 
     # ------------------------------------------------
     # Update parameter in __init__
@@ -874,15 +872,18 @@ class Movement_Zone(iAPP_OBJ):
         
         return cross_flag ,temp_line_name
 
-    def _check_cross_trigger_line( self, area_id:int, label:str, tracking_tag:int,center_point:tuple ):
-        
+    def _check_cross_trigger_line( 
+            self, 
+            area_id:int, 
+            label:str, 
+            tracking_tag:int, 
+            center_point:tuple ):
         """
         self.tracked_status = defaultdict( lambda: defaultdict(dict) )
 
         self.tracked_status[area_id][label][tracked_idx] = {
             'center_point':center_point,
             'cross_line':[],
-            'crossed': bool,
         }
 
         """
@@ -903,18 +904,22 @@ class Movement_Zone(iAPP_OBJ):
                 self.areas[area_id]["line_point"]
             )
         
-        if not is_cross:
-            return
+        # NOTE: update center_point
+        tracked_obj["center_point"] = center_point
+
+        # Condition: not corss or already crocessed
+        if not is_cross or cross_line in tracked_obj["cross_line"]: return
         
-        if cross_line not in tracked_obj["cross_line"] and len(tracked_obj["cross_line"])<2:
-            tracked_obj["cross_line"].append(cross_line)
-        else: return
+        # Append new line
+        tracked_obj["cross_line"].append(cross_line)
+
+        # Only two line to track
+        if len(tracked_obj["cross_line"])!=2: return 
         
         # Get flag & title
         cur_flag = "+".join(tracked_obj["cross_line"])
         cur_title = self.areas[area_id]["line_relation"].get(cur_flag)
         if not cur_title:
-            print('Can not find flag: {}'.format(cur_flag))
             return
         
         # Update output
@@ -1007,8 +1012,7 @@ class Movement_Zone(iAPP_OBJ):
                         "nums": nums 
                     })
                         
-            
-
+        
             # Combine output
             app_output.append({
                 "id": area_idx,
@@ -1260,13 +1264,20 @@ if __name__=='__main__':
 
     # 7. Start Inference
     try:
+        t_costs = []
         while True:
             # Get frame & Do infernece
             frame = src.read()
             
             results = model.inference(frame=frame)
           
-            frame , app_output , event_output =app(frame,results)
+            # frame , app_output , event_output = app(frame,results)
+            (frame , app_output , event_output), t_cost = app.test(frame,results)
+            t_costs.append(t_cost)
+            if len(t_costs)==500:
+                print('\n\n\n')
+                print('Average Cost Time: ', round(sum(t_costs)/500*1000, 5))
+                break
 
             # Draw FPS: default is left-top                     
             dpr.show(frame=frame)
@@ -1292,3 +1303,10 @@ if __name__=='__main__':
         model.release()
         src.release()
         dpr.release()
+
+"""
+python3 apps/Movement_Zone.py \
+-m model/yolo-v3-tf/yolo-v3-tf.xml \
+-l model/yolo-v3-tf/coco.names \
+-i data/car.mp4 -at yolo
+"""
