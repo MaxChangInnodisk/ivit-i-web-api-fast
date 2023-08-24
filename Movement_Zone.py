@@ -492,7 +492,7 @@ class Movement_Zone(iAPP_OBJ):
         self.draw_bbox = self.app_setting.get("draw_bbox", True)
         self.draw_label = self.app_setting.get("draw_label", True)
         self.draw_result = self.app_setting.get("draw_result", True)
-        self.draw_line = self.app_setting.get("draw_line", True)
+        self.draw_line = self.app_setting.get("draw_line", False)
         
         
         # Event
