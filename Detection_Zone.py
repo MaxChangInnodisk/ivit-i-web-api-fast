@@ -95,19 +95,21 @@ class EventHandler:
         return True
 
     def get_pure_dets(self, detections: list):
-        return [{
-            "xmin": det.xmin,
-            "ymin": det.ymin,
-            "xmax": det.xmax,
-            "ymax": det.ymax,
-            "label": det.label,
-            "score": det.score
-        } for det in detections ]
+        # return [{
+        #     "xmin": det.xmin,
+        #     "ymin": det.ymin,
+        #     "xmax": det.xmax,
+        #     "ymax": det.ymax,
+        #     "label": det.label,
+        #     "score": det.score
+        # } for det in detections ]
+        return detections
 
     def get_pure_area(self, area:dict) -> dict:
         return {
             'name':area['name'],
-            'area_point': area['norm_area_point']
+            'area_point': area['norm_area_point'],
+            'output': area['output']
         }
 
     def save_image(self, save_path: str, image: np.ndarray) -> None:
@@ -481,6 +483,46 @@ class Detection_Zone(iAPP_OBJ):
             area["output"] = defaultdict(int)
 
     # ------------------------------------------------
+    # Drawing Meta Data ( Tracking data )
+
+    def draw_event_data(self, frame:np.ndarray, event_data:dict) -> np.ndarray:
+        """ Draw Tracking Data from meta data
+        1. Update Area Points
+        2. Bounding Box with Tracking ID.
+        3. Application Output.
+        4. Return Draw Image
+        """
+        
+        self.drawer.update_draw_params(frame=frame)
+        self.update_all_area_point(frame=frame, areas=self.areas)
+        self.clear_app_output()
+
+        overlay = frame
+        
+        # Combine all app output and get total object number
+        detections = event_data["detections"]
+        areas = [ event_data["area"] ]
+        
+        # Get Detections with tracked_idx
+        for det in detections:
+            [ xmin, ymin, xmax, ymax, label, score ] = \
+                [ det[key] for key in [ "xmin", "ymin", "xmax", "ymax", "label", "score" ] ]
+
+            color = self.drawer.get_color(label)
+
+            self.drawer.draw_bbox(
+                overlay, [xmin, ymin], [xmax, ymax], color )
+            
+            info = f"{label}: {int(score*100)}%"
+            self.drawer.draw_label(overlay, info, [xmin, ymin], color )
+
+        # Get Output
+        self.drawer.draw_area_results(
+            overlay, areas )
+
+        return overlay
+
+    # ------------------------------------------------
 
     @get_time
     def test(self,frame:np.ndarray, detections:list):
@@ -506,6 +548,8 @@ class Detection_Zone(iAPP_OBJ):
         if self.draw_area:
             overlay = self.drawer.draw_areas(overlay, self.areas )
 
+        save_area_dets = defaultdict(list)
+
         # Draw inference results
         for det in detections:
             
@@ -530,7 +574,17 @@ class Detection_Zone(iAPP_OBJ):
             if self.draw_label:
                 info = f"{label}: {int(score*100)}%"
                 self.drawer.draw_label(overlay, info, [xmin, ymin], color )
-                
+            
+            # Update area detection objects for saving meta data
+            for area_idx in available_areas:
+                save_area_dets[area_idx].append({
+                    "xmin": xmin,
+                    "ymin": ymin,
+                    "xmax": xmax,
+                    "ymax": ymax,
+                    "label": label,
+                    "score": score,
+                })
 
         # Draw app output
         if self.draw_result:
@@ -569,7 +623,7 @@ class Detection_Zone(iAPP_OBJ):
             
             cur_output = event( original= original,
                                 value= total_obj_nums,
-                                detections= detections,
+                                detections= save_area_dets[area_idx],
                                 area= area )
             if not cur_output: continue
 

@@ -358,19 +358,21 @@ class EventHandler:
         return True
 
     def get_pure_dets(self, detections: list):
-        return [{
-            "xmin": det.xmin,
-            "ymin": det.ymin,
-            "xmax": det.xmax,
-            "ymax": det.ymax,
-            "label": det.label,
-            "score": det.score
-        } for det in detections ]
-
+        # return [{
+        #     "xmin": det.xmin,
+        #     "ymin": det.ymin,
+        #     "xmax": det.xmax,
+        #     "ymax": det.ymax,
+        #     "label": det.label,
+        #     "score": det.score
+        # } for det in detections ]
+        return detections
+    
     def get_pure_area(self, area:dict) -> dict:
         return {
             'name':area['name'],
-            'area_point': area['norm_area_point']
+            'area_point': area['norm_area_point'],
+            'output': area['output']
         }
 
     def save_image(self, save_path: str, image: np.ndarray) -> None:
@@ -927,7 +929,54 @@ class Movement_Zone(iAPP_OBJ):
         
         # Clear object
         print()
+
+    # ------------------------------------------------
+
+    def clear_app_output(self) -> None:
+        """clear app output ( self.areas ) """
+        for area in self.areas:
+            area["output"] = defaultdict(int)
+
+    # ------------------------------------------------
+    # Drawing Meta Data ( Tracking data )
+
+    def draw_event_data(self, frame:np.ndarray, event_data:dict) -> np.ndarray:
+        """ Draw Tracking Data from meta data
+        1. Update Area Points
+        2. Bounding Box with Tracking ID.
+        3. Application Output.
+        4. Return Draw Image
+        """
         
+        self.drawer.update_draw_params(frame=frame)
+        self.update_all_area_point(frame=frame, areas=self.areas)
+        self.clear_app_output()
+
+        overlay = frame
+        
+        # Combine all app output and get total object number
+        detections = event_data["detections"]
+        areas = [ event_data["area"] ]
+        
+        # Get Detections with tracked_idx
+        for det in detections:
+            [ xmin, ymin, xmax, ymax, label, tracked_idx ] = \
+                [ det[key] for key in [ "xmin", "ymin", "xmax", "ymax", "label", "tracked_idx" ] ]
+
+            color = self.drawer.get_color(label)
+
+            self.drawer.draw_bbox(
+                overlay, [xmin, ymin], [xmax, ymax], color )
+            
+            self.drawer.draw_label(
+                overlay, f"{label}: {tracked_idx:03}", (xmin, ymin), color )
+
+        # Get Output
+        self.drawer.draw_area_results(
+            overlay, areas )
+
+        return overlay
+
     # ------------------------------------------------
 
     @get_time
@@ -971,7 +1020,9 @@ class Movement_Zone(iAPP_OBJ):
 
         # track each areas
         for area_idx, tracking_data in tracking_dets.items():
-                        
+
+            save_tracked_dets = []
+
             # track each labels
             for label, tracking_points in tracking_data.items():
                 
@@ -995,6 +1046,16 @@ class Movement_Zone(iAPP_OBJ):
                     if self.draw_label:
                         self.drawer.draw_label(
                             overlay, f"{label}: {tracked_idx:03}", (xmin, ymin), color )
+
+                    save_tracked_dets.append({
+                        "xmin": xmin,
+                        "ymin": ymin,
+                        "xmax": xmax,
+                        "ymax": ymax,
+                        "label": label,
+                        "score": detections[idx_in_dets].score,
+                        "tracked_idx": tracked_idx,
+                    })
 
                     # NOTE: Movement
                     self._check_cross_trigger_line(
@@ -1024,7 +1085,7 @@ class Movement_Zone(iAPP_OBJ):
             if self.force_close_event or not event: continue
             cur_output = event( original= original,
                                 value= sum([ item["nums"] for item in new_area_output ]),
-                                detections= detections,
+                                detections= save_tracked_dets,
                                 area= self.areas[area_idx] )
             if not cur_output: continue
             event_output.append( cur_output )

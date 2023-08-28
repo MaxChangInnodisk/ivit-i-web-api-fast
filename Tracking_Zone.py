@@ -362,21 +362,23 @@ class EventHandler:
         return True
 
     def get_pure_dets(self, detections: list):
-        return [{
-            "xmin": det.xmin,
-            "ymin": det.ymin,
-            "xmax": det.xmax,
-            "ymax": det.ymax,
-            "label": det.label,
-            "score": det.score
-        } for det in detections ]
+        # return [{
+        #     "xmin": det.xmin,
+        #     "ymin": det.ymin,
+        #     "xmax": det.xmax,
+        #     "ymax": det.ymax,
+        #     "label": det.label,
+        #     "score": det.score
+        # } for det in detections ]
+        return detections
 
     def get_pure_area(self, area:dict) -> dict:
         return {
             'name':area['name'],
-            'area_point': area['norm_area_point']
+            'area_point': area['norm_area_point'],
+            'output': area['output']
         }
-
+    
     def save_image(self, save_path: str, image: np.ndarray) -> None:
         cv2.imwrite(save_path, image)
 
@@ -757,7 +759,6 @@ class Tracking_Zone(iAPP_OBJ):
                     min_hits=3,
                     iou_threshold=0.3
                 )
-        print(trackers)
         return trackers
 
     def _get_tracking_data_and_sorter(self, detections:list):
@@ -796,11 +797,50 @@ class Tracking_Zone(iAPP_OBJ):
             area["output"] = defaultdict(int)
 
     # ------------------------------------------------
+    # Drawing Meta Data ( Tracking data )
+
+    def draw_event_data(self, frame:np.ndarray, event_data:dict) -> np.ndarray:
+        """ Draw Tracking Data from meta data
+        1. Update Area Points
+        2. Bounding Box with Tracking ID.
+        3. Application Output.
+        4. Return Draw Image
+        """
+        
+        self.drawer.update_draw_params(frame=frame)
+        self.update_all_area_point(frame=frame, areas=self.areas)
+        self.clear_app_output()
+
+        overlay = frame
+        
+        # Combine all app output and get total object number
+        detections = event_data["detections"]
+        areas = [ event_data["area"] ]
+        
+        # Get Detections with tracked_idx
+        for det in detections:
+            [ xmin, ymin, xmax, ymax, label, tracked_idx ] = \
+                [ det[key] for key in [ "xmin", "ymin", "xmax", "ymax", "label", "tracked_idx" ] ]
+
+            color = self.drawer.get_color(label)
+
+            self.drawer.draw_bbox(
+                overlay, [xmin, ymin], [xmax, ymax], color )
+            
+            self.drawer.draw_label(
+                overlay, f"{label}: {tracked_idx:03}", (xmin, ymin), color )
+
+        # Get Output
+        self.drawer.draw_area_results(
+            overlay, areas )
+
+        return overlay
+    
+    # ------------------------------------------------
 
     @get_time
     def test(self,frame:np.ndarray, detections:list):
         return self.__call__(frame, detections)
-
     # NOTE: __call__ function is requirements
     def __call__(self, frame:np.ndarray, detections:list) -> Tuple[np.ndarray, list, list]:
         """
@@ -837,6 +877,7 @@ class Tracking_Zone(iAPP_OBJ):
         for area_idx, tracking_data in tracking_dets.items():
             
             new_area_output = []
+            save_tracked_dets = []
             
             # track each labels
             for label, tracking_points in tracking_data.items():
@@ -862,13 +903,25 @@ class Tracking_Zone(iAPP_OBJ):
                         self.drawer.draw_label(
                             overlay, f"{label}: {tracked_idx:03}", (xmin, ymin), color )
 
-                # Update areas and Re-Combine new area output for v1.1 version
+                    save_tracked_dets.append({
+                        "xmin": xmin,
+                        "ymin": ymin,
+                        "xmax": xmax,
+                        "ymax": ymax,
+                        "label": label,
+                        "score": detections[idx_in_dets].score,
+                        "tracked_idx": tracked_idx,
+                    })
+                    
+                # Update tracking label numbers in each area and send to event.
+                # Re-Combine new area output for v1.1 version
                 total_label_nums = trg_label_tracker.get_total_nums(label)
                 self.areas[area_idx]["output"][label] = total_label_nums
+
                 # Combine label informations
                 new_area_output.append({
                     "label": label,
-                    "num": total_label_nums
+                    "nums": total_label_nums
                 })
 
             # Combine output
@@ -882,8 +935,8 @@ class Tracking_Zone(iAPP_OBJ):
             event = self.areas[area_idx].get("event", None)
             if self.force_close_event or not event: continue
             cur_output = event( original= original,
-                                value= sum([ item["num"] for item in new_area_output ]),
-                                detections= detections,
+                                value= sum([ item["nums"] for item in new_area_output ]),
+                                detections= save_tracked_dets,
                                 area= self.areas[area_idx] )
             if not cur_output: continue
             event_output.append( cur_output )
