@@ -499,7 +499,7 @@ class Movement_Zone(iAPP_OBJ):
         self.force_close_event = False
 
         # Palette and labels
-        self.custom_palette = params.get("palette", {})
+        self.custom_palette = self.app_setting.get("palette", {})
         self.palette, self.labels = update_palette_and_labels(
             custom_palette = self.custom_palette,
             default_palette = palette,
@@ -1035,7 +1035,9 @@ class Movement_Zone(iAPP_OBJ):
             self.drawer.draw_area_results(
                 overlay, self.areas )
 
-        return overlay, {"areas": app_output}, {"event": event_output}
+        new_event_output = {"event": event_output}
+        
+        return (overlay, {"areas": app_output}, new_event_output)
 
 # ------------------------------------------------------------------------    
 

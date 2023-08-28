@@ -501,7 +501,7 @@ class Tracking_Zone(iAPP_OBJ):
         self.force_close_event = False
 
         # Palette and labels
-        self.custom_palette = params.get("palette", {})
+        self.custom_palette = self.app_setting.get("palette", {})
         self.palette, self.labels = update_palette_and_labels(
             custom_palette = self.custom_palette,
             default_palette = palette,

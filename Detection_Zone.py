@@ -19,21 +19,23 @@ from ivit_i.common.app import iAPP_OBJ
 try:
     from .palette import palette
     from .utils import ( 
-        timeit,
+        timeit, get_time,
         update_palette_and_labels,
         get_logic_map,
         denorm_area_points,
-        sort_area_points
+        sort_area_points,
+        denorm_line_points
     )
     from .drawer import DrawTool
 except:
     from apps.palette import palette
     from apps.utils import ( 
-        timeit,
+        timeit, get_time,
         update_palette_and_labels,
         get_logic_map,
         denorm_area_points,
-        sort_area_points
+        sort_area_points,
+        denorm_line_points
     )
     from apps.drawer import DrawTool
 
@@ -233,7 +235,7 @@ class Detection_Zone(iAPP_OBJ):
         self.force_close_event = False
 
         # Palette and labels
-        self.custom_palette = params.get("palette", {})
+        self.custom_palette = self.app_setting.get("palette", {})
         self.palette, self.labels = update_palette_and_labels(
             custom_palette = self.custom_palette,
             default_palette = palette,
@@ -480,8 +482,11 @@ class Detection_Zone(iAPP_OBJ):
 
     # ------------------------------------------------
 
+    @get_time
+    def test(self,frame:np.ndarray, detections:list):
+        return self.__call__(frame, detections)
+    
     # NOTE: __call__ function is requirements
-    # @timeit
     def __call__(self, frame:np.ndarray, detections:list) -> Tuple[np.ndarray, list, list]:
         """
         1. Update basic parameters
@@ -730,13 +735,20 @@ def main():
 
     # 7. Start Inference
     try:
+        t_costs = []
         while True:
             # Get frame & Do infernece
             frame = src.read()
             
             results = model.inference(frame=frame)
-            frame , app_output , event_output =app(frame,results)
-            # infer_metrx.paint_metrics(frame)
+          
+            # frame , app_output , event_output = app(frame,results)
+            (frame , app_output , event_output), t_cost = app.test(frame,results)
+            t_costs.append(t_cost)
+            if len(t_costs)==500:
+                print('\n\n\n')
+                print('Average Cost Time: ', round(sum(t_costs)/500*1000, 5))
+                break
             
             # Draw FPS: default is left-top                     
             dpr.show(frame=frame)
