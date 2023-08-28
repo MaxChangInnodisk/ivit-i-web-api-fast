@@ -952,6 +952,7 @@ class InferenceLoop:
         self.draw = None
         self.results = None
         self.event = None
+        self.event_output = None
 
         # Metric
         self.stream_metric = Metric()
@@ -1027,14 +1028,18 @@ class InferenceLoop:
         # Clear dara
         RT_CONF[self.uid]['DATA']={}
 
-    def _launch_event(self) -> None:
+    def _launch_event(self, event_output: dict) -> None:
         """Launch event function """
         
-        if not self.event_output or not self.event_output["event"]:
+        if not event_output: return
+        
+        # Get value
+        event_output = event_output.get('event')
+        if not event_output: 
             return
 
         # NOTE: store in database, event start if status is True else False
-        for event in self.event_output["event"]:
+        for event in event_output:
             
             # Combine data
             data = {
@@ -1099,15 +1104,15 @@ class InferenceLoop:
             # Run Application
             try:
                 _draw, _results, _event = self.app(copy.deepcopy(frame), cur_data)
+                
                 # Not replace directly to avoid variable is replaced when interrupted                
                 self.draw, self.results, self.event_output = _draw, _results, _event
-
+                # Trigger Event
+                self._launch_event(_event)
+            
             except Exception as e:
                 log.warning('Run Application Error')
                 log.exception(e)
-
-            # Trigger Event
-            self._launch_event()
 
             try:
                 # Display
@@ -1220,7 +1225,6 @@ class InferenceLoop:
                 log.warning('Initialize thread again !!!')
                 self.thread_object = self.create_thread()
                 self.thread_object.start()
-
 
     def release(self):
         self.stop()
