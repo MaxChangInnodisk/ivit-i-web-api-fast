@@ -8,6 +8,7 @@ import logging as log
 from typing import Union, Optional
 import cv2
 import numpy as np
+import json
 
 # Import iVIT-I 
 try:
@@ -130,8 +131,12 @@ def get_event_screenshot(timestamp: int, draw_result: bool = False) -> np.ndarra
     # Parse event data
     event_uid = event_data["uid"]
     task_uid = app_uid = event_data["app_uid"]
-    dets = event_data["annotation"]["detections"]
-
+    
+    # Get detections from event data
+    file_path = f"events/{event_uid}/{timestamp}.json"
+    with open(file_path, 'r') as f:
+        event_data = json.load(f)
+    
     # Get another require data ( model_uid, label_uid )
     model_uid = db_to_list(cur.execute(
         f'''SELECT model_uid FROM task WHERE uid="{task_uid}"'''))[0][0]
@@ -173,15 +178,16 @@ def get_event_screenshot(timestamp: int, draw_result: bool = False) -> np.ndarra
     app.draw_result = True
     app.force_close_event = True
     
-    from collections import namedtuple
-    Wrapper = namedtuple("Wrapper", "xmin, ymin, xmax, ymax, label, score")
-    wrap_dets = [ Wrapper( 
-        det["xmin"], det["ymin"], det["xmax"], det["ymax"], 
-        det["label"], det["score"]
-    ) for det in dets ]
+    # from collections import namedtuple
+    # Wrapper = namedtuple("Wrapper", "xmin, ymin, xmax, ymax, label, score")
+    # wrap_dets = [ Wrapper( 
+    #     det["xmin"], det["ymin"], det["xmax"], det["ymax"], 
+    #     det["label"], det["score"]
+    # ) for det in dets ]
+    # draw, _, _ = app(frame, wrap_dets)
 
     # Remove event
-    draw, _, _ = app(frame, wrap_dets)
+    draw = app.draw_event_data(frame, event_data)
 
     # clear app
     if need_clean:
