@@ -942,7 +942,6 @@ class Movement_Zone(iAPP_OBJ):
         3. Check the event is trigger or not
         4. Return data
         """
-
         self.drawer.update_draw_params(frame=frame)
         self.update_all_area_point(frame=frame, areas=self.areas)
 
@@ -1024,7 +1023,7 @@ class Movement_Zone(iAPP_OBJ):
             event = self.areas[area_idx].get("event", None)
             if self.force_close_event or not event: continue
             cur_output = event( original= original,
-                                value= sum([ item["num"] for item in new_area_output ]),
+                                value= sum([ item["nums"] for item in new_area_output ]),
                                 detections= detections,
                                 area= self.areas[area_idx] )
             if not cur_output: continue
@@ -1035,9 +1034,7 @@ class Movement_Zone(iAPP_OBJ):
             self.drawer.draw_area_results(
                 overlay, self.areas )
 
-        new_event_output = {"event": event_output}
-        
-        return (overlay, {"areas": app_output}, new_event_output)
+        return (overlay, {"areas": app_output}, {"event": event_output})
 
 # ------------------------------------------------------------------------    
 
