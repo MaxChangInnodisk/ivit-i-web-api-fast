@@ -226,9 +226,8 @@ class ModelDeployerWrapper(abc.ABC):
         """
         
         model_info = parse_model_folder(model_dir=self.file_folder)
-        model_data = add_model_into_db(models_information={
-            model_info['name']:model_info
-        })
+        model_data = add_model_into_db(model_info=model_info)
+
         SERV_CONF["PROC"][self.uid].update({
             "data":model_data })
               
@@ -529,68 +528,69 @@ def init_db_model(model_dir:str=SERV_CONF["MODEL_DIR"], add_db:bool=True) -> dic
             - type: dict
             - desc: all information of each model
     """
-
-    t_start = time.time()
-    models_information = {}
+    log.info('Initialize Database\'s Models')
+    ts = time.time()
 
     # Get Model Folder and All Model
     model_root = os.path.realpath( model_dir )
-    model_dirs = [ os.path.join(model_root, model) for model in os.listdir( model_root )]
+    model_dirs = [ os.path.join(model_root, model) \
+                    for model in os.listdir( model_root )]
 
     # Parse all file 
     for model_dir in model_dirs:
-        if not os.path.isdir(model_dir):
-            continue
+        # Ensure it's folder
+        if not os.path.isdir(model_dir): continue
+        # Get model information
+        model_info = parse_model_folder(model_dir)
+        # Try to add into database
+        try: 
+            add_model_into_db(model_info=model_info)
+            log.debug(f"Add model into database ({model_info['name']})")
+        except FileExistsError:
+            log.debug(f"Model already in database ({model_info['name']})")
 
-        try:    
-            models_information.update({  
-                os.path.basename(model_dir): parse_model_folder(model_dir) })
-            
-        except Exception as e:
-            log.exception(e)
+    # End
+    te = time.time()
+    log.info(f'Initialize Database\'s Models ... Done ({round(te-ts, 3)}s)')
 
-    # for model_name, model_info in models_information.items():
-    #     print('\n--------- {} --------'.format(model_name))
-    #     for key, val in model_info.items():
-    #         print('{:4}- {:<10}: {}'.format('', key, val))
 
-    log.info('Initialized AI Model. Found {} AI Models ({}s)'.format(
-        len(models_information),
-        round(time.time()-t_start, 5)))
+def add_model_into_db(model_info:dict, model_uid: str=None, db_path:str=SERV_CONF["DB_PATH"]):
+    """ Add One Model Information Into Database """
     
-    if add_db:
-        add_model_into_db(models_information)
+    # Get uuid
+    model_uid = model_uid if model_uid else gen_uid(model_info["name"])
 
-    return models_information
+    # Check uuid is exist or not
+    data = select_data(table="model", data="uid", condition=f"WHERE uid='{model_uid}'")
+    if len(data)!=0:
+        raise FileExistsError(f"Model is exist in database. ({model_info['name']}: {model_uid})")
 
+    # Get classes
+    with open(model_info["label_path"], 'r') as f:
+        classes = [ re.sub('[\'"]', '', line.strip()) for line in f.readlines() ]
+        classes = re.sub('["]', '\'', json.dumps(classes))
 
-def add_model_into_db(models_information:dict, db_path:str=SERV_CONF["DB_PATH"]):
-    """ Add Model Information Into Database """
-    assert models_information, "Model Information is null" 
-    for model_name, model_info in models_information.items():
-        model_uid = gen_uid(model_name)
-        with open(model_info['label_path'], 'r') as f:
-            classes = [ re.sub('[\'"]', '', line.strip()) for line in f.readlines() ]
-            classes = re.sub('["]', '\'', json.dumps(classes))
-        
-        model_db_data = {
-                "uid": model_uid,
-                "name": model_info['name'],
-                "type": model_info['type'],
-                "model_path": model_info['model_path'],
-                "label_path": model_info['label_path'],
-                "json_path": model_info['json_path'],
-                "classes": classes,
-                "input_size": model_info['input_size'],
-                "preprocess": model_info['preprocess'],
-                "meta_data": model_info,
-        }
+    # Prepare data
+    model_db_data = {
+        "uid": model_uid,
+        "name": model_info["name"],
+        "type": model_info["type"],
+        "model_path": model_info["model_path"],
+        "label_path": model_info["label_path"],
+        "json_path": model_info["json_path"],
+        "classes": classes,
+        "input_size": model_info["input_size"],
+        "preprocess": model_info["preprocess"],
+        "default_model": model_info.get("default_model", 0),
+        "meta_data": model_info }
 
-        insert_data(
-            table='model',
-            data=model_db_data,
-            replace=True)
-    
+    # Add into database
+    insert_data(
+        table="model",
+        data=model_db_data,
+        replace=True )
+
+    # Return 
     return model_db_data
 
 
