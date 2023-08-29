@@ -1053,7 +1053,6 @@ class InferenceLoop:
 
             # Event Trigger First Time: status=True and event_output!=[]
             if event["event_status"]:
-
                 # Add new data            
                 insert_data( table= 'event', data= data )
             
