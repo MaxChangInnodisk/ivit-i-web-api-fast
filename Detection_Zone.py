@@ -130,9 +130,9 @@ class EventHandler:
     def event_behaviour(self, original: np.ndarray, meta_data: dict) -> dict:
         # timestamp is folder name
         timestamp = str(self.current_time)
-        target_folder = self.uuid_folder
-        # target_folder = self.check_folder(os.path.join(self.uuid_folder, timestamp))
-
+        
+        target_folder = self.check_folder(self.uuid_folder)
+        
         # Save Data: Image, Metadata
         image_path = os.path.join(target_folder, f"{timestamp}.jpg")
         data_path = os.path.join(target_folder, f"{timestamp}.json")

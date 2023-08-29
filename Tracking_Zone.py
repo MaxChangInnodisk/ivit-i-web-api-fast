@@ -333,7 +333,7 @@ class EventHandler:
         # Generate uuid
         self.folder = self.check_folder(folder)
         self.uuid = str(uuid.uuid4())[:8]
-        self.uuid_folder = self.check_folder(os.path.join(self.folder, self.uuid))
+        self.uuid_folder = os.path.join(self.folder, self.uuid)
         
         # Dynamic Variable
         self.current_time = time.time_ns()
@@ -395,9 +395,8 @@ class EventHandler:
     def event_behaviour(self, original: np.ndarray, meta_data: dict) -> dict:
         # timestamp is folder name
         timestamp = str(self.current_time)
-        target_folder = self.uuid_folder
-        # target_folder = self.check_folder(os.path.join(self.uuid_folder, timestamp))
-
+        target_folder = self.check_folder(self.uuid_folder)
+        
         # Save Data: Image, Metadata
         image_path = os.path.join(target_folder, f"{timestamp}.jpg")
         data_path = os.path.join(target_folder, f"{timestamp}.json")
