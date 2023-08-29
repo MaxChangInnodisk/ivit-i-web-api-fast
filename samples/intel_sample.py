@@ -39,6 +39,8 @@ def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
     3. Update AI Task Information into Database
     """
 
+    log.info("Start to Initialize Classification Sample.")
+    
     # Download data and model
     data_name = 'cat.jpg'
     data_url = "https://drive.google.com/file/d/1hq2CvCT4SRTvvkHo3QVZSh85bdUuiXbR/view?usp=sharing"
@@ -67,6 +69,17 @@ def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
         "confidence_threshold": 0.1,
         "topk": 3
     }
+    
+    # Add Model into database
+    try:
+        model_info = model_handler.parse_model_folder(
+            model_dir=os.path.join(SERV_CONF["MODEL_DIR"], model_name))
+        # Update default_model value
+        model_info.update({ "default_model": 1 })
+        model_data = model_handler.add_model_into_db(
+            model_info=model_info)        
+    except FileExistsError:
+        log.debug(f"Model already in database ({model_name})")
 
     # Get label and palette
     data = model_handler.parse_model_folder(os.path.join(SERV_CONF["MODEL_DIR"], model_name))
@@ -141,6 +154,8 @@ def intel_sample_obj(db_path: str = SERV_CONF["DB_PATH"]):
     3. Update AI Task Information into Database
     """
 
+    log.info("Start to Initialize Object Detection Sample.")
+    
     # Download data and model
     data_name = 'car.mp4'
     data_url = "https://drive.google.com/file/d/15X2EwgdtNmLgaLOWlMyBytJ3gM1c1Wqd/view?usp=sharing"
@@ -168,6 +183,17 @@ def intel_sample_obj(db_path: str = SERV_CONF["DB_PATH"]):
     model_setting = {
         "confidence_threshold": 0.5
     }
+
+    # Add Model into database
+    try:
+        model_info = model_handler.parse_model_folder(
+            model_dir=os.path.join(SERV_CONF["MODEL_DIR"], model_name))
+        # Update default_model value
+        model_info.update({ "default_model": 1 })
+        model_data = model_handler.add_model_into_db(
+            model_info=model_info)        
+    except FileExistsError:
+        log.debug(f"Model already in database ({model_name})")
 
     # Get label and palette
     data = model_handler.parse_model_folder(os.path.join(SERV_CONF["MODEL_DIR"], model_name))
@@ -241,6 +267,8 @@ def intel_sample_detection_zone(db_path: str = SERV_CONF["DB_PATH"]):
     2. Download Model from Google Drive, and Update into Database
     3. Update AI Task Information into Database
     """
+
+    log.info("Start to Initialize Detection Zone Sample.")
 
     # Download data and model
     data_name = '4-corner-downtown-trim-1280x720.mp4'
@@ -376,6 +404,8 @@ def intel_sample_tracking_zone(db_path: str = SERV_CONF["DB_PATH"]):
     3. Update AI Task Information into Database
     """
 
+    log.info("Start to Initialize Tracking Zone Sample.")
+
     # Download data and model
     data_name = '4-corner-downtown-trim-1280x720.mp4'
     data_url = "https://drive.google.com/file/d/16xK3KBJdWKZWxjzTH-_VMxpYfasEFDtz/view?usp=share_link"
@@ -503,6 +533,8 @@ def intel_sample_movement_zone(db_path: str = SERV_CONF["DB_PATH"]):
     2. Download Model from Google Drive, and Update into Database
     3. Update AI Task Information into Database
     """
+
+    log.info("Start to Initialize Movement Zone Sample.")
 
     # Download data and model
     data_name = '4-corner-downtown-trim-1280x720.mp4'
