@@ -346,7 +346,8 @@ def parse_model_data(data: dict) -> dict:
         "input_size": data[7],
         "preprocess": data[8],
         "meta_data": json.loads(data[9]),
-        "annotation": data[10]
+        "default_model": data[10],
+        "annotation": data[11]
     }
 
 
