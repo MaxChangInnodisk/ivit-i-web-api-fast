@@ -55,7 +55,7 @@ def download_model(file_name, file_url):
     file_path = os.path.join(SERV_CONF["MODEL_DIR"], file_name)
 
     if os.path.exists(file_path):
-        log.warning(f'Model exists ({file_path})')
+        log.debug(f'Model exists ({file_path})')
         return
 
     ext = '.zip'
