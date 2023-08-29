@@ -1028,6 +1028,54 @@ class InferenceLoop:
         # Clear dara
         RT_CONF[self.uid]['DATA']={}
 
+    # def _launch_event(self, event_output: dict) -> None:
+    #     """Launch event function """
+        
+    #     if not event_output: return
+        
+    #     # Get value
+    #     event_output = event_output.get('event')
+    #     if not event_output: 
+    #         return
+
+    #     # NOTE: store in database, event start if status is True else False
+    #     for event in event_output:
+            
+    #         # Combine data
+    #         data = {
+    #             "uid": event["uid"],
+    #             "title": event["title"],
+    #             "app_uid": self.uid,
+    #             "start_time": event["start_time"],
+    #             "end_time": event["end_time"]
+    #         }
+
+    #         # Event Trigger First Time: status=True and event_output!=[]
+    #         if event["event_status"]:
+    #             # Add new data            
+    #             insert_data( table= 'event', data= data )
+            
+    #         else:
+    #             # Update old data ( update end_time )
+    #             update_data( table= 'event', data= data,
+    #                 condition= f"WHERE start_time={event['start_time']}" )
+                
+    #             # No need to send websocket
+    #             continue
+
+    #         # Send to front end via WebSocket
+    #         if "WS" not in WS_CONF: return
+            
+    #         # Tidy up data
+    #         data["start_time"] = str(data["start_time"])
+    #         data["end_time"] = str(data["end_time"])
+    #         try:
+    #             # Send data to front end
+    #             asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=data )) )
+    #         except Exception as e:
+    #             log.warning('Send websocket failed!!!!')
+    #             log.exception(e)
+
     def _launch_event(self, event_output: dict) -> None:
         """Launch event function """
         
@@ -1047,7 +1095,8 @@ class InferenceLoop:
                 "title": event["title"],
                 "app_uid": self.uid,
                 "start_time": event["start_time"],
-                "end_time": event["end_time"]
+                "end_time": event["end_time"],
+                "annotation": event["meta"]
             }
 
             # Event Trigger First Time: status=True and event_output!=[]
@@ -1067,6 +1116,7 @@ class InferenceLoop:
             if "WS" not in WS_CONF: return
             
             # Tidy up data
+            data["annotation"].pop("detections")
             data["start_time"] = str(data["start_time"])
             data["end_time"] = str(data["end_time"])
             try:
@@ -1075,6 +1125,7 @@ class InferenceLoop:
             except Exception as e:
                 log.warning('Send websocket failed!!!!')
                 log.exception(e)
+
 
     # NOTE: MAIN LOOP
     def _infer_loop(self):

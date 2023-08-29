@@ -66,6 +66,7 @@ def get_all_events(condition: Optional[str]=None) -> list:
         data = parse_event_data(event)
         data["start_time"] = str(data["start_time"])
         data["end_time"] = str(data["end_time"])
+        data["annotation"].pop("detections", None)
         ret.append(data)
     return ret
 
