@@ -246,6 +246,7 @@ def init_tables(db_path:str):
                     "input_size TEXT,"
                     "preprocess TEXT,"
                     "meta_data TEXT,"
+                    "default_model INTEGER,"
                     "annotation TEXT"
                     ");" )
     # Source
@@ -269,7 +270,6 @@ def init_tables(db_path:str):
                     "annotation TEXT,"
                     "FOREIGN KEY(uid) REFERENCES task(uid) ON DELETE CASCADE"
                     ");" )
-    
     # Event
     ivit_db.execute("CREATE TABLE IF NOT EXISTS event ("
                     "uid TEXT,"
@@ -351,7 +351,8 @@ def parse_model_data(data: Union[dict, sqlite3.Cursor]):
         "input_size": data[7],
         "preprocess": data[8],
         "meta_data": json.loads(data[9]),
-        "annotation": data[10]
+        "default_model": data[10],
+        "annotation": data[11]
     }
 
 
@@ -377,6 +378,7 @@ def parse_app_data(data: dict):
         "event_uid": data[4],
         "annotation": data[5]
     }
+
 
 def parse_event_data(data: dict):
     return {
