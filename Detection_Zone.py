@@ -11,6 +11,7 @@ from typing import Tuple, List
 from collections import defaultdict
 from multiprocessing.pool import ThreadPool
 import json
+import copy
 
 # iVIT-I 
 from ivit_i.common.app import iAPP_OBJ
@@ -122,8 +123,9 @@ class EventHandler:
         }
 
     def save_meta_data(self, path: str, meta_data: dict) -> None:
+        copy_data = copy.deepcopy(meta_data)
         with open(path, 'w', encoding='utf-8') as f:
-            json.dump(meta_data, f, ensure_ascii=False, indent=4)
+            json.dump(copy_data, f, ensure_ascii=False, indent=4)
 
     def event_behaviour(self, original: np.ndarray, meta_data: dict) -> dict:
         # timestamp is folder name
@@ -157,29 +159,37 @@ class EventHandler:
     def _reset_timestamp(self):
         self.start_time = None
         self.end_time = None
-        
+
+    def _print_title(self, text: str):
+        print(f'\n * [{self.title.upper()}] {text}')
+
     def __call__(self, original: np.ndarray, value: int, detections: list, area: dict) -> Union[None, dict]:
+        
         # Update variable
         self.current_time = time.time_ns()
         self.current_value = value
 
+        # Cooldown time: avoid trigger too fast
+        if not self.is_ready(): 
+            self._print_title('Not ready')
+            return
+        
         # Event triggered
-        if self.is_trigger():
-            # Event is on going
-            if self.event_status: return
+        event_is_trigger = self.is_trigger()
+        if event_is_trigger and self.event_status: 
+            # Event is on going then return
+            return
 
-        # Event not triggered and event not started
-        elif not self.event_status: 
+        elif not event_is_trigger and not self.event_status:              
+            # Event not triggered and event not started
             self._reset_timestamp()
             return
 
         # Update Status
-        self.event_status = not self.event_status
-        
-        # Cooldown time: avoid trigger too fast
-        if not self.is_ready(): return        
-
-        print('Event {} ( Total: {})'.format('Start' if self.event_status else 'Stop', value))
+        self.event_status = event_is_trigger
+                
+        self._print_title('Event {} ( Total: {})'.format(
+            'Start' if self.event_status else 'Stop', value))
 
         # get data
         pure_dets = self.get_pure_dets(detections)
@@ -356,7 +366,7 @@ class Detection_Zone(iAPP_OBJ):
             drawer = drawer,
             operator = events["logic_operator"],
             threshold = events["logic_value"],
-            cooldown = events.get("cooldown", 15)
+            cooldown = events.get("cooldown", 1000)
         )
         return event_obj
 
@@ -592,10 +602,12 @@ class Detection_Zone(iAPP_OBJ):
                 overlay, self.areas )
 
         # Combine all app output and get total object number
-        app_output, total_obj_nums = [], 0
+        app_output = []
         event_output = []
         for area_idx, area in enumerate(self.areas):
             
+            total_obj_nums = 0
+
             area_output = dict(area["output"])
 
             # Current area has nothing
@@ -618,6 +630,7 @@ class Detection_Zone(iAPP_OBJ):
 
             # Event
             total_obj_nums += sum(area_output.values())
+
             event = area.get("event", None)
             if self.force_close_event or not event: continue
             
@@ -630,7 +643,6 @@ class Detection_Zone(iAPP_OBJ):
             event_output.append( cur_output )
 
         return overlay, {"areas": app_output}, {"event": event_output}
-
 
 # ------------------------------------------------------------------------
 # Test
