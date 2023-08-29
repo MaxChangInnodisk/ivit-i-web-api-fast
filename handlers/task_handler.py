@@ -1047,8 +1047,7 @@ class InferenceLoop:
                 "title": event["title"],
                 "app_uid": self.uid,
                 "start_time": event["start_time"],
-                "end_time": event["end_time"],
-                "annotation": event["meta"]
+                "end_time": event["end_time"]
             }
 
             # Event Trigger First Time: status=True and event_output!=[]
@@ -1068,7 +1067,6 @@ class InferenceLoop:
             if "WS" not in WS_CONF: return
             
             # Tidy up data
-            data["annotation"].pop("detections")
             data["start_time"] = str(data["start_time"])
             data["end_time"] = str(data["end_time"])
             try:
