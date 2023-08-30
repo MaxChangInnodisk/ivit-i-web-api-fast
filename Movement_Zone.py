@@ -317,19 +317,19 @@ class EventHandler:
         self.title = title
         self.drawer = drawer
         self.threshold = threshold
-        self.cooldown = cooldown
+        self.cooldown = cooldown # Convert to nano second
 
         # Logic
         self.logic_map = get_logic_map()
         self.logic_event = self.logic_map[operator]
     
         # Timer
-        self.trigger_time = time.time_ns()
+        self.trigger_time = None
 
         # Generate uuid
         self.folder = self.check_folder(folder)
         self.uuid = str(uuid.uuid4())[:8]
-        self.uuid_folder = self.check_folder(os.path.join(self.folder, self.uuid))
+        self.uuid_folder = os.path.join(self.folder, self.uuid)
         
         # Dynamic Variable
         self.current_time = time.time_ns()
@@ -435,6 +435,9 @@ class EventHandler:
         
         elif event_triggered and not self.event_started:
             self.start_time = self.current_time
+
+            # Cooldown time: avoid trigger too fast
+            if not self.is_ready(): return
             
         elif not event_triggered and self.event_started:
             self.end_time = self.current_time
@@ -676,7 +679,7 @@ class Movement_Zone(iAPP_OBJ):
             drawer = drawer,
             operator = events["logic_operator"],
             threshold = events["logic_value"],
-            cooldown = events.get("cooldown", 15)
+            cooldown = events.get("cooldown", 5)
         )
         return event_obj
 

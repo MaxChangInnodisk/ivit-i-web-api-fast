@@ -55,19 +55,19 @@ class EventHandler:
         self.title = title
         self.drawer = drawer
         self.threshold = threshold
-        self.cooldown = cooldown
+        self.cooldown = cooldown # Convert to nano second
 
         # Logic
         self.logic_map = get_logic_map()
         self.logic_event = self.logic_map[operator]
     
         # Timer
-        self.trigger_time = time.time_ns()
+        self.trigger_time = None
 
         # Generate uuid
         self.folder = self.check_folder(folder)
         self.uuid = str(uuid.uuid4())[:8]
-        self.uuid_folder = self.check_folder(os.path.join(self.folder, self.uuid))
+        self.uuid_folder = os.path.join(self.folder, self.uuid)
         
         # Dynamic Variable
         self.current_time = time.time_ns()
@@ -89,8 +89,14 @@ class EventHandler:
         return self.logic_event(self.current_value , self.threshold)
 
     def is_ready(self) -> bool:
-        if (self.current_time - self.trigger_time) <= self.cooldown:
-            print('Not ready, still have {} seconds'.format(round(self.current_time - self.trigger_time, 5)))
+
+        if self.trigger_time is None:
+            self.trigger_time = self.current_time     
+            return True
+
+        _time = (self.current_time - self.trigger_time)/1000000000
+        if _time  < self.cooldown:
+            print('\rNot ready, still have {} seconds'.format(round(self.cooldown-_time , 5)),end='')
             return False
         self.trigger_time = self.current_time
         return True
@@ -163,7 +169,7 @@ class EventHandler:
         self.event_started = False
 
     def _print_title(self, text: str):
-        print(f'\n * [{self.title.upper()}] {text}')
+        print(f'[EVENT] [{self.title.upper()}] {text}')
 
     def __call__(self, original: np.ndarray, value: int, detections: list, area: dict) -> Union[None, dict]:
         
@@ -181,16 +187,15 @@ class EventHandler:
         
         elif event_triggered and not self.event_started:
             self.start_time = self.current_time
+        
+            # Cooldown time: avoid trigger too fast
+            if not self.is_ready(): return
             
         elif not event_triggered and self.event_started:
             self.end_time = self.current_time
 
         # Update status           
         self.event_started = event_triggered
-
-        # Cooldown time: avoid trigger too fast
-        if not self.is_ready(): 
-            return
 
         self._print_title('Event {} ( Total: {})'.format(
             'Start' if self.event_started else 'Stop', value))
@@ -370,7 +375,7 @@ class Detection_Zone(iAPP_OBJ):
             drawer = drawer,
             operator = events["logic_operator"],
             threshold = events["logic_value"],
-            cooldown = events.get("cooldown", 1000)
+            cooldown = events.get("cooldown", 5)
         )
         return event_obj
 
@@ -635,9 +640,6 @@ class Detection_Zone(iAPP_OBJ):
 
             # Get Event Value and Validate
             total_obj_nums += sum(area_output.values())
-            if total_obj_nums==0:
-                event.reset()
-                continue
             
             # Call Event
             cur_output = event( original= original,
