@@ -78,7 +78,7 @@ class EventHandler:
         self.pools = ThreadPool(processes=4)
 
         # Flag
-        self.event_status = False
+        self.event_started = False
 
     def check_folder(self, folder_path: str) -> None:
         if not os.path.exists(folder_path):        
@@ -140,7 +140,7 @@ class EventHandler:
         self.pools.apply_async( self.save_image, args=(image_path, original))
         self.pools.apply_async( self.save_meta_data, args=(data_path, meta_data))
         
-        if self.event_status:
+        if self.event_started:
             self.start_time = self.current_time
             self.end_time = None
         else:
@@ -152,13 +152,15 @@ class EventHandler:
             "timestamp": self.current_time,
             "start_time": self.start_time,
             "end_time": self.end_time,
-            "event_status": self.event_status,
+            "event_status": self.event_started,
             "meta": meta_data,
         }
 
-    def _reset_timestamp(self):
+    def reset(self) -> None:
+        """ Reset timestamp and flag """
         self.start_time = None
         self.end_time = None
+        self.event_started = False
 
     def _print_title(self, text: str):
         print(f'\n * [{self.title.upper()}] {text}')
@@ -168,28 +170,30 @@ class EventHandler:
         # Update variable
         self.current_time = time.time_ns()
         self.current_value = value
+        
+        # Trigger Event
+        event_triggered = self.is_trigger()
+        if event_triggered and self.event_started: 
+            return  # None
+
+        elif not event_triggered and not self.event_started:
+            return self.reset() # None
+        
+        elif event_triggered and not self.event_started:
+            self.start_time = self.current_time
+            
+        elif not event_triggered and self.event_started:
+            self.end_time = self.current_time
+
+        # Update status           
+        self.event_started = event_triggered
 
         # Cooldown time: avoid trigger too fast
         if not self.is_ready(): 
-            self._print_title('Not ready')
-            return
-        
-        # Event triggered
-        event_is_trigger = self.is_trigger()
-        if event_is_trigger and self.event_status: 
-            # Event is on going then return
             return
 
-        elif not event_is_trigger and not self.event_status:              
-            # Event not triggered and event not started
-            self._reset_timestamp()
-            return
-
-        # Update Status
-        self.event_status = event_is_trigger
-                
         self._print_title('Event {} ( Total: {})'.format(
-            'Start' if self.event_status else 'Stop', value))
+            'Start' if self.event_started else 'Stop', value))
 
         # get data
         pure_dets = self.get_pure_dets(detections)
@@ -610,9 +614,6 @@ class Detection_Zone(iAPP_OBJ):
 
             area_output = dict(area["output"])
 
-            # Current area has nothing
-            if not area_output: continue
-
             # Re-Combine new area output for v1.1 version
             new_area_output = []
             for label, num in area_output.items():
@@ -628,12 +629,17 @@ class Detection_Zone(iAPP_OBJ):
                 "data": new_area_output 
             })
 
-            # Event
-            total_obj_nums += sum(area_output.values())
-
+            # Get Event    
             event = area.get("event", None)
             if self.force_close_event or not event: continue
+
+            # Get Event Value and Validate
+            total_obj_nums += sum(area_output.values())
+            if total_obj_nums==0:
+                event.reset()
+                continue
             
+            # Call Event
             cur_output = event( original= original,
                                 value= total_obj_nums,
                                 detections= save_area_dets[area_idx],
