@@ -340,7 +340,7 @@ class EventHandler:
         self.pools = ThreadPool(processes=4)
 
         # Flag
-        self.event_status = False
+        self.event_started = False
 
     def check_folder(self, folder_path: str) -> None:
         if not os.path.exists(folder_path):        
@@ -400,7 +400,7 @@ class EventHandler:
         self.pools.apply_async( self.save_image, args=(image_path, original))
         self.pools.apply_async( self.save_meta_data, args=(data_path, meta_data))
         
-        if self.event_status:
+        if self.event_started:
             self.start_time = self.current_time
             self.end_time = None
         else:
@@ -412,7 +412,7 @@ class EventHandler:
             "timestamp": self.current_time,
             "start_time": self.start_time,
             "end_time": self.end_time,
-            "event_status": self.event_status,
+            "event_status": self.event_started,
             "meta": meta_data,
         }
 
@@ -424,24 +424,29 @@ class EventHandler:
         # Update variable
         self.current_time = time.time_ns()
         self.current_value = value
-
-        # Event triggered
-        if self.is_trigger():
-            # Event is on going
-            if self.event_status: return
-
-        # Event not triggered and event not started
-        elif not self.event_status: 
-            self._reset_timestamp()
-            return
-
-        # Update Status
-        self.event_status = not self.event_status
         
-        # Cooldown time: avoid trigger too fast
-        if not self.is_ready(): return        
+        # Trigger Event
+        event_triggered = self.is_trigger()
+        if event_triggered and self.event_started: 
+            return  # None
 
-        print('Event {} ( Total: {})'.format('Start' if self.event_status else 'Stop', value))
+        elif not event_triggered and not self.event_started:
+            return self.reset() # None
+        
+        elif event_triggered and not self.event_started:
+            self.start_time = self.current_time
+            
+        elif not event_triggered and self.event_started:
+            self.end_time = self.current_time
+
+        # Update status           
+        self.event_started = event_triggered
+
+        # Cooldown time: avoid trigger too fast
+        if not self.is_ready(): 
+            return   
+
+        print('Event {} ( Total: {})'.format('Start' if self.event_started else 'Stop', value))
 
         # get data
         pure_dets = self.get_pure_dets(detections)
