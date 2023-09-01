@@ -14,7 +14,7 @@ services:
     depends_on:
       - rtsp
   nginx:
-    image: nginx
+    image: nginx:1.23.4-bullseye
     network_mode: host
     volumes:
       - ./nginx-config.template:/etc/nginx/templates/default.conf.template
@@ -23,7 +23,7 @@ services:
       - API_PORT=819
       - RTC_PORT=8083
   website:
-    image: jordan007/iviti-wa:v106
+    image: innodiskorg/ivit-i-website:v106
     network_mode: host
     environment:
       - NGINX_PORT=8001
