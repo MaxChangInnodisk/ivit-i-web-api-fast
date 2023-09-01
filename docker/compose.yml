@@ -2,12 +2,12 @@
 version: '3.7'
 services:
   rtsp:
-    image: aler9/rtsp-simple-server
+    image: innodiskorg/rtsp-server:v0.23.7
     network_mode: host
     volumes: 
       - ./rtsp-config.yml:/mediamtx.yml
   webrtc:
-    image: ghcr.io/deepch/rtsptoweb:latest
+    image: innodiskorg/rtsptoweb:v1.0.0
     network_mode: host
     volumes:
       - ./webrtc-config.json:/config/config.json
