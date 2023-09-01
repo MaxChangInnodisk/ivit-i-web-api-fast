@@ -15,7 +15,7 @@ lines_per_page=$(tput lines)
 
 # cal total page
 total_lines=$(echo "$article_content" | wc -l)
-total_pages=$((total_lines / lines_per_page ))
+total_pages=$((total_lines / lines_per_page +1 ))
 
 # init current page
 current_page=1
@@ -46,11 +46,9 @@ while true; do
 
     if [ $current_page -ne $total_pages ]; then
 
-        
-        echo -e -n "\033[43;35m ---More-(Press Enter)--- \033[0m "
+        echo -e "\033[43;35m ---More-(Press Enter)--- \033[0m" 
         read -rsn1 input
-        echo -e "\033[1A\033[K"
-        
+        echo -e "\033[A\033[K\033[F"
         case "$input" in
             q)
                 break
@@ -61,6 +59,7 @@ while true; do
                 if [ "$current_page" -lt "$total_pages" ]; then
                     current_page=$((current_page + 1))
                     display_page
+                    
                 fi
                 ;;
             *)
@@ -90,4 +89,3 @@ while true; do
 done
 
 echo "$STATUS"
-
