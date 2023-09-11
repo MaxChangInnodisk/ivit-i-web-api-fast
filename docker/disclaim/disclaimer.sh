@@ -28,6 +28,15 @@ YELLOW='\033[1;33m';
 CYAN='\033[1;36m';
 NC='\033[0m';
 
+# Foreground or Background
+case $(ps -o stat= -p $$) in
+    *+*) 
+        echo "Please read the declaration." ;;
+    *) 
+        echo "Detected background process, auto skip."
+        exit 0;
+esac
+
 # show page info
 display_page() {
     start_line=$(( (current_page - 1) * lines_per_page + 1 ))
