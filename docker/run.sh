@@ -67,11 +67,11 @@ OPTS=${OPT_ARR[@]}
 jq --arg a "${PLATFORM}" '.PLATFORM = $a' ${CONF} > ${TEMP} && mv -f ${TEMP} ${CONF} 
 
 # ========================================================
-# Disclaim
+# Disclaimer
 ${ROOT}/disclaim/disclaimer.sh
- 
+
 if [ $? -eq 1 ];then 
-    exit 0 
+    echo "Quit."; exit 0; 
 fi
 
 # Update Docker Compose
