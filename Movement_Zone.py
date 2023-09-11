@@ -536,6 +536,9 @@ class Movement_Zone(iAPP_OBJ):
         # NOTE: Movement
         self.tracked_status = defaultdict( lambda: defaultdict(dict) )
 
+        # TEMP
+        self.prev_area_output = {}
+
     # ------------------------------------------------
     # Update parameter in __init__
 
@@ -944,6 +947,15 @@ class Movement_Zone(iAPP_OBJ):
         for area in self.areas:
             area["output"] = defaultdict(int)
 
+    def copy_area_output(self) -> list:
+        copy_areas = list()
+        for area in self.areas:
+            copy_areas.append({
+              "name": area["name"],
+              "output": area["output"]
+            })
+        return copy_areas    
+
     # ------------------------------------------------
     # Drawing Meta Data ( Tracking data )
 
@@ -1097,10 +1109,14 @@ class Movement_Zone(iAPP_OBJ):
             if not cur_output: continue
             event_output.append( cur_output )
 
+        # Update prev_area
+        if len(tracking_dets)!=0:
+            self.prev_area_output = self.copy_area_output()
+
         # Draw app output
         if self.draw_result:
             self.drawer.draw_area_results(
-                overlay, self.areas )
+                overlay, self.prev_area_output )
 
         return (overlay, {"areas": app_output}, {"event": event_output})
 

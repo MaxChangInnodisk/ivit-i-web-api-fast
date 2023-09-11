@@ -536,6 +536,9 @@ class Tracking_Zone(iAPP_OBJ):
         # self.mot_trackers= self._creat_mot_tracker_for_each_area()
         self.mot_trackers = self._ger_tracker_in_each_areas(self.areas)
 
+        # TEMP
+        self.prev_area_output = {}
+
     # ------------------------------------------------
     # Update parameter in __init__
 
@@ -804,6 +807,15 @@ class Tracking_Zone(iAPP_OBJ):
         for area in self.areas:
             area["output"] = defaultdict(int)
 
+    def copy_area_output(self) -> list:
+        copy_areas = list()
+        for area in self.areas:
+            copy_areas.append({
+              "name": area["name"],
+              "output": area["output"]
+            })
+        return copy_areas    
+
     # ------------------------------------------------
     # Drawing Meta Data ( Tracking data )
 
@@ -849,6 +861,7 @@ class Tracking_Zone(iAPP_OBJ):
     @get_time
     def test(self,frame:np.ndarray, detections:list):
         return self.__call__(frame, detections)
+    
     # NOTE: __call__ function is requirements
     def __call__(self, frame:np.ndarray, detections:list) -> Tuple[np.ndarray, list, list]:
         """
@@ -949,10 +962,14 @@ class Tracking_Zone(iAPP_OBJ):
             if not cur_output: continue
             event_output.append( cur_output )
 
+        # Update prev_area
+        if len(tracking_dets)!=0:
+            self.prev_area_output = self.copy_area_output()
+
         # Draw app output
         if self.draw_result:
             self.drawer.draw_area_results(
-                overlay, self.areas )
+                overlay, self.prev_area_output )
             
 
         return overlay, {"areas": app_output}, {"event": event_output}
