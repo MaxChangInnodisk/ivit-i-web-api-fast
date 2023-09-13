@@ -168,3 +168,4 @@ event
 ivit_i.sqlite
 !**/*/.gitkeep
 test-*
+events
