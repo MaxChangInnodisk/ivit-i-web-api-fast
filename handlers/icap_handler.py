@@ -499,6 +499,10 @@ def register_tb_device(tb_url):
 
 def init_icap():
     """ Initialize iCAP """
+    
+    if ICAP_CONF["HOST"]=="":
+        log.warning("Not setup iCAP url ...")
+        return
 
     # Get Register URL
     register_url = "{}:{}{}".format(
@@ -515,7 +519,6 @@ def init_icap():
             host=ICAP_CONF["HOST"], 
             port=ICAP_CONF["MQTT_PORT"],
             token=ICAP_CONF["ACCESS_TOKEN"] )
-        icap_handler.start()
 
         SERV_CONF.update({"ICAP":icap_handler})
         log.info("Update ICAP Object into {}".format(SERV_CONF.get_name))

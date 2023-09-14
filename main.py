@@ -69,6 +69,14 @@ async def print_finish(request, call_next):
     icap_handler.send_basic_attr()
     return response
 
+def box_web_url():
+    web_url = '|    WEBSITE --> http://{}:{}    |'.format(SERV_CONF["HOST"], int(SERV_CONF["WEB_PORT"]))
+    leng = len(web_url)
+    log.info('-'*leng)
+    log.info('|'+' '*(leng-2)+'|')
+    log.info(web_url)
+    log.info('|'+' '*(leng-2)+'|')
+    log.info('-'*leng)
 
 @app.on_event("startup")
 def startup_event():
@@ -78,6 +86,8 @@ def startup_event():
     icap_handler.init_icap()        # iCAP
     db_handler.reset_db()
     log.info('iVIT-I Web Service Initialized !!!')
+    box_web_url()
+
 
 @app.on_event("shutdown")
 def shutdown_event():

@@ -101,14 +101,17 @@ VER=r1.2
 git clone -b ${VER} https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
 ```
 
-## Run `service` quickly with platform.
+## Run `service` with target platform.
 ```bash
-sudo ./docker/run.sh intel -q
+# Usage: sudo ./docker/run.sh <framework> <option>
+sudo ./docker/run.sh intel
 ```
-* We support `intel`, `xilinx`, `hailo`, `nvidia`, `jetson` now.
+* `framework` support `intel`, `xilinx`, `hailo`, `nvidia`, `jetson` now.
+* NOTE: you have to re-build website container if you are using `xilinx` device. ( [tutorial](#build-web-site-for-arm) )
 
 ## Visit Web Site
 * Open Browser and enter the url: [http://127.0.0.1:8001](http://127.0.0.1:8001)
+  ![ivit-i-hint](assets/images/ivit-i-hint.png)
 * Entrance
   ![ivit-i-entrance](assets/images/ivit-i-entrance.png)
 
@@ -157,7 +160,7 @@ You can modify the configuration file ( [`ivit-i.json`](ivit-i.json) ) to change
 * Enter docker container with interative mode.
     ```bash
     # Enter with command line mode
-    sudo ./docker/run.sh intel -qc
+    sudo ./docker/run.sh intel -c
 
     # Run fastapi
     python3 main.py
@@ -165,7 +168,7 @@ You can modify the configuration file ( [`ivit-i.json`](ivit-i.json) ) to change
 * Run in background
     ```bash
     # Background mode
-    sudo ./docker/run.sh intel -qb
+    sudo ./docker/run.sh intel -b
 
     # Close with another script 
     sudo ./docker/stop.sh
