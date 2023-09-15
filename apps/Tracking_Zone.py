@@ -1011,8 +1011,16 @@ if __name__=='__main__':
         dpr.release()
 
 """
+# INTEL
 python3 apps/Tracking_Zone.py \
 -m model/yolo-v3-tf/yolo-v3-tf.xml \
 -l model/yolo-v3-tf/coco.names \
 -i data/car.mp4 -at yolo
+
+# NV
+python3 apps/Tracking_Zone.py \
+-m model/yolov4-416/yolov4-416.trt \
+-l model/yolov4-416/coco.txt \
+-i data/car.mp4 -at yolov4
+
 """
