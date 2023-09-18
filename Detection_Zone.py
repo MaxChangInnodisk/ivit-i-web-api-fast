@@ -328,7 +328,8 @@ class Detection_Zone(iAPP_OBJ):
         """clear app output ( self.areas ) """
         for area in self.areas:
             area["output"] = defaultdict(int)
-
+            for label in area["depend_on"]:                
+                area["output"][label]+=0
     # ------------------------------------------------
     # Drawing Meta Data ( Tracking data )
 
