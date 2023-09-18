@@ -5,6 +5,7 @@
   1. Fixed the incorrect inference FPS.
   2. Fixed disclaimer issue when using docker/install.sh to install service.
   3. Updated application to v1.1.6: refactor and optimized whole applications.
+  4. Fixed application: show label with 0 detected.
 
 ## v1.1.5
 * Web API
