@@ -643,8 +643,12 @@ class Tracking_Zone(iAPP_OBJ):
 
     def clear_app_output(self) -> None:
         """clear app output ( self.areas ) """
+        if self.prev_area_output != {}:
+            return
         for area in self.areas:
             area["output"] = defaultdict(int)
+            for label in area["depend_on"]:
+                area["output"][label]+=0
 
     def copy_area_output(self) -> list:
         copy_areas = list()
