@@ -20,11 +20,6 @@ Support platform can see table below.
 4. [xilinx](https://github.com/InnoIPA/ivit-i-xilinx)
 5. [Hailo](https://github.com/MaxChangInnodisk/ivit-i-hailo)
 
-Download apps module to your IVIT-I.
-```bash
-    sudo ./samples/apps_samples/classification/download_apps_module.sh 
-```
-
  
 
 # Basic Classification
