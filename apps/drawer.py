@@ -133,8 +133,9 @@ class DrawTool:
         for area in areas:
             area_name = area["name"]
             area_output = area.get("output", [])
-            for (cur_label, cur_nums) in area_output.items():
-                
+            sorted_area_output = sorted(area_output.items(), key=lambda x:x[1], reverse=True)
+            
+            for (cur_label, cur_nums) in sorted_area_output:
                 result = f"{area_name} : {cur_nums} {cur_label}"
                 
                 (t_wid, t_hei), t_base = cv2.getTextSize(result, FONT_TYPE, self.font_size, self.font_thick)
