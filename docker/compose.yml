@@ -14,7 +14,7 @@ services:
     depends_on:
       - rtsp
   nginx:
-    image: nginx
+    image: innodiskorg/ivit-i-nginx:1.23.4-bullseye
     network_mode: host
     volumes:
       - ./nginx-config.template:/etc/nginx/templates/default.conf.template
