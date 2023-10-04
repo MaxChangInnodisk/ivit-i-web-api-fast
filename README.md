@@ -96,7 +96,7 @@ The specification below shows the recommended requirements. In case of the use o
 ## Prepare Repository
 ```bash
 
-VER=r1.2
+VER=v1.2
 
 git clone -b ${VER} https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
 ```
