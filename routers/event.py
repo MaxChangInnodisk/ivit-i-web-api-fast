@@ -88,6 +88,8 @@ def get_events(del_data: DelEventFormat):
         for uid in del_data.uids:
             try:
                 event_handler.del_event(uid)
+                event_handler.del_event_screenshot(uid)
+                
                 ret_data["success"].append(uid)
             except:
                 ret_data["failure"].append(uid)

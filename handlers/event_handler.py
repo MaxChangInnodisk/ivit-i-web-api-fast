@@ -3,7 +3,7 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-import sys, os, time, re
+import sys, os, time, re, shutil
 import logging as log
 from typing import Union, Optional
 import cv2
@@ -69,6 +69,16 @@ def get_all_events(condition: Optional[str]=None) -> list:
         data["annotation"].pop("detections", None)
         ret.append(data)
     return ret
+
+def del_all_events()->None:
+    events = select_data(table='event', data="*", condition=condition)
+    event_nums = len(events)
+    print(f'Get {event_nums} events')
+    ret = []
+    for event in events:
+        data = parse_event_data(event)
+        del_event(data['uid'])
+        del_evet_screenshot(data['uid'])
 
 def get_cond_events(condition: str) -> list:
 
@@ -194,3 +204,20 @@ def get_event_screenshot(timestamp: int, draw_result: bool = False) -> np.ndarra
         del app 
 
     return draw
+
+def del_evet_screenshot(uid: str) -> None:
+    """Delete the screenshot of the event
+
+    Args:
+        uid (str): event uid
+    """
+    event_folder = os.path.join("events", uid)
+    
+    if not os.path.exists(event_folder):
+        return
+
+    shutil.rmtree(event_folder)
+
+    log.warning("Delete event screenshot folder ... {}".format(
+        "FAIL" if os.path.exists(event_folder) else "PASS"
+    ))

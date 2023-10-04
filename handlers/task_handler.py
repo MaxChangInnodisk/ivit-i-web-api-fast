@@ -34,7 +34,7 @@ from .io_handler import (
     is_source_using,
     create_rtsp_displayer
 )
-from . import task_handler, db_handler, model_handler, icap_handler
+from . import task_handler, db_handler, model_handler, icap_handler, event_handler
 from .app_handler import create_app
 from .mesg_handler import json_exception, handle_exception, simple_exception, ws_msg
 from .err_handler import InvalidError, InvalidUidError
@@ -393,6 +393,8 @@ def stop_ai_task(uid:str, data:dict=None):
     # Task Information
     task = verify_task_exist(uid=uid)
     task_info = parse_task_data(task)
+
+    task_uid = app_uid = task_info['uid']
     source_uid=  task_info['source_uid']
 
     if get_task_status(uid=uid)!='run':
@@ -409,6 +411,17 @@ def stop_ai_task(uid:str, data:dict=None):
     stop_source(source_uid)
 
     update_task_status(uid, 'stop')
+
+    # Clear event and database
+    print(task_info)
+    events = \
+        select_data(table='event', data="uid", condition=f"WHERE app_uid='{app_uid}'")
+    for event in events:
+        # Delete screenshot
+        event_uid = event[0]
+        event_handler.del_event(event_uid)
+        event_handler.del_event_screenshot(event_uid)
+
     log.info(mesg)
     return mesg
 
