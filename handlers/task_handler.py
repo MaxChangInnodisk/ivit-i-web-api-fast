@@ -34,7 +34,7 @@ from .io_handler import (
     is_source_using,
     create_rtsp_displayer
 )
-from . import task_handler, db_handler, model_handler
+from . import task_handler, db_handler, model_handler, icap_handler
 from .app_handler import create_app
 from .mesg_handler import json_exception, handle_exception, simple_exception, ws_msg
 from .err_handler import InvalidError, InvalidUidError
@@ -1249,8 +1249,9 @@ class InferenceLoop:
 
             if self.icap_alive:  
                 SERV_CONF['ICAP'].send_attr(data={
-                    'ivitTask': task_handler.get_task_info()
+                    'ivitTask': icap_handler.get_icap_task_info()
             })
+            
                 
         log.warning('InferenceLoop ({}) is Stop'.format(self.uid))
 

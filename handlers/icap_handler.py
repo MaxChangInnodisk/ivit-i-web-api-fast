@@ -6,7 +6,7 @@
 import requests, json, os, sys, hashlib, time, wget, shutil
 import logging as log
 import paho.mqtt.client as mqtt
-from typing import Union
+from typing import Union, List
 
 try:
     from ..common import SERV_CONF, ICAP_CONF
@@ -182,9 +182,13 @@ class ICAP_HANDLER():
                 host_addr = host_addr + f':{SERV_CONF["WEB_PORT"]}'
                 log.warning('Website address is : {}'.format(host_addr))
 
+            # basic_attr = {
+            #         "ivitUrl": host_addr,
+            #         "ivitTask": task_handler.get_task_info()
+            # }
             basic_attr = {
                     "ivitUrl": host_addr,
-                    "ivitTask": task_handler.get_task_info()
+                    "ivitTask": get_icap_task_info()
             }
             self.send_attr(data = basic_attr)
             
@@ -367,6 +371,29 @@ def resp_to_json(resp):
     data.update(resp_data)
     return response_status(code), data
 
+
+def get_icap_task_info() -> List[dict]:
+    """Get (Convert) iCAP Task information
+
+    Returns:
+        List[dict]: task info for icap
+    """
+    orig_task_info = task_handler.get_task_info()
+
+    # icap_task_info = []
+    # for items in orig_task_info:
+    #     icap_task_info.append({
+    #     "name": items["task_name"],
+    #     "uuid": items["task_uid"],
+    #     "status": items["status"],
+    #     "model": items["model_name"],
+    #     "tag": items["model_type"],
+    #     "error": {},
+    #     "application": items["app_name"]
+    # })
+
+    return orig_task_info
+
 # --------------------------------------------------------
 # Send Request Function
 
@@ -527,8 +554,11 @@ def send_basic_attr():
     try:
         if ('ICAP' in SERV_CONF) and not (SERV_CONF['ICAP'] is None):
             
+            # SERV_CONF['ICAP'].send_attr(data={
+            #     'ivitTask': task_handler.get_task_info()
+            # })
             SERV_CONF['ICAP'].send_attr(data={
-                'ivitTask': task_handler.get_task_info()
+                'ivitTask': get_icap_task_info()
             })
         else:
             log.warning('MQTT not setup ...')
