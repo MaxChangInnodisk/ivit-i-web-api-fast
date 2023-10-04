@@ -9,7 +9,7 @@
     "PORT": 819
   },
   "ICAP": {
-    "HOST": "10.204.16.115",
+    "HOST": "",
     "PORT": 3000,
     "DEVICE_NAME": ""
   },
