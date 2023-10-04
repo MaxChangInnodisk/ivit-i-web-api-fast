@@ -403,6 +403,10 @@ def stop_ai_task(uid:str, data:dict=None):
 
     mesg = 'Stop AI Task ( {}: {} )'.format(uid, task_info['name'] )
 
+    # Clear event
+    events = select_data(table='event', data="uid", condition=f"WHERE app_uid='{app_uid}'")
+    [ event_handler.del_event(event[0]) for event in events ]
+        
     # Stop AI Task
     RT_CONF[uid]['EXEC'].stop()
     del RT_CONF[uid]['EXEC']
@@ -411,16 +415,6 @@ def stop_ai_task(uid:str, data:dict=None):
     stop_source(source_uid)
 
     update_task_status(uid, 'stop')
-
-    # Clear event and database
-    print(task_info)
-    events = \
-        select_data(table='event', data="uid", condition=f"WHERE app_uid='{app_uid}'")
-    for event in events:
-        # Delete screenshot
-        event_uid = event[0]
-        event_handler.del_event(event_uid)
-        event_handler.del_event_screenshot(event_uid)
 
     log.info(mesg)
     return mesg
