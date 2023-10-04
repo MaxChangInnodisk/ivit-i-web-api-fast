@@ -1,5 +1,25 @@
 # Release Note
 
+## v1.2
+1. Add event system
+  * Event setting
+  * Event streaming
+  * Event card
+2. Color palette, allow user change the label's color.
+
+## v1.1.6
+* Web API
+  1. Fixed the incorrect inference FPS.
+  2. Fixed disclaimer issue when using docker/install.sh to install service.
+  3. Updated application to v1.1.6: refactor and optimized whole applications.
+  4. Fixed application: show label with 0 detected.
+
+## v1.1.5
+* Web API
+  1. Fix the version of the micro-service, like rtsp-simple-server, rtsptoweb, and nginx.
+  2. Set "draw_bbox" and "draw_result" to True in DetectionZone ( Application ).
+  3. Update disclaimer and eula.
+
 ## v1.1.4
 * Web API
   1. Feat: Check the value of the source when editing the AI task. Avoid writing the empty into the database.
