@@ -53,7 +53,7 @@ def verify_event_exist(uid: str):
     
     # Not found AI Task
     if events == []:
-        raise RuntimeError("Could not find AI Task ({})".format(uid))
+        raise RuntimeError("Could not find Event ({})".format(uid))
 
     return events[0]
 
@@ -78,7 +78,7 @@ def del_all_events()->None:
     for event in events:
         data = parse_event_data(event)
         del_event(data['uid'])
-        del_evet_screenshot(data['uid'])
+        
 
 def get_cond_events(condition: str) -> list:
 
@@ -119,6 +119,9 @@ def del_event(uid: str):
     """"""
 
     verify_event_exist(uid)
+
+    # Del Screenshot
+    del_event_screenshot(uid)
 
     # Del App
     delete_data(
@@ -205,7 +208,7 @@ def get_event_screenshot(timestamp: int, draw_result: bool = False) -> np.ndarra
 
     return draw
 
-def del_evet_screenshot(uid: str) -> None:
+def del_event_screenshot(uid: str) -> None:
     """Delete the screenshot of the event
 
     Args:
