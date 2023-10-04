@@ -336,7 +336,7 @@ class Timer(object):
 
 # ------------------------------------------------------------------------    
 
-class Dwell_Time(iAPP_OBJ):
+class Dwell_Time():
 
     def __init__(self, params:dict, label:str, event_behavi_save_folder:str="event", palette:dict=palette):
         """_summary_
