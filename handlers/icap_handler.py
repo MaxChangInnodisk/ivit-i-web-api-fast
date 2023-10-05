@@ -115,6 +115,44 @@ class ICAP_HANDLER():
         else:
             log.warning('Unexpected key ... {}'.format(', '.join(keys)))
 
+    def _stream_behaviour(self, exec_data: dict) -> tuple:
+        """Execute WebRTC streaming Add and Delete via ACTION
+
+        Args:
+            exec_data (dict): the data after exec.
+
+        Returns:
+            tuple: return code and response
+        """
+        rtc_ret, rtc_resp = 0, ""
+
+        uid, action = exec_data["uid"], exec_data["action"]
+        
+        if action == "run":
+            # Call stream add
+            log.info('Add stream')
+            rtc_url, rtc_data = f"http://127.0.0.1:8083/stream/{uid}/add", {
+                "name":uid,
+                "channels":{
+                    "0":{
+                        "name":"ch1",
+                        "url":f"rtsp://127.0.0.1:8554/{uid}",
+                        "on_demand":False,
+                        "debug":False,
+                        "status":0
+                }}}
+
+            rtc_ret, rtc_resp = send_post_api(rtc_url, rtc_data)
+
+        elif action == "stop":
+            # Call stream delete
+            log.info('Delete stream')
+            rtc_url = f"http://127.0.0.1:8083/stream/{uid}/delete"
+
+            rtc_ret, rtc_resp = send_get_api(rtc_url)
+        
+        return rtc_ret, rtc_resp
+
     def _rpc_event(self, request_idx, data):
         """ Receive RPC Event """
 
@@ -138,7 +176,12 @@ class ICAP_HANDLER():
             if method == "GET":
                 ret, resp = send_get_api(trg_url)  
             elif method == "POST":
+
                 ret, resp = send_post_api(trg_url, data)
+
+                if "exec" in trg_url: 
+                    self._stream_behaviour(data)
+
             else:
                 raise KeyError("Invalid method, sopported is 'GET', 'POST', 'PUT', 'DELETE'")
 
