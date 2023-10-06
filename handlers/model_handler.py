@@ -131,6 +131,10 @@ class ModelDeployerWrapper(abc.ABC):
         if push_mesg:
             self.push_mesg()
 
+    def clear_event(self):
+        log.warning(f"Deploy fail, clear folder ({self.file_folder}).")
+        shutil.rmtree(self.file_folder)
+
     def download_event(self):
         pass
 
@@ -141,12 +145,17 @@ class ModelDeployerWrapper(abc.ABC):
 
         t_convert_start = time.time()
 
+        # Check json at first
+        info = parse_model_folder(self.file_folder)
+        json_path  = info.get('json_path', "")
+        if json_path == "":
+            raise FileNotFoundError("Could not find configuration.")
+
         # Check Platform
         if not ( self.platform in [ 'nvidia', 'jetson' ] or SERV_CONF['FRAMEWORK'] == 'tensorrt'):
             return
         
         # Parse data
-        info = parse_model_folder(self.file_folder)
         model_type = info.get("type")
         json_path  = info.get('json_path', "")
         model_name = get_onnx_and_darknet_path(info.get('meta_data'))
@@ -155,8 +164,6 @@ class ModelDeployerWrapper(abc.ABC):
         # Check data
         if model_path == "":
             raise FileNotFoundError("Could not find model.")
-        elif json_path == "":
-            raise FileNotFoundError("Could not find configuration.")
 
         # Define keywords
         keywords = {
@@ -256,8 +263,10 @@ class ModelDeployerWrapper(abc.ABC):
             log.info('Finished !!!')
 
         except Exception as e:
+            self.clear_event()
             log.exception(e)
             self.update_status(status=self.S_FAIL, message=handle_exception(e))
+
 
     def _create_thread(self):
         """ Create a thread which will run self.deploy_event at once """
@@ -513,8 +522,9 @@ def parse_model_folder(model_dir):
             ret['meta_data'].append(fpath)
 
     if ret['json_path'] == "":
-        log.error("[{}] Can not find JSON Configuration".format(model_dir))
-
+        mesg = "[{}] Can not find JSON Configuration".format(model_dir)
+        log.error(mesg)
+        
     return ret
 
 
