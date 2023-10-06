@@ -119,7 +119,7 @@ def get_task_info(uid:str=None):
 
         if is_list_empty(results):
             source_name = None
-            return_errors.append( InvalidUidError(f'Got invalid source uid: {source_uid}') )
+            return_errors.append( f'Got invalid source uid: {source_uid}' )
         else:
             source_name = results[0][0]
 
@@ -127,14 +127,14 @@ def get_task_info(uid:str=None):
         results = select_column_by_uid(cur, 'model', model_uid, ["name", "type"])
         if is_list_empty(results):
             model_name, model_type = None, None
-            return_errors.append( InvalidUidError(f'Got invalid source uid: {model_uid}') )
+            return_errors.append( f'Got invalid source uid: {model_uid}' )
         else:
             model_name, model_type = results[0]
         
         # App
         results = select_column_by_uid(cur, "app", app_uid, ["name"])
         if is_list_empty(results):
-            return_errors.append( InvalidUidError(f'Got invalid application uid: {app_uid}') )
+            return_errors.append( f'Got invalid application uid: {app_uid}' )
             app_name = None
         else:
             app_name = results[0][0]
@@ -305,7 +305,10 @@ def run_ai_task(uid:str, data:dict=None) -> str:
         model_data = select_data( table='model', data="*", 
                                 condition=f"WHERE uid='{model_uid}'")[0]
         model_info = parse_model_data(model_data)
-        
+    except Exception as e:
+        raise RuntimeError("Load AI Model Failed: Can not found AI Model")
+
+    try:        
         model_info['meta_data'].update( 
             {**task_info['model_setting'], 'device': task_info['device'] } )
         
