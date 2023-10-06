@@ -15,9 +15,6 @@ DOCKER_USER="innodiskorg"
 # Update Repo
 git fetch && git pull
 
-# Update Submodule
-cd apps && git pull && cd ..
-
 # Update Docker image
 # Check configuration is exit
 check_config ${CONF}
