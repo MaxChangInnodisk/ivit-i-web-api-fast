@@ -170,7 +170,6 @@ def create_source(source_uid:str) -> SourceV2:
         print(f"\n\nThe Source ({src_info['input']}) is loaded.")
         return RT_CONF[K_SRC].get(source_uid)
 
-
     # Initialize Source
     try: 
         src_object = SourceV2(
@@ -313,20 +312,30 @@ def get_source_frame(source_uid:str, resolution:list=None) -> np.ndarray:
     Returns:
         cv2.ndarray: _description_
     """
+    
+    # Get or create source object
+    src = create_source(source_uid=source_uid)
+    frame = src.frame
+    
     # Check source is exist or not
     source = select_data(   table='source', data="*",
                             condition=f"WHERE uid='{source_uid}'" )
-    if not is_list_empty(source):
-        src = create_source(source_uid=source_uid)
-        frame = copy.deepcopy(src.frame)
     
+    # The new source object have to clean
+    need_to_release = False
+    if is_list_empty(source):
+        need_to_release = True
     else:
-        src = create_source(source_uid=source_uid)
-        frame = copy.deepcopy(src.frame)
+        src_data = parse_source_data(source[0])
+        need_to_release = not (src_data["status"] in [ "run" ])
+        
+    if need_to_release:
+        log.warning('Clear source object.')
         src.release()
         update_data(table="source", data={"status": "stop"}, condition='WHERE uid="{}"'.format(source_uid))
     
-    if not (resolution is None):
+    # Setup resolution if need.
+    if resolution:
         frame = cv2.resize( frame, (resolution[1], resolution[0]))
     
     return frame
