@@ -476,8 +476,8 @@ def intel_sample_tracking_zone(db_path: str = SERV_CONF["DB_PATH"]):
                     ]
                 }
             ],
-            "draw_result":False,
-            "draw_bbox":False
+            "draw_result":True,
+            "draw_bbox":True
         }
     }
     event_uid = None
@@ -641,8 +641,8 @@ def intel_sample_movement_zone(db_path: str = SERV_CONF["DB_PATH"]):
                     ],
                 },
             ],
-            "draw_result":False,
-            "draw_bbox":False
+            "draw_result":True,
+            "draw_bbox":True
         }
     }
     event_uid = None

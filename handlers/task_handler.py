@@ -855,6 +855,9 @@ class AsyncInference:
 
         self.lock = threading.RLock()
 
+        # Metrics
+        self.async_infer_fps = -1
+
     def _is_too_fast(self):
         """too fast"""
         return ( time.time() - self.exec_time) <= self.freqency
@@ -880,6 +883,13 @@ class AsyncInference:
         self.results = []
         self.clean_timer.stop()
 
+    def async_infer_wrapper(self, frame):
+        prev_time = time.time()
+        result = self.imodel.inference(frame)
+        self.async_infer_fps = 1//(time.time() - prev_time)
+
+        return result
+
     def infer_callback(self, result):
         """Callback function for threading pool
 
@@ -898,9 +908,8 @@ class AsyncInference:
             self.lock.acquire()
             self.results = result
             self.lock.release()
-            
             self.start_clean_timer = False
-        
+
         else:
             self.start_clean_timer = True
         
@@ -925,10 +934,10 @@ class AsyncInference:
 
         self.pools.append(
             self.pool.apply_async(
-                func = self.imodel.inference, 
+                func = self.async_infer_wrapper, 
                 args = (frame, ), 
                 callback = self.infer_callback) )
-
+        
     def get_results(self) -> list:
         """Get results
 
@@ -938,7 +947,7 @@ class AsyncInference:
         return self.results
 
     def get_fps(self):
-        return self.imodel.get_fps()
+        return self.async_infer_fps
 
 
 class InferenceLoop:
@@ -1182,8 +1191,7 @@ class InferenceLoop:
             # log.debug(cur_data)
 
             # Make sure Inference FPS is correct
-            temp_fps = self.async_infer.get_fps()
-            self.fps = self.fps if abs(self.fps-temp_fps)>10 else temp_fps
+            self.fps = self.async_infer.get_fps()
             
             # Send Data
             self.results.update({
