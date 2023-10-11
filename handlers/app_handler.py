@@ -62,6 +62,7 @@ def create_app(app_uid:str, label_path:str) -> Union[iAPP_CLS, iAPP_OBJ, iAPP_SE
             continue
         # NOTE: default is True
         if not area_info["events"].get("enable", True):
+            log.warning('Delete event object !')
             del app_info["app_setting"]["application"]["areas"][idx]["events"]
             
     # Instance App Object

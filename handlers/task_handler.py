@@ -407,8 +407,11 @@ def stop_ai_task(uid:str, data:dict=None):
     mesg = 'Stop AI Task ( {}: {} )'.format(uid, task_info['name'] )
 
     # Clear event
-    events = select_data(table='event', data="uid", condition=f"WHERE app_uid='{app_uid}'")
-    [ event_handler.del_event(event[0]) for event in events ]
+    try:
+        events = select_data(table='event', data="uid", condition=f"WHERE app_uid='{app_uid}'")
+        [ event_handler.del_event(event[0]) for event in events ]
+    except Exception as e:
+        log.warning('Delete event fail when stopping AI task.')
         
     # Stop AI Task
     RT_CONF[uid]['EXEC'].stop()

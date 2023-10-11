@@ -77,7 +77,10 @@ def del_all_events()->None:
     ret = []
     for event in events:
         data = parse_event_data(event)
-        del_event(data['uid'])
+        try:
+            del_event(data['uid'])
+        except Exception as e:
+            log.warning('Delete event error.')
         
 
 def get_cond_events(condition: str) -> list:
