@@ -71,7 +71,9 @@ async def set_icap_address(data: ResetFormat):
     try:
         ICAP_CONF["HOST"] = data.ip
         ICAP_CONF["PORT"] = data.port
-        SERV_CONF["ICAP"].release()
+        if SERV_CONF.get("ICAP"):
+            SERV_CONF["ICAP"].release()
+        
         icap_handler.init_icap()
         return http_msg(content={ "ip" : str(ICAP_CONF["HOST"]), "port": str(ICAP_CONF["PORT"]) }, status_code=200)
     except Exception as e:
