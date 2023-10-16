@@ -74,7 +74,7 @@ class ICAP_HANDLER():
 
         # Setup Password
         self.client.username_pw_set(token)
-        
+
         # Log out
         dict_printer(   
             title='Init iCAP Handler:', 
@@ -82,6 +82,8 @@ class ICAP_HANDLER():
                    "port": port,
                    "token ( pw )": token } )
         
+        # self.client.connect(str(host), int(port), keepalive=60, bind_address="")
+
         self.client.connect_async(str(host), int(port), keepalive=60, bind_address="")
 
     # Basic
@@ -203,7 +205,7 @@ class ICAP_HANDLER():
             Connect to MQTT
             Send attributes with ivitUrl and ivitTask if success
         """
-
+        
         if rc == 0:
             log.info('ICAP_HANDLER Connected successfully')
             
@@ -591,6 +593,7 @@ def init_icap():
             token=ICAP_CONF["ACCESS_TOKEN"] )
 
         SERV_CONF.update({"ICAP":icap_handler})
+        SERV_CONF["ICAP"].start()
         log.info("Update ICAP Object into {}".format(SERV_CONF.get_name))
 
 # --------------------------------------------------------
@@ -603,9 +606,11 @@ def send_basic_attr():
             # SERV_CONF['ICAP'].send_attr(data={
             #     'ivitTask': task_handler.get_task_info()
             # })
-            SERV_CONF['ICAP'].send_attr(data={
-                'ivitTask': get_icap_task_info()
-            })
+            send_data = {
+                'ivitTask': get_icap_task_info(),
+                'ivitUrl': f'{get_address()}:{SERV_CONF["WEB_PORT"]}'
+            }
+            SERV_CONF['ICAP'].send_attr(data=send_data)
         else:
             log.warning('MQTT not setup ...')
     except Exception as e:
