@@ -167,7 +167,8 @@ async def websocket_endpoint_task(ws: WebSocket):
                         SERV_CONF[IDEV].get_device_info()
                     
             elif req_type == UID:
-                data = WS_CONF.get(req_data.upper())
+                req_data = req_data.upper()
+                data = WS_CONF.get(req_data)
 
             # Invalid Key
             if not data:
@@ -191,6 +192,7 @@ async def websocket_endpoint_task(ws: WebSocket):
 
         # Capture Error ( Exception )
         except Exception as e:
+            log.exception(e)
             await ws.send_json(
                 ws_msg( type=ERR, content=e ))
 
