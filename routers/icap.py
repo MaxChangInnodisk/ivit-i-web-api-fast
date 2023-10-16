@@ -68,16 +68,25 @@ async def get_icap_address():
 
 @icap_router.post("/icap/addr")
 async def set_icap_address(data: ResetFormat):
+    
+    is_reg = SERV_CONF.get("ICAP")
     try:
-        ICAP_CONF["HOST"] = data.ip
-        ICAP_CONF["PORT"] = data.port
-        if SERV_CONF.get("ICAP"):
+        if is_reg:
+            log.warning('Re-register iCAP ')
             SERV_CONF["ICAP"].release()
         
-        icap_handler.init_icap()
+        flag, data = icap_handler.init_icap(
+            tb_url= data.ip,
+            tb_port= data.port,
+            device_name = ICAP_CONF.get("DEVICE_NAME", "")
+        )
+        if not flag:
+            return http_msg(content=data, status_code=data["status_code"])
+        
         return http_msg(content={ "ip" : str(ICAP_CONF["HOST"]), "port": str(ICAP_CONF["PORT"]) }, status_code=200)
+    
     except Exception as e:
-        SERV_CONF["ICAP"] = None
+        log.exception(e)
         return http_msg(content=e, status_code=500)
     
 

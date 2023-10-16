@@ -25,7 +25,7 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 
 from utils import check_json, get_pure_jsonify
-from common import SERV_CONF, WS_CONF
+from common import SERV_CONF, WS_CONF, ICAP_CONF
 from samples import init_samples
 from handlers import (
     model_handler, 
@@ -83,7 +83,13 @@ def startup_event():
 
     model_handler.init_db_model()    # Models
     app_handler.init_db_app()      # AppHandler
-    icap_handler.init_icap()        # iCAP
+
+    icap_handler.init_icap( 
+        tb_url=ICAP_CONF["HOST"],
+        tb_port=ICAP_CONF["PORT"],
+        device_name=ICAP_CONF["DEVICE_NAME"]
+    )        # iCAP
+
     db_handler.reset_db()
     log.info('iVIT-I Web Service Initialized !!!')
     box_web_url()

@@ -205,7 +205,7 @@ class ICAP_HANDLER():
             Connect to MQTT
             Send attributes with ivitUrl and ivitTask if success
         """
-        
+
         if rc == 0:
             log.info('ICAP_HANDLER Connected successfully')
             
@@ -466,7 +466,38 @@ def send_get_api(trg_url, h_type='json', timeout=5):
 # --------------------------------------------------------
 # Register Thingsboard Function
 
-def register_tb_device(tb_url):
+def update_config_for_icap( 
+        tb_url: str, 
+        tb_port: str, 
+        device_name: str,
+        config_path: str = SERV_CONF["CONFIG_PATH"]
+    ) -> Union[dict, None]:
+    
+    # Read config content
+    with open(config_path, "r") as f:
+        config = json.load(f)
+
+    # Update config 
+    config["ICAP"]["DEVICE_NAME"] = device_name
+    config["ICAP"]["HOST"] = tb_url
+    config["ICAP"]["PORT"] = tb_port
+    
+    # Modify and save
+    with open(config_path, "w") as f:
+        json.dump(config, f, indent=4)
+
+    log.warning('Updated ivit-i.json for iCAP')
+    log.warning(f'\t- URL:PORT -> {tb_url}:{tb_port}')
+    log.warning(f'\t- DEVICE_NAME: {device_name}')
+
+
+def register_tb_device(
+    tb_url: str, 
+    tb_port: str,
+    device_name: str,
+    platform: str = SERV_CONF["PLATFORM"],
+    api_route: str = ICAP_CONF["API_REG_DEVICE"]
+    ):
     """ Register Thingsboard Device
     
     - Web API: http://10.204.16.110:3000/api/v1/devices
@@ -490,78 +521,75 @@ def register_tb_device(tb_url):
             }
     """
 
-    platform = SERV_CONF["PLATFORM"]
+    # Get Register URL
+    register_url = f"{tb_url}:{tb_port}{api_route}"
+    log.debug(f'Get thingboard url: {register_url}')
+    
+    # Check platform
     if platform == "jetson":
-        # Jetson device have to mapping to nvidia
-        platform = "nvidia"
+        platform = "nvidia" # Jetson have to mapping to nvidia
     
-    dev_type = "iVIT-I"
-    dev_tail = ICAP_CONF.get("DEVICE_NAME", "")
+    # Concat device name
+    device_type = "iVIT-I"
+    if device_name == "":
+        device_name = gen_uid()
 
-    if dev_tail == "":
-        log.info('Generate UUID')
-
-        # Gen uuid for iCAP device
-        dev_tail = gen_uid()
-        
-        # Read config content
-        with open(SERV_CONF["CONFIG_PATH"], "r") as f:
-            config = json.load(f)
-
-        # Update config 
-        config["ICAP"]["DEVICE_NAME"] = dev_tail
-        with open(SERV_CONF["CONFIG_PATH"], "w") as f:
-            json.dump(config, f, indent=4)
-
-    # Concate Name    
-    dev_name = "{}-{}".format(dev_type, dev_tail)
-    dev_alias = dev_name
-    
-    # Update DEVICE
-    ICAP_CONF["DEVICE_NAME"] = dev_name
-    
+    device_name = device_name \
+        if device_type in device_name \
+            else f"{device_type}-{device_name}" 
+      
     # Get send data
     send_data = { 
-        TB_KEY_NAME  : dev_name,
-        TB_KEY_TYPE  : dev_type,
-        TB_KEY_ALIAS : dev_alias,
+        TB_KEY_NAME  : device_name,
+        TB_KEY_TYPE  : device_type,
+        TB_KEY_ALIAS : device_name,
         TB_KEY_MODEL : platform 
     }
     
     # Make sure http is in the header
     header = "http://"
-    if ( not header in tb_url ): tb_url = header + tb_url
+    if ( not header in register_url ): register_url = header + register_url
 
     # Register via HTTP
     timeout = 5
     dict_printer(title='Registering iCAP with data', data=send_data)
-    ret, data = send_post_api(tb_url, send_data, timeout=timeout, stderr=False)
+    ret, data = send_post_api(register_url, send_data, timeout=timeout, stderr=False)
+
 
     # Register failed
     if not ret:
         dict_printer(
             title='Registering iCAP ... Failed !',
-            data={  "URL": tb_url,
+            data={  "URL": register_url,
                     "TOKEN": TB_KEY_TOKEN,
                     "Response": data },
             content_maximum=500,
             level='warn')
-        
         return False, data
     
-    # Register sucess
+    # Register success
     data = data["data"]
     receive_data = {
         "STATUS": True,
         "CREATE_TIME": data[TB_KEY_TIME],
         "DEVICE_ID": data[TB_KEY_ID],
         "ACCESS_TOKEN": data[TB_KEY_TOKEN],
-        "DEVICE_TYPE": dev_type
+        "DEVICE_TYPE": device_type
     }
 
     # Update to ICAP_CONF
     ICAP_CONF.update(send_data)
     ICAP_CONF.update(receive_data)
+    ICAP_CONF["HOST"] = tb_url
+    ICAP_CONF["PORT"] = tb_port
+    ICAP_CONF["DEVICE_NAME"] = device_name
+    
+    # Update config
+    update_config_for_icap(
+        tb_url=tb_url,
+        tb_port=tb_port,
+        device_name=device_name
+    )
 
     dict_printer(   title="Registering iCAP ... Pass !",
                     data=receive_data)
@@ -569,32 +597,42 @@ def register_tb_device(tb_url):
     return True, data
 
 
-def init_icap():
+def init_icap(
+    tb_url: str, 
+    tb_port: str, 
+    device_name: str) -> tuple:
     """ Initialize iCAP """
     
-    if ICAP_CONF["HOST"]=="":
+    if tb_url=="":
         log.warning("Not setup iCAP url ...")
-        return
+        return None
 
-    # Get Register URL
-    register_url = "{}:{}{}".format(
-        ICAP_CONF["HOST"], ICAP_CONF["PORT"], ICAP_CONF["API_REG_DEVICE"])
-    
     # Try to Register
-    flag, data = register_tb_device(register_url)
+    flag, data = register_tb_device(
+        tb_url=tb_url,
+        tb_port=tb_port,
+        device_name=device_name
+    )
     
-    # If success
+    # Not success
     icap_handler = None
+    if not flag:
+        SERV_CONF["ICAP"] = icap_handler
+        log.warning('Init iCAP Failed! Set SERV_CONF[ICAP] to None')
+        return flag, data
 
-    if flag:
-        icap_handler = ICAP_HANDLER( 
-            host=ICAP_CONF["HOST"], 
-            port=ICAP_CONF["MQTT_PORT"],
-            token=ICAP_CONF["ACCESS_TOKEN"] )
+    # If success
+    icap_handler = ICAP_HANDLER( 
+        host=ICAP_CONF["HOST"], 
+        port=ICAP_CONF["MQTT_PORT"],
+        token=ICAP_CONF["ACCESS_TOKEN"] )
 
-        SERV_CONF.update({"ICAP":icap_handler})
-        SERV_CONF["ICAP"].start()
-        log.info("Update ICAP Object into {}".format(SERV_CONF.get_name))
+    SERV_CONF["ICAP"] = icap_handler
+    # SERV_CONF.update({"ICAP":icap_handler})
+    SERV_CONF["ICAP"].start()
+    log.info("Update ICAP Object into {}".format(SERV_CONF.get_name))
+    return flag, data
+
 
 # --------------------------------------------------------
 # Send Basic Attribute
