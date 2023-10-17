@@ -305,6 +305,9 @@ class MODEL_URL_DEPLOYER(ModelDeployerWrapper):
     """ Deployer for URL Model """
     def __init__(self, url:str) -> None:
         super().__init__()
+        
+        if not url:
+            raise ValueError("Get empty model url !")
 
         self.url = url
         
@@ -574,7 +577,8 @@ def add_model_into_db(model_info:dict, model_uid: str=None, db_path:str=SERV_CON
     # Check uuid is exist or not
     data = select_data(table="model", data="uid", condition=f"WHERE uid='{model_uid}'")
     if len(data)!=0:
-        raise FileExistsError(f"Model is exist in database. ({model_info['name']}: {model_uid})")
+        print(data)
+        # raise FileExistsError(f"Model is exist in database. ({model_info['name']}: {model_uid})")
 
     # Get classes
     with open(model_info["label_path"], 'r') as f:
