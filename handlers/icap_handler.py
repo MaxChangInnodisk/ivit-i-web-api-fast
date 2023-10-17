@@ -110,12 +110,14 @@ class ICAP_HANDLER():
 
     def _attr_event(self, data):
         """ Attribute Event """
-        keys = data.keys()
-        if 'sw_description' in keys:    
-            log.warning('Detected url from iCAP, start to deploy ...')
-            self._attr_deploy_event(data)
+        if 'sw_description' in data:
+            if 'sw_url' in data:
+                log.warning('Detected url from iCAP, start to deploy ...')
+                self._attr_deploy_event(data)
+            else:
+                log.warning(f'The second time of iCAP message ...')    
         else:
-            log.warning('Unexpected key ... {}'.format(', '.join(keys)))
+            log.warning('Unexpected key ... {}'.format(', '.join(data.keys())))
 
     def _stream_behaviour(self, exec_data: dict) -> tuple:
         """Execute WebRTC streaming Add and Delete via ACTION
@@ -283,7 +285,9 @@ class ICAP_HANDLER():
 
     def send_tele(self, data: dict, topic:str=ICAP_CONF["TOPIC_SND_TEL"]):
         try:
-            self.client.publish(topic, json.dumps(data), retain=False)
+            # QoS level 1 guarantees that a message is delivered at least one time to the receiver
+            self.client.publish(topic, json.dumps(data), qos=1, retain=False)
+
         except Exception as e:
             log.exception(e)
 
@@ -364,7 +368,8 @@ class ICAP_DEPLOYER(MODEL_URL_DEPLOYER):
             icap_data.update({
                 "current_sw_title": self.title,
                 "current_sw_version": self.ver })
-
+        
+        
         SERV_CONF["ICAP"].send_tele(icap_data)
 
 # --------------------------------------------------------
