@@ -110,6 +110,10 @@ class ICAP_HANDLER():
 
     def _attr_event(self, data):
         """ Attribute Event """
+        if not data.get('ota_trigger', 0):
+            log.warning('OTA Not Trigger !')
+            return
+            
         if 'sw_description' in data:
             if 'sw_url' in data:
                 log.warning('Detected url from iCAP, start to deploy ...')
