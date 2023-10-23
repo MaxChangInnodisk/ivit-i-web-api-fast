@@ -291,6 +291,7 @@ class ICAP_HANDLER():
         try:
             # QoS level 1 guarantees that a message is delivered at least one time to the receiver
             self.client.publish(topic, json.dumps(data), qos=1, retain=False)
+            time.sleep(0.1)
 
         except Exception as e:
             log.exception(e)
