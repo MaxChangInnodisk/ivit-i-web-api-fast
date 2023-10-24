@@ -1,10 +1,24 @@
 import time
 import os
+import colorsys
 from typing import Tuple, Callable, List
 from collections import defaultdict
 import numpy as np
 import math
 
+    
+def rgb2hsv(rgb: tuple):
+    return colorsys.rgb_to_hsv(rgb[0], rgb[1], rgb[2])
+
+def rgb2hls(rgb: tuple):
+    return colorsys.rgb_to_hls(rgb[0], rgb[1], rgb[2])
+
+def get_font_color(bg_color:tuple):
+    (h,l,s) = rgb2hls(bg_color)
+    black, white = (0,0,0), (255,255,255)
+    if l > 130 or s < -0.9:
+        return black 
+    return white
 
 def timeit(func):
     def timed(*args, **kwargs):

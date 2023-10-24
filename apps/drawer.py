@@ -1,5 +1,9 @@
 import cv2
 import numpy as np
+try:
+    from utils import get_font_color
+except:
+    from apps.utils import get_font_color
 
 # Parameters
 FRAME_SCALE     = 0.0005    # Custom Value which Related with Resolution
@@ -117,12 +121,14 @@ class DrawTool:
         xmin, ymin = left_bottom
         thick = thick if thick else self.thick
 
+        font_color = get_font_color(color)
+
         (t_wid, t_hei), t_base = cv2.getTextSize(label, FONT_TYPE, self.font_size, self.font_thick)
         t_xmin, t_ymin, t_xmax, t_ymax = xmin, ymin-(t_hei+(t_base*2)), xmin+t_wid, ymin
         cv2.rectangle(frame, (t_xmin, t_ymin), (t_xmax, t_ymax), color , -1)
         cv2.putText(
             frame, label, (xmin, ymin-(t_base)), FONT_TYPE,
-            self.font_size, (255,255,255), self.font_thick, LINE_TYPE
+            self.font_size, font_color, self.font_thick, LINE_TYPE
         )
 
     def draw_area_results(self, frame: np.ndarray, areas: dict, color: list= None, font_color: list= None) -> None:
