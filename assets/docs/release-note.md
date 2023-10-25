@@ -1,6 +1,27 @@
 # Release Note
 
-## v1.2
+## v1.2.1
+* Web API
+  1. Switch the color of the label font by detecting the lighting value. 
+  2. Fix the issue about the event screenshot is wrong.
+  3. Fix the issue about the event trigger twice when the condition is available.
+  4.  Fix the unknown issue when the event condition value is too small.
+  5. Fix the issue about iVIT-I crash when the used model has been deleted. 
+
+* Website
+  1. Fix the WebRTC can not confirm the issue.
+  2. Cancel event operator ( "<" ) in Tracking_Zone and Movement_Zone
+  3. Clear event when the AI task.
+  4. Always keep the event information if the AI task is running.
+  5. Sort all tasks via the first character on the entrance page.
+  6. Disable the right-click menu on the video element on the streaming page.
+  7. Not select the source automatically when the camera is re-plugged.
+  8. Update the iVIT-I Logo.
+  9. Allow the user to click the whole area of the source dropdown.
+  10. When the model used for the AI task is deleted, the task can not be edited anymore, only support deleted.
+  11. Cancel the animation when switching the event condition button. 
+
+## v1.2.0
 1. Add event system
   * Event setting
   * Event streaming
