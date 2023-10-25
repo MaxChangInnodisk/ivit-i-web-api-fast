@@ -469,7 +469,10 @@ class Tracking_Zone(iAPP_OBJ):
 
         if not isinstance(area_data, dict):
             raise TypeError("Event setting should be dict.")
-        
+            
+        if "<" in events["logic_operator"]:
+            raise TypeError("Tracking, Movement not support \"<\" operator !")
+
         event_obj = event_func(
             title = events["title"],
             folder = events.get("event_folder", "./events"),
@@ -744,7 +747,26 @@ class Tracking_Zone(iAPP_OBJ):
             save_tracked_dets = []
             
             # track each labels
-            for label, tracking_points in tracking_data.items():
+            # for label, tracking_points in tracking_data.items():
+            for label in self.labels:
+
+                tracking_points = tracking_data.get(label)
+
+                if tracking_points is None: 
+                     
+                    trg_label_tracker = self.mot_trackers[area_idx].get(label)
+                    if trg_label_tracker is None:
+                        continue
+
+                    total_label_nums = trg_label_tracker.get_total_nums(label)
+                    self.areas[area_idx]["output"][label] = total_label_nums
+
+                    # Combine label informations
+                    new_area_output.append({
+                        "label": label,
+                        "nums": total_label_nums
+                    })
+                    continue
                 
                 trg_label_tracker = self.mot_trackers[area_idx][label]
                 

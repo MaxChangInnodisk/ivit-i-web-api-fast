@@ -515,7 +515,10 @@ class Movement_Zone(iAPP_OBJ):
 
         if not isinstance(area_data, dict):
             raise TypeError("Event setting should be dict.")
-        
+
+        if "<" in events["logic_operator"]:
+            raise TypeError("Tracking, Movement not support \"<\" operator !")
+
         event_obj = event_func(
             title = events["title"],
             folder = events.get("event_folder", "./events"),
