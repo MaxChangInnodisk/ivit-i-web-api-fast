@@ -576,8 +576,8 @@ def add_model_into_db(model_info:dict, model_uid: str=None, db_path:str=SERV_CON
 
     # Check uuid is exist or not
     data = select_data(table="model", data="uid", condition=f"WHERE uid='{model_uid}'")
-    if len(data)!=0:
-        print(data)
+    # if len(data)!=0:
+    #     print(data)
         # raise FileExistsError(f"Model is exist in database. ({model_info['name']}: {model_uid})")
 
     # Get classes
