@@ -230,21 +230,24 @@ def check_single_task_for_hailo():
         raise RuntimeError('Not support multiple AI task !!!')
 
 
-def check_event_params(app_setting:dict):
+def check_event_params(app_setting:dict, app_name:str = ""):
     """Check event parameters and update event status in application setting ( which key is 'enable'). """
     
     # NOTE: check event first because the setting was in app_setting
     # Add Event Information
     for area_info in app_setting["application"]["areas"]:
         
-        if "events" not in area_info: continue
 
+        if "events" not in area_info: continue
         log.info(f"Get event setting in area ( {area_info['name']} )")
         for key in [ "enable", "uid", "title", "logic_operator", "logic_value" ]:
             if key == "enable" and key not in area_info["events"]:
                 area_info["events"].update({"enable": True})
-            log.debug("\t* {}: {}".format(key, area_info["events"].get(key)))           
-    pass
+            log.debug("\t* {}: {}".format(key, area_info["events"].get(key)))
+
+            if key == "logic_operator" and ( app_name in ["Tracking_Zone", "Movement_Zone"]):
+                if area_info["events"][key] == "<":
+                    raise KeyError("Tracking and Movement not support \"<\" operator. ")
 
 # --------------------------------------------------------
 # Execute AI Task
@@ -284,7 +287,6 @@ def run_ai_task(uid:str, data:dict=None) -> str:
     # Check Status: Wait Task if there is someone launching task
     timeout = 0
     while(True):
-
         status = get_task_status(uid)
         
         if status == 'run':
@@ -300,6 +302,12 @@ def run_ai_task(uid:str, data:dict=None) -> str:
             if timeout >= 20:
                 raise RuntimeError('Waitting AI Task Timeout')
 
+    # Load Application
+    try:
+        app = create_app(app_uid=uid, label_path=model_info['label_path'])
+    except Exception as e:
+        raise RuntimeError("Load Application Failed: {}".format(simple_exception(e)[1]))
+    
     # Prepare AI Model Config and Load Model
     try:
         model_data = select_data( table='model', data="*", 
@@ -352,12 +360,7 @@ def run_ai_task(uid:str, data:dict=None) -> str:
     except Exception as e:
         raise RuntimeError("Load Displayer Failed: {}".format(simple_exception(e)[1]))
 
-    # Load Application
-    try:
-        app = create_app(app_uid=uid, label_path=model_info['label_path'])
-    except Exception as e:
-        raise RuntimeError("Load Application Failed: {}".format(simple_exception(e)[1]))
-    
+
     # Create Threading
     try:
         # Check Keyword in RT_CONF
@@ -468,7 +471,13 @@ def add_ai_task(add_data):
         results = db_to_list(cur.execute("""SELECT uid FROM model WHERE uid=\"{}\" """.format(add_data.model_uid)))
         if is_list_empty(results):
             errors.update( {"model_uid": "Unkwon model UID: {}".format(add_data.model_uid)} )
-    
+
+        # Check Event
+        try:
+            check_event_params(add_data.app_setting, add_data.app_name)
+        except Exception as e:
+            errors.update( {"events": "Event setting error ({})".format(e.message)} )
+
     except Exception as e:
         log.exception(e)
 
@@ -503,7 +512,6 @@ def add_ai_task(add_data):
         }
 
     )
-    check_event_params(add_data.app_setting)    
     
     # Add App Information into Database
     # app_type = select_data(table='app', data=['type'], condition=f"WHERE name='{add_data.app_name}'")[0][0]
@@ -562,15 +570,23 @@ def edit_ai_task(edit_data):
         results = db_to_list(cur.execute("""SELECT uid FROM model WHERE uid=\"{}\" """.format(edit_data.model_uid)))
         if is_list_empty(results):
             errors.update( {"model_uid": "Unkwon model UID: {}".format(edit_data.model_uid)} )
-    
+
+        # Check Event
+        try:
+            check_event_params(edit_data.app_setting, edit_data.app_name)
+        except Exception as e:
+            errors.update( {"events": "Event setting error ({})".format(e)} )
+
     except Exception as e:
         log.exception(e)
+        errors.update( {"unknown": "Unknown error ({})".format(e)} )
 
     finally:
         # Close DB
         close_db(con, cur)
 
     # Find Error and return errors
+    print(errors)
     if len(errors.keys())>0:
         return {
         "uid": task_uid,
@@ -593,7 +609,7 @@ def edit_ai_task(edit_data):
         replace=True
     )
     
-    check_event_params(edit_data.app_setting)
+    # check_event_params(edit_data.app_setting, edit_data.app_name)
 
     # Add App Information into Database
     app_type = RT_CONF["IAPP"].get_app(edit_data.app_name).get_type()
@@ -1135,7 +1151,10 @@ class InferenceLoop:
                 continue
 
             # Send to front end via WebSocket
-            if "WS" not in WS_CONF: return
+            if "WS" not in WS_CONF: 
+                log.debug('No socket')
+                print(data)
+                return
             
             # Tidy up data
             data["annotation"].pop("detections")
@@ -1147,7 +1166,6 @@ class InferenceLoop:
             except Exception as e:
                 log.warning('Send websocket failed!!!!')
                 log.exception(e)
-
 
     # NOTE: MAIN LOOP
     def _infer_loop(self):
