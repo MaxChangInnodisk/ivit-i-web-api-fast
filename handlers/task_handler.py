@@ -302,12 +302,7 @@ def run_ai_task(uid:str, data:dict=None) -> str:
             if timeout >= 20:
                 raise RuntimeError('Waitting AI Task Timeout')
 
-    # Load Application
-    try:
-        app = create_app(app_uid=uid, label_path=model_info['label_path'])
-    except Exception as e:
-        raise RuntimeError("Load Application Failed: {}".format(simple_exception(e)[1]))
-    
+
     # Prepare AI Model Config and Load Model
     try:
         model_data = select_data( table='model', data="*", 
@@ -316,6 +311,13 @@ def run_ai_task(uid:str, data:dict=None) -> str:
     except Exception as e:
         raise RuntimeError("Load AI Model Failed: Can not found AI Model")
 
+    # Load Application
+    try:
+        app = create_app(app_uid=uid, label_path=model_info['label_path'])
+    except Exception as e:
+        raise RuntimeError("Load Application Failed: {}".format(simple_exception(e)[1]))
+    
+    # Load Model
     try:        
         model_info['meta_data'].update( 
             {**task_info['model_setting'], 'device': task_info['device'] } )
