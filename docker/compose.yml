@@ -23,7 +23,7 @@ services:
       - API_PORT=819
       - RTC_PORT=8083
   website:
-    image: innodiskorg/ivit-i-website:v120
+    image: innodiskorg/ivit-i-website:v121
     network_mode: host
     environment:
       - NGINX_PORT=8001
