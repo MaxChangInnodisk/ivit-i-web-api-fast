@@ -1,4 +1,4 @@
-![COVER](./assets/images/iVIT-I-Logo-B.png)
+![COVER](./assets/images/ivit-i-logo.jpg)
 
 # iVIT-I-WebAPI-Fast
 the faster web api for `iVIT-I`
