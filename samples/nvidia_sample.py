@@ -10,11 +10,11 @@ import os
 try:
     from .imagenet import IMAGE_NET_LABEL
     from .coco import COCO_LABEL
-    from .utils import download_data, download_model
+    from .utils import download_data, download_model, load_palette
 except:
     from imagenet import IMAGE_NET_LABEL
     from coco import COCO_LABEL
-    from utils import download_data, download_model
+    from utils import download_data, download_model, load_palette
 
 try:
     from ..common import SERV_CONF
@@ -166,11 +166,17 @@ def nv_sample_obj_yolov4_tiny(db_path: str = SERV_CONF["DB_PATH"]):
         "confidence_threshold": 0.7
     }
 
+    # Get label and palette
+    data = model_handler.parse_model_folder(os.path.join(SERV_CONF["MODEL_DIR"], model_name))
+    label_path = data["label_path"]
+    trg_palette = load_palette(label_path=label_path)
+
     app_name = 'Basic_Object_Detection'
     app_type = 'OBJ'
     app_uid = task_uid
     app_setting = {
         "application": {
+            "palette":trg_palette,
             "areas": [
                 {
                     "name": "default",
@@ -261,11 +267,17 @@ def nv_sample_obj_yolov4(db_path: str = SERV_CONF["DB_PATH"]):
         "confidence_threshold": 0.7
     }
 
+    # Get label and palette
+    data = model_handler.parse_model_folder(os.path.join(SERV_CONF["MODEL_DIR"], model_name))
+    label_path = data["label_path"]
+    trg_palette = load_palette(label_path=label_path)
+
     app_name = 'Basic_Object_Detection'
     app_type = 'OBJ'
     app_uid = task_uid
     app_setting = {
         "application": {
+            "palette":trg_palette,
             "areas": [
                 {
                     "name": "default",
