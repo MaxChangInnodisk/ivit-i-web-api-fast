@@ -71,7 +71,7 @@ async def set_icap_address(data: ResetFormat):
     
     is_reg = SERV_CONF.get("ICAP")
     try:
-        if is_reg:
+        if is_reg is not None:
             log.warning('Re-register iCAP ')
             SERV_CONF["ICAP"].release()
         
