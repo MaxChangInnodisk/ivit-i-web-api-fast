@@ -819,7 +819,7 @@ class Tracking_Zone(iAPP_OBJ):
 
             # Trigger event
             event = self.areas[area_idx].get("event", None)
-            if self.force_close_event or not event: continue
+            if self.force_close_event or not event or len(tracking_result)==0: continue
             cur_output = event( original= original,
                                 value= sum([ item["nums"] for item in new_area_output ]),
                                 detections= save_tracked_dets,
