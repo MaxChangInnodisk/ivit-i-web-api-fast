@@ -1537,7 +1537,7 @@ class TaskImporterWrapper(TaskProcessor):
     def _update_uid_into_share_env(self):
         """ Updae Environment Object """
         if SERV_CONF.get("PROC") is None:
-            SERV_CONF.update({"PROC": {}})
+            SERV_CONF.update({"PROC": defaultdict()})
         if SERV_CONF["PROC"].get(self.uid) is None:
             SERV_CONF["PROC"].update({
                 self.uid: { 
@@ -1621,7 +1621,23 @@ class TaskImporterWrapper(TaskProcessor):
                     org_path = file_path,
                     trg_path = trg_path
                 )
-        
+
+    def _get_valid_task_name(self, task_name: str):
+        # Check duplicate name
+        if not has_duplicate_task(task_name, duplicate_limit=1):
+            return task_name
+
+        new_task_name = task_name
+        idx = 1
+        while(True):
+            new_task_name = f"{task_name} ({idx})"
+            if not has_duplicate_task(new_task_name, duplicate_limit=1):
+                break    
+            idx += 1
+
+        log.warning(f"Task rename from {task_name} to {new_task_name}")
+        return new_task_name
+
     def _add_into_db(self):
         
         # Get Config Data
@@ -1634,10 +1650,7 @@ class TaskImporterWrapper(TaskProcessor):
         app_table       = cfg_data["app"]
 
         # Check duplicate name
-        prev_name = task_table["name"]
-        while(has_duplicate_task(task_table["name"], duplicate_limit=1)):
-            task_table["name"] = task_table["name"] + ' (1)'
-        log.warning(f"Task rename from {prev_name} to {task_table['name']}")
+        task_table["name"] = self._get_valid_task_name(task_table["name"])
 
         # Source
         db_handler.insert_data(
