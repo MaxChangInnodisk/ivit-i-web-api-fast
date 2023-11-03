@@ -6,6 +6,7 @@
 import gdown
 import sqlite3
 import os
+import time
 
 try:
     from .imagenet import IMAGE_NET_LABEL
@@ -29,6 +30,7 @@ from ivit_i.utils import iDevice
 
 # Parameters
 DEV = ""
+CREATED_TIME = time.time()
 
 def nv_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
     """ Add intel sample information into database 
@@ -124,7 +126,8 @@ def nv_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
             "model_uid": model_uid,
             "model_setting": model_setting,
             "status": task_status,
-            "device": device
+            "device": device,
+            "created_time": CREATED_TIME
         },
         replace=True
     )
@@ -225,7 +228,8 @@ def nv_sample_obj_yolov4_tiny(db_path: str = SERV_CONF["DB_PATH"]):
             "model_uid": model_uid,
             "model_setting": model_setting,
             "status": task_status,
-            "device": device
+            "device": device,
+            "created_time": CREATED_TIME
         },
         replace=True
     )
@@ -326,7 +330,8 @@ def nv_sample_obj_yolov4(db_path: str = SERV_CONF["DB_PATH"]):
             "model_uid": model_uid,
             "model_setting": model_setting,
             "status": task_status,
-            "device": device
+            "device": device,
+            "created_time": CREATED_TIME
         },
         replace=True
     )
@@ -453,7 +458,8 @@ def nv_sample_detection_zone(db_path: str = SERV_CONF["DB_PATH"]):
             "model_uid": model_uid,
             "model_setting": model_setting,
             "status": task_status,
-            "device": device
+            "device": device,
+            "created_time": CREATED_TIME
         },
         replace=True
     )
@@ -581,7 +587,8 @@ def nv_sample_tracking_zone(db_path: str = SERV_CONF["DB_PATH"]):
             "model_uid": model_uid,
             "model_setting": model_setting,
             "status": task_status,
-            "device": device
+            "device": device,
+            "created_time": CREATED_TIME
         },
         replace=True
     )
@@ -744,7 +751,8 @@ def nv_sample_movement_zone(db_path: str = SERV_CONF["DB_PATH"]):
             "model_uid": model_uid,
             "model_setting": model_setting,
             "status": task_status,
-            "device": device
+            "device": device,
+            "created_time": CREATED_TIME
         },
         replace=True
     )
