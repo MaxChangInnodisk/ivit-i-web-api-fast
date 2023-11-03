@@ -1697,7 +1697,8 @@ class TaskImporterWrapper(TaskProcessor):
                 "model_uid": task_table["model_uid"],
                 "model_setting": task_table["model_setting"],
                 "status": task_table["status"],
-                "device": task_table["device"]
+                "device": task_table["device"],
+                "created_time": time.time()
             },
             replace=True
         )
