@@ -546,7 +546,8 @@ def add_ai_task(add_data):
             "model_uid": add_data.model_uid,
             "model_setting": add_data.model_setting,
             "status": "stop",
-            "device": add_data.device
+            "device": add_data.device,
+            "created_time": time.time()
         }
 
     )
