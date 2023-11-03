@@ -227,6 +227,7 @@ def verify_duplicate_task(task_name:str, duplicate_limit=2):
         if duplicate_nums >= duplicate_limit:
             raise NameError('AI Task is already exist ( {}: {} )'.format(uid, name))
 
+
 def has_duplicate_task(task_name:str, duplicate_limit=2) -> bool:
     """Check duplicate AI task.
 
@@ -572,6 +573,7 @@ def add_ai_task(add_data):
         "data": errors
     }
 
+
 def edit_ai_task(edit_data):
     """ Edit AI Task
     ---
@@ -587,7 +589,8 @@ def edit_ai_task(edit_data):
     task_uid = app_uid = edit_data.task_uid
 
     # CHECK: AI task is exist or not
-    verify_task_exist(task_uid)
+    task_raw_data = verify_task_exist(task_uid)
+    task_info = parse_task_data(task_raw_data)
     
     # Name is exists
     verify_duplicate_task(edit_data.task_name)
@@ -642,7 +645,8 @@ def edit_ai_task(edit_data):
             "model_uid": edit_data.model_uid,
             "model_setting": json_to_str(edit_data.model_setting),
             "status": "stop",
-            "device": edit_data.device
+            "device": edit_data.device,
+            "created_time": task_info["created_time"]
         },
         replace=True
     )
