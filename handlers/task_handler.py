@@ -36,7 +36,14 @@ from .io_handler import (
     is_source_using,
     create_rtsp_displayer
 )
-from . import task_handler, db_handler, model_handler, icap_handler, event_handler
+from . import (
+    task_handler, 
+    db_handler, 
+    model_handler, 
+    icap_handler, 
+    event_handler,
+    io_handler
+)
 from .app_handler import create_app
 from .mesg_handler import json_exception, handle_exception, simple_exception, ws_msg
 from .err_handler import InvalidError, InvalidUidError
@@ -478,9 +485,6 @@ def add_ai_task(add_data):
     errors = {}
     task_uid = app_uid = gen_uid()
 
-    if add_data.task_name == "":
-        raise NameError("AI task name is empty !!!")
-
     try:
         # Check Database Data
         con, cur = connect_db()
@@ -562,7 +566,6 @@ def add_ai_task(add_data):
         "data": errors
     }
 
-
 def edit_ai_task(edit_data):
     """ Edit AI Task
     ---
@@ -579,8 +582,8 @@ def edit_ai_task(edit_data):
 
     # CHECK: AI task is exist or not
     verify_task_exist(task_uid)
-
-    # CHECK: task exist
+    
+    # Name is exists
     verify_duplicate_task(edit_data.task_name)
 
     # CHECK: threshold value is available
@@ -1755,6 +1758,7 @@ class TaskImporterWrapper(TaskProcessor):
             
             except Exception as e:
                 print(e)
+
 
 class TASK_ZIP_IMPORTER(TaskImporterWrapper):
     """ IMPORTER for ZIP Model """

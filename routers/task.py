@@ -4,22 +4,22 @@
 # https://opensource.org/licenses/MIT
 
 # Basic
-import json, threading, time, sys, os, re
+import json, threading, time, sys, os
 import logging as log
 from fastapi import APIRouter,File, Form, UploadFile
 from fastapi.responses import Response, FileResponse
 from typing import Optional, Dict, List
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError, validator
 
 
 try:
     from ..common import SERV_CONF
-    from ..handlers import task_handler
+    from ..handlers import task_handler, io_handler
     from ..handlers.mesg_handler import http_msg, json_exception
     from ..handlers.db_handler import update_data
 except:
     from common import SERV_CONF
-    from handlers import task_handler
+    from handlers import task_handler, io_handler
     from handlers.mesg_handler import http_msg, json_exception
     from handlers.db_handler import update_data
 
@@ -35,7 +35,6 @@ ACTION = {
     'update': task_handler.update_ai_task
 }
 
-
 # --------------------------------------------------------------------
 # Request Body
 
@@ -49,7 +48,6 @@ class TaskActionData(BaseModel):
     draw_area: Optional[bool]
     draw_tracking: Optional[bool]
     draw_line: Optional[bool]
-    
 
 
 class TaskAction(BaseModel):
@@ -58,8 +56,19 @@ class TaskAction(BaseModel):
     data: Optional[TaskActionData]
 
 
-class AddTaskFormat(BaseModel):
-	task_name: str
+class TaskName(BaseModel):
+    task_name: str
+
+    @validator('task_name')
+    def is_task_name_valid(cls, v):
+        if v == "":
+            raise ValueError("The AI task name is empty !!!")
+        if not io_handler.is_name_valid(v):
+            raise ValueError(f"Unexpected characters: {io_handler.UNEXPECTED_CHAR}")
+        return v
+
+
+class AddTaskFormat(TaskName):
 	source_uid: str
 	model_uid: str
 	device: str
@@ -68,9 +77,8 @@ class AddTaskFormat(BaseModel):
 	app_setting: dict
 
 
-class EditTaskFormat(BaseModel):
+class EditTaskFormat(TaskName):
 	task_uid: str
-	task_name: str
 	source_uid: str
 	model_uid: str
 	device: str
@@ -158,8 +166,9 @@ def add_task(add_data: AddTaskFormat):
         code = 200 if ret['status']=='success' else 500
     
         return http_msg(content=ret, status_code=code)
-    
+
     except Exception as e:
+        print(e)
         return http_msg(content=e, status_code=500)
 
 
@@ -189,6 +198,7 @@ def edit_task(edit_data: EditTaskFormat):
         ret = task_handler.edit_ai_task(edit_data=edit_data)
         code = 200 if ret['status']=='success' else 500
         return http_msg(content=ret, status_code=code)
+
     except Exception as e:
         return http_msg(content=e, status_code=500)
 
@@ -215,6 +225,3 @@ def import_task(
     except Exception as e:
         return http_msg( content=e, status_code = 500 )
     
-
-
-
