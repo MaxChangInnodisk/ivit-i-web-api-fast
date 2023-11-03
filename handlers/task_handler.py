@@ -100,10 +100,14 @@ def get_task_info(uid:str=None):
     con, cur = connect_db()
 
     # Move DB Cursor
-    results = db_to_list( cur.execute(
-        '''SELECT * FROM task''' if uid == None \
-            else """SELECT * FROM task WHERE uid=\"{}\"""".format(uid)
-    ))
+    sql_command = '''SELECT * FROM task''' if uid == None \
+        else """SELECT * FROM task WHERE uid=\"{}\"""".format(uid)
+
+    # Sort
+    sql_command = sql_command + " ORDER BY created_time ASC, name ASC"
+    
+    # Get data
+    results = db_to_list( cur.execute(sql_command))
 
     # Check BD is any task exist
     if is_db_empty(SERV_CONF["DB_PATH"]):
@@ -115,6 +119,7 @@ def get_task_info(uid:str=None):
     
     
     # Get Data
+    print([(task[1], task[8]) for task in results])
     for info in map(parse_task_data, results):
   
         task_uid = app_uid = info['uid']
@@ -186,7 +191,7 @@ def update_task_status(uid, status, err_mesg:dict = {}):
     update_data(table='task', data=write_data, condition=f"WHERE uid='{uid}'")
 
 
-def verify_task_exist(uid):
+def verify_task_exist(uid) -> dict:
     
     # Task Information
     task = select_data(table='task', data="*", condition=f"WHERE uid='{uid}'")
