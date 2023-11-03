@@ -1784,10 +1784,16 @@ class TASK_ZIP_IMPORTER(TaskImporterWrapper):
         self.file_name = self.file.filename                   
 
         # Parse ZIP Name
-        name_formats = self.file_name.split('_')
-        if len(name_formats)!=3:
-            raise NameError(f'Support name is <platform>_<task_name>_<export_time>.zip, but got {self.file_name}')
-        self.task_platform, self.task_name, self.export_time = name_formats
+        support_platforms = [ "intel", "nv", "nvidia", "hailo", "xilinx" ]
+        name_formats = os.path.splitext(self.file_name)[0].split('_')
+        self.task_platform = name_formats[0]
+        self.task_name = ''.join(name_formats[1:-1])
+        self.export_time = name_formats[-1]
+
+        if self.task_platform not in support_platforms:
+            raise NameError("Got unexpected platform, expect platform is {}".format(support_platforms))
+        if not self.export_time.isdigit() :
+            raise NameError(f'Go invalidate export time, it should be as <year><month><day>')
         
         self.file_path = os.path.join( SERV_CONF["TEMP_DIR"], self.file_name )
         self.file_folder = os.path.join( SERV_CONF["TEMP_DIR"], self.task_name )
