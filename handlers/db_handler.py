@@ -230,6 +230,7 @@ def init_tables(db_path:str):
                     "status TEXT,"
                     "device TEXT,"
                     "error TEXT,"
+                    "created_time TEXT"
                     "annotation TEXT,"
                     "FOREIGN KEY(source_uid) REFERENCES source(uid) ON DELETE CASCADE,"
                     "FOREIGN KEY(model_uid) REFERENCES model(uid) ON DELETE CASCADE"
