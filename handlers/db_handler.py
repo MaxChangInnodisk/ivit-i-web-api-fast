@@ -336,7 +336,9 @@ def parse_task_data(data: Union[dict, sqlite3.Cursor]) -> dict:
         "model_setting": json.loads(data[4]),
         "status": data[5],
         "device": data[6],
-        "error": error_message
+        "error": error_message,
+        "created_time": data[8],
+        "annotation": data[9]
     }
 
 
