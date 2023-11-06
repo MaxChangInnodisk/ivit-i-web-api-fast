@@ -20,10 +20,10 @@ import hashlib
 
 # Custom
 try:
-    from ..common import SERV_CONF, RT_CONF, WS_CONF
+    from ..common import SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
     from ..utils import gen_uid, json_to_str, file_helper, encode
 except:
-    from common import SERV_CONF, RT_CONF, WS_CONF
+    from common import SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
     from utils import gen_uid, json_to_str, file_helper, encode
 
 from .ai_handler import get_ivit_api, iModel
@@ -1087,7 +1087,10 @@ class InferenceLoop:
             data["end_time"] = str(data["end_time"])
             try:
                 # Send data to front end
-                asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=data )) )
+                event_message = ws_msg( type="EVENT", content=data )
+                
+                EVENT_CONF.update(data)
+                asyncio.run( WS_CONF["WS"].send_json(event_message) )
             except Exception as e:
                 log.warning('Send websocket failed!!!!')
                 log.exception(e)

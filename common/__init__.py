@@ -15,7 +15,8 @@ from .config import (
     MODEL_CONF, 
     ICAP_CONF, 
     RT_CONF, 
-    WS_CONF
+    WS_CONF,
+    EVENT_CONF
 )
 
 init_ivit_env()

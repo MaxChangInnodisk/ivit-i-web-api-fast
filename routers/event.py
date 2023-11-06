@@ -4,17 +4,17 @@
 # https://opensource.org/licenses/MIT
 
 # Basic
-import json
+import json, time, asyncio
 import logging as log
 from fastapi import APIRouter,status
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from typing import Optional, Dict, List
 from pydantic import BaseModel
 import cv2
 import os
 
 try:
-    from ..common import SERV_CONF, RT_CONF
+    from ..common import SERV_CONF, RT_CONF, EVENT_CONF
     from ..handlers.mesg_handler import http_msg
     from ..handlers.db_handler import (
         select_data, insert_data, 
@@ -25,7 +25,7 @@ try:
     from ..handlers.app_handler import create_app
     from .source import frame2buf
 except:
-    from common import SERV_CONF, RT_CONF
+    from common import SERV_CONF, RT_CONF, EVENT_CONF
     from handlers.mesg_handler import http_msg
     from handlers.db_handler import (
         select_data, insert_data, 
@@ -41,6 +41,22 @@ event_router = APIRouter( tags=["event"] )
 
 # --------------------------------------------------------------------
 # Helper Function
+
+# --------------------------------------------------------------------
+# Event Streamin
+async def event_stream():
+    try:
+        while RT_CONF["EVENT_STREAM"]:
+            if EVENT_CONF:
+                data = json.dumps(dict(EVENT_CONF)) 
+                yield f"data: {data}\n\n"
+                EVENT_CONF.clear()
+            await asyncio.sleep(1)
+    except GeneratorExit:
+        pass
+    
+    print("END")
+    EVENT_CONF.clear()
 
 # --------------------------------------------------------------------
 # Request Body
@@ -97,6 +113,18 @@ def get_events(del_data: DelEventFormat):
     except Exception as e:
         return http_msg(content=e, status_code=500)
 
+@event_router.get("/events/screenshot")
+def get_screenshot(tt: int, draw: bool=True):
+    """Get the screenshot of event"""
+    try:
+        frame = event_handler.get_event_screenshot(tt, draw)
+        return Response(    content = frame2buf(frame=frame), 
+                            status_code = 200, 
+                            media_type="image/jpeg" )
+    except Exception as e:
+        return http_msg(    content=e, 
+                            status_code=500)
+
 
 @event_router.post("/events/screenshot")
 def get_screenshot(data: ScreenShotFormat):
@@ -109,3 +137,16 @@ def get_screenshot(data: ScreenShotFormat):
     except Exception as e:
         return http_msg(    content=e, 
                             status_code=500)
+
+@event_router.get("/events/stream")
+def get_event_stream():
+    event_generator = event_stream()
+    return StreamingResponse(event_generator, media_type="text/event-stream")
+
+@event_router.delete("/events/stream")
+def del_event_stream():
+    try:
+        RT_CONF["EVENT_STREAM"] = False
+        return http_msg("Success", 200)
+    except Exception as e:
+        return http_msg("Fail", 500)
