@@ -11,14 +11,15 @@
     "https": false,
     "https_auto_tls": false,
     "https_auto_tls_name": "",
-    "https_cert": "server.crt",
-    "https_key": "server.key",
+    "https_cert": "ivit.crt",
+    "https_key": "ivit.key",
     "https_port": ":443",
-    "ice_credential": "",
+    "ice_credential": "ivit",
     "ice_servers": [
-      "stun:stun.l.google.com:19302"
+      "stun:stun.l.google.com:19302",
+      "turn:127.0.0.1:3478"
     ],
-    "ice_username": "",
+    "ice_username": "ivit",
     "log_level": "debug",
     "rtsp_port": ":5541",
     "token": {
@@ -27,5 +28,15 @@
     },
     "webrtc_port_max": 0,
     "webrtc_port_min": 0
+  },
+  "streams": {
+    "8d6c8bee-cd33-4439-a56b-9faf917ccc8a": {
+      "channels": {
+        "0": {
+          "url": "rtsp://localhost:8554/sample"
+        }
+      },
+      "name": "123"
+    }
   }
 }
