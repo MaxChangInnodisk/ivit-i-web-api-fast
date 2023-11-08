@@ -38,3 +38,17 @@ services:
       '< /etc/nginx/nginx.conf.template
       > /etc/nginx/nginx.conf
       && nginx -g 'daemon off;'"
+  coturn:
+    image: coturn/coturn
+    ports:
+      - 3478:3478
+      - 3478:3478/udp
+      - 5349:5349
+      - 5349:5349/udp
+      - 49160-49200:49160-49200/udp
+    command: >
+      -n --log-file=stdout --external-ip='$(detect-external-ip)' \
+      --min-port=49160 --max-port=49200 \
+      --lt-cred-mech \
+      --user=turnguest:turnguestpass --realm=xxx \
+      --allow-loopback-peers --fingerprint --no-cli
