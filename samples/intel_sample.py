@@ -30,7 +30,13 @@ except:
     from utils import gen_uid, json_to_str
     from handlers import db_handler, model_handler
 
+from ivit_i.utils.device import iDevice
+devices = iDevice().get_available_device()
+
 CREATED_TIME = time.time()
+DEV = "GPU" if "GPU" in devices else "CPU"
+
+log.info("Create sample with accelerator: {}".format(DEV))
 
 def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
     """ Add intel sample information into database 
@@ -56,7 +62,7 @@ def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
     task_status = 'stop'
     task_uid = gen_uid()
 
-    device = 'CPU'
+    device = DEV
 
     source_status = 'stop'
     source_name = data_name
@@ -172,7 +178,7 @@ def intel_sample_obj(db_path: str = SERV_CONF["DB_PATH"]):
     task_status = 'stop'
     task_uid = gen_uid()
 
-    device = 'CPU'
+    device = DEV
 
     source_status = 'stop'
     source_name = data_name
@@ -287,7 +293,7 @@ def intel_sample_detection_zone(db_path: str = SERV_CONF["DB_PATH"]):
     task_status = 'stop'
     task_uid = gen_uid()
 
-    device = 'CPU'
+    device = DEV
 
     source_status = 'stop'
     source_name = data_name
@@ -424,7 +430,7 @@ def intel_sample_tracking_zone(db_path: str = SERV_CONF["DB_PATH"]):
     task_status = 'stop'
     task_uid = gen_uid()
 
-    device = 'CPU'
+    device = DEV
 
     source_status = 'stop'
     source_name = data_name
@@ -555,7 +561,7 @@ def intel_sample_movement_zone(db_path: str = SERV_CONF["DB_PATH"]):
     task_status = 'stop'
     task_uid = gen_uid()
 
-    device = 'CPU'
+    device = DEV
 
     source_status = 'stop'
     source_name = data_name

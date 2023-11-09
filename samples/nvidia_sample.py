@@ -29,7 +29,7 @@ except:
 from ivit_i.utils import iDevice
 
 # Parameters
-DEV = ""
+DEV = iDevice().get_available_device()[0]
 CREATED_TIME = time.time()
 
 def nv_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
@@ -759,8 +759,7 @@ def nv_sample_movement_zone(db_path: str = SERV_CONF["DB_PATH"]):
 
 
 def init_nvidia_samples():
-    global DEV
-    DEV = iDevice().get_available_device()[0]
+
     nv_sample_cls()
     # nv_sample_obj()
     nv_sample_obj_yolov4_tiny()
