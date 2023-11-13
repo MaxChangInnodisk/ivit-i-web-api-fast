@@ -1278,6 +1278,8 @@ class TaskProcessor(TaskMessenger):
         self.thread = self._create_thread()
         self.message = ""
         self.error = Exception()
+        self.topic = "TASK"
+        self.action = ""
 
     def update_status(self, 
         status:str, 
@@ -1304,6 +1306,13 @@ class TaskProcessor(TaskMessenger):
             "status": self.status,
             "message": self.message
         })
+
+        # Update Topic and Action
+        if self.topic and self.action:
+            SERV_CONF["PROC"][self.uid].update({
+                "topic": self.topic,
+                "action": self.action
+            })
 
         # Push data
         if push_mesg:
@@ -1351,6 +1360,7 @@ class TaskExporter(TaskProcessor):
     def __init__(self, uid: str):
         super().__init__(self._valid_empty_uid(uid))
         self.performance = defaultdict(float)
+        self.action = "EXPORT"
 
     def _valid_empty_uid(self, uid: str):
         if uid=="": 
@@ -1529,6 +1539,7 @@ class TaskImporterWrapper(TaskProcessor):
         benchmark:
         """
         super().__init__()
+        self.action = "IMPORT"
 
         # Task information
         self.task_platform = None
@@ -1820,36 +1831,3 @@ class TASK_ZIP_IMPORTER(TaskImporterWrapper):
         file_helper.valid_zip(self.file_path)
 
         SERV_CONF["PROC"][self.uid]["name"] = os.path.basename(self.task_name)
-
-
-# class TASK_URL_IMPORTER(TaskImporterWrapper):
-#     """ IMPORTER for URL Model """
-#     def __init__(self, url:str) -> None:
-#         super().__init__()
-
-#         self.url = url
-        
-#         # Update Download Parameters
-#         self.tmp_proc_rate = 0  # avoid keeping send the same proc_rate
-#         self.push_rate = 10
-#         self.push_buf = None
-
-#     def _download_progress_event(self, current, total, width=80):
-#         proc_rate = int(current / total * 100)
-#         proc_mesg = f"{self.S_DOWN} ( {proc_rate}% )"
-
-#         if ((proc_rate%self.push_rate)==0 and proc_rate!=self.tmp_proc_rate) :
-#             self.tmp_proc_rate = proc_rate
-#             self.update_status(status=proc_mesg)
-
-#     def download_event(self):
-#         """ Download file via URL from iVIT-T """
-#         self.update_status(self.S_DOWN)
-        
-#         self.file_name = wget.download( self.url, bar=self._download_progress_event)
-#         self.file_path = os.path.join( SERV_CONF["MODEL_DIR"], self.file_name)
-#         shutil.move( self.file_name, self.file_path )
-#         self.file_folder =  os.path.splitext( self.file_path )[0]
-        
-#         SERV_CONF["PROC"][self.uid]["name"] = os.path.basename(self.file_folder)
-
