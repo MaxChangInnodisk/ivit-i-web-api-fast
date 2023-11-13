@@ -1498,7 +1498,7 @@ class TaskExporter(TaskProcessor):
 
         t_package = time.time()
         log.info('Packaging')
-        self.update_status(self.S_PARS)
+        self.update_status(self.S_CONV)
         packaged_data = self._package_event(db_data)
         self.performance['package'] = time.time() - t_parse
 
