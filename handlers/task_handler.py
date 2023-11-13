@@ -1294,19 +1294,23 @@ class TaskProcessor(TaskMessenger):
         else:
             self.message = message
         
+        # Add PROC
         if "PROC" not in SERV_CONF:
             print('Add PROC in SERV_CONF')
             SERV_CONF.update({"PROC": defaultdict(dict)})
 
+        # Update Message
         SERV_CONF["PROC"][self.uid].update({
             "status": self.status,
             "message": self.message
         })
 
+        # Push data
         if push_mesg:
             self.push_mesg()
 
-        if status == self.S_FAIL:
+        # Clear error, finish or unused data
+        if status in [ self.S_FAIL, self.S_FINISH ]:
             SERV_CONF["PROC"].pop(self.uid, None)
 
     def main_event(self):
