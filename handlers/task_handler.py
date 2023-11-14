@@ -1609,11 +1609,14 @@ class TaskImporterWrapper(TaskProcessor):
         # Extract
         file_helper.extract_files(
             zip_path=self.file_path, trg_folder=self.file_folder)
-        
+        log.debug(f'Extract to {self.file_folder}')
+
         # Verify
         files = os.listdir(self.file_folder)
         if len(files)!=2:
             raise FileExistsError(f"Expected 2 file, but got {len(files)}")
+        else:
+            print(files)
         
         for file_name in files:
             file_path = os.path.join(self.file_folder, file_name)
@@ -1621,6 +1624,7 @@ class TaskImporterWrapper(TaskProcessor):
                 checksum = encode.load_txt(file_path)[0]
         
         real_zip_path = os.path.join(self.file_folder, self.file_name)
+        print('\n\n', real_zip_path)
         if checksum != encode.md5(real_zip_path):
             raise RuntimeError('File is broken...')
         flag = file_helper.extract_files(
@@ -1788,6 +1792,19 @@ class TaskImporterWrapper(TaskProcessor):
             except Exception as e:
                 print(e)
 
+    def _parse_zip_name(self, file_name: str) -> tuple:
+        name_formats = os.path.splitext(file_name)[0].split('_')
+        task_platform = name_formats[0]
+        task_name = ''.join(name_formats[1:-1])
+        export_time = name_formats[-1]
+
+        support_platforms = [ "intel", "nv", "nvidia", "hailo", "xilinx" ]
+        if task_platform not in support_platforms:
+            raise NameError("Got unexpected platform, expect platform is {}".format(support_platforms))
+        if not export_time.isdigit() :
+            raise NameError(f'Go invalidate export time, it should be as <year><month><day>')
+
+        return ( task_platform, task_name, export_time )
 
 class TASK_ZIP_IMPORTER(TaskImporterWrapper):
     """ IMPORTER for ZIP Model """
@@ -1802,19 +1819,13 @@ class TASK_ZIP_IMPORTER(TaskImporterWrapper):
         self.file_name = self.file.filename                   
 
         # Parse ZIP Name
-        support_platforms = [ "intel", "nv", "nvidia", "hailo", "xilinx" ]
-        name_formats = os.path.splitext(self.file_name)[0].split('_')
-        self.task_platform = name_formats[0]
-        self.task_name = ''.join(name_formats[1:-1])
-        self.export_time = name_formats[-1]
+        self.task_platform, self.task_name, self.export_time \
+            = self._parse_zip_name(self.file_name)
 
-        if self.task_platform not in support_platforms:
-            raise NameError("Got unexpected platform, expect platform is {}".format(support_platforms))
-        if not self.export_time.isdigit() :
-            raise NameError(f'Go invalidate export time, it should be as <year><month><day>')
-        
+        # Concate data
         self.file_path = os.path.join( SERV_CONF["TEMP_DIR"], self.file_name )
         self.file_folder = os.path.join( SERV_CONF["TEMP_DIR"], self.task_name )
+
         log.debug('Import Task via File')
         log.debug(f'\t- Platform: {self.task_platform}')
         log.debug(f'\t- Name: {self.task_name}')
