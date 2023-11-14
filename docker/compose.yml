@@ -7,7 +7,7 @@ services:
     volumes: 
       - ./rtsp-config.yml:/mediamtx.yml
   webrtc:
-    image: innodiskorg/rtsptoweb:v1.0.0
+    image: innodiskorg/rtsptoweb:latest
     network_mode: host
     volumes:
       - ./webrtc-config.json:/config/config.json
@@ -39,7 +39,7 @@ services:
       > /etc/nginx/nginx.conf
       && nginx -g 'daemon off;'"
   coturn:
-    image: coturn/coturn
+    image: innodiskorg/coturn:4.6
     ports:
       - 3478:3478
       - 3478:3478/udp
@@ -47,7 +47,7 @@ services:
       - 5349:5349/udp
       - 49160-49200:49160-49200/udp
     command: >
-      -n --log-file=stdout --external-ip='$(detect-external-ip)' \
+      -n --log-file=stdout \
       --min-port=49160 --max-port=49200 \
       --lt-cred-mech \
       --user=turnguest:turnguestpass --realm=xxx \
