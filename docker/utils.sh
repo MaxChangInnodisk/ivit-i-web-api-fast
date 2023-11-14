@@ -149,3 +149,15 @@ function check_config(){
 		exit
 	fi
 }
+
+# 檢查 docker compose 是否可用
+function get_docker_compose(){
+	if command -v docker-compose &> /dev/null; then
+		echo "docker-compose"
+	elif command -v "docker compose" &> /dev/null; then
+		echo "docker compose"
+	else
+		echo "docker compose 和 docker-compose 都不可用"
+		exit 1
+	fi
+}
