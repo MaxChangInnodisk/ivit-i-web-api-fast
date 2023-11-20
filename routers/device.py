@@ -24,7 +24,7 @@ async def get_platform():
     return http_msg( content=SERV_CONF["PLATFORM"], status_code=200) 
 
 @device_router.get("/devices")
-def get_device():
+async def get_device():
     try:
         data = None
         for _ in range(2):
