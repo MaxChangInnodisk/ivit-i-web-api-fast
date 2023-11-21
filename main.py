@@ -31,7 +31,8 @@ from handlers import (
     model_handler, 
     icap_handler, 
     app_handler, 
-    db_handler
+    db_handler,
+    dev_handler
 )
 from handlers.mesg_handler import ws_msg
 
@@ -83,6 +84,9 @@ def startup_event():
 
     model_handler.init_db_model()    # Models
     app_handler.init_db_app()      # AppHandler
+    
+    # Update iDev
+    SERV_CONF["IDEV"] = dev_handler.iDeviceAsync()
 
     icap_handler.init_icap( 
         tb_url=ICAP_CONF["HOST"],

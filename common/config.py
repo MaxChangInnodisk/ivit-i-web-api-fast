@@ -12,7 +12,7 @@ import logging as log
 from typing import Any
 
 from .env import init_ivit_env
-from ivit_i.utils import iDevice
+# from ivit_i.utils import iDevice
 
 
 # Wrapper
@@ -96,7 +96,7 @@ SERV_CONF = ConfigWrapper(
         NGINX_PORT = "6632",
         RTSP_PORT = "8554",
         WEB_PORT = "8001",
-        IDEV = iDevice()
+        IDEV = None
 )
 
 
