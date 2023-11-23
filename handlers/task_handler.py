@@ -1248,6 +1248,9 @@ class TaskProcessor(mesg_handler.TaskMessenger):
             SERV_CONF.update({"PROC": defaultdict(dict)})
 
         # Update Message
+        if self.uid not in SERV_CONF["PROC"]:
+            SERV_CONF["PROC"].update({ self.uid: dict()})
+            
         SERV_CONF["PROC"][self.uid].update({
             "status": self.status,
             "message": self.message
