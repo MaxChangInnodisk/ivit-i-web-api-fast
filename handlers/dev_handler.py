@@ -13,6 +13,7 @@ class iDeviceAsync():
         self.lock = threading.RLock()
         self.is_stop = False 
         self.t = self.create_thread(start=True)
+        self.info = {}
 
     def update_device_event(self) -> None:
         """ The while loop to keep update device information. """
@@ -20,7 +21,7 @@ class iDeviceAsync():
             log.warning('iDevice start')
             while(not self.is_stop):
                 self.lock.acquire()
-                self.idev.get_device_info()
+                self.info = self.idev.get_device_info()
                 self.lock.release()
                 time.sleep(1)
         except Exception as e:
@@ -38,7 +39,7 @@ class iDeviceAsync():
         return thr
 
     def get_device_info(self, uid: Union[ str, None]=None) -> dict:
-        return self.idev.info.get(uid) if uid else self.idev.info
+        return self.info
 
     def stop(self):
         self.is_stop = True
