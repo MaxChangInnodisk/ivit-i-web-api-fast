@@ -38,17 +38,26 @@ services:
       '< /etc/nginx/nginx.conf.template
       > /etc/nginx/nginx.conf
       && nginx -g 'daemon off;'"
-  coturn:
-    image: innodiskorg/coturn:4.6
+  # coturn:
+  #   image: innodiskorg/coturn:4.6
+  #   ports:
+  #     - 3478:3478
+  #     - 3478:3478/udp
+  #     - 5349:5349
+  #     - 5349:5349/udp
+  #     - 49160-49200:49160-49200/udp
+  #   command: >
+  #     -n --log-file=stdout \
+  #     --min-port=49160 --max-port=49200 \
+  #     --lt-cred-mech \
+  #     --user=turnguest:turnguestpass --realm=xxx \
+  #     --allow-loopback-peers --fingerprint --no-cli
+  mosquitto:
+    image: eclipse-mosquitto
     ports:
-      - 3478:3478
-      - 3478:3478/udp
-      - 5349:5349
-      - 5349:5349/udp
-      - 49160-49200:49160-49200/udp
-    command: >
-      -n --log-file=stdout \
-      --min-port=49160 --max-port=49200 \
-      --lt-cred-mech \
-      --user=turnguest:turnguestpass --realm=xxx \
-      --allow-loopback-peers --fingerprint --no-cli
+      - "6683:1883"
+      - "9633:9001"
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
