@@ -660,7 +660,8 @@ def send_basic_attr():
             }
             SERV_CONF['ICAP'].send_attr(data=send_data)
         else:
-            log.warning('MQTT not setup ...')
+            pass
+            # log.warning('MQTT not setup ...')
     except Exception as e:
         log.warning(handle_exception(e))
 
