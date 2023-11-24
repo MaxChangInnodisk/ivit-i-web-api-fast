@@ -191,13 +191,15 @@ async def websocket_endpoint_task(ws: WebSocket):
 
             # Invalid Key
             if not data:
-                if req_type == UID:
-                    sup_keys = list(WS_CONF.keys())
-                    sup_keys.remove('WS')
-                    raise KeyError("Got Invalid AI Task UID, Support is [ {} ]".format(
-                        ', '.join( sup_keys ) ) )
-                else:
-                    raise KeyError("Got Unexpect Error")
+                print('No data with {}'.format(req_data))
+                # if req_type == UID:
+                #     sup_keys = list(WS_CONF.keys())
+                #     sup_keys.remove('WS')
+                #     raise KeyError("Got Invalid AI Task UID, Support is [ {} ]".format(
+                #         ', '.join( sup_keys ) ) )
+
+                # else:
+                #     raise KeyError("Got Unexpect Error")
             
             # Send JSON Data
             await ws.send_json({
