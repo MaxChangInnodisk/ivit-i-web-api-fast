@@ -479,7 +479,8 @@ def stop_ai_task(uid:str, data:dict=None):
 def update_ai_task(uid:str, data:dict=None):
     """ update AI Task via uid """
     if uid not in RT_CONF:
-        raise RuntimeError("The AI task has not launch yet.")
+        RT_CONF.update({uid: {}})
+
     RT_CONF[uid]['DATA'] = data
     log.info('Update AI Task: {} With {}'.format(uid, data))    
     return 'Update success'
@@ -948,6 +949,17 @@ class InferenceLoop:
     def _update_app_setup_func(self, data):
         """Update the parameters of the application, like: palette, draw_bbox, etc."""
         try:
+            # Display
+            need_cv = getattr(data, 'cv_display', False)
+            if need_cv:
+                self.dpr._setup_cv(
+                    name = self.uid,
+                    width = self.src.width,
+                    height = self.src.height
+                )
+            else:
+                self.dpr.dps.pop(self.dpr.CV)
+
             # Area Event: Color, ... etc
             palette = getattr(data, 'palette', None)
             if palette:
