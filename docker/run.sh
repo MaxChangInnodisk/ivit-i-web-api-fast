@@ -94,5 +94,15 @@ update_compose_env ${COMPOSE} "NGINX_PORT=${WEB_PORT}"
 git submodule update --init || echo "Already initailized."
 
 # ========================================================
+# Malcoln Camera Service
+./docker/start_camera.sh > /dev/null 2>&1 &
+printd "Started camera service ..." BR
+
+# ========================================================
 # Switcher
 ./docker/run-${PLATFORM}.sh ${OPTS}
+
+# ========================================================
+# End of Malcoln Camera Service
+./docker/end_camera.sh
+printd "Stopped camera service ..." BR
