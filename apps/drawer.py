@@ -142,6 +142,9 @@ class DrawTool:
             
             for (cur_label, cur_nums) in sorted_area_output:
                 
+                if cur_nums == 0:
+                    continue
+                
                 result = f"{area_name} : {cur_nums} {cur_label}"
                 
                 (t_wid, t_hei), t_base = cv2.getTextSize(result, FONT_TYPE, self.font_size, self.font_thick)

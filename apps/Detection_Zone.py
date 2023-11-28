@@ -12,6 +12,7 @@ from collections import defaultdict
 from multiprocessing.pool import ThreadPool
 import json
 import copy
+import logging as log
 
 # iVIT-I 
 from ivit_i.common.app import iAPP_OBJ
@@ -369,6 +370,65 @@ class Detection_Zone(iAPP_OBJ):
             overlay, areas )
 
         return overlay
+
+    def set_draw(self,params:dict):
+        """
+        Control anything about drawing.
+        Which params you can contral :
+
+        {  
+            draw_bbox (bool) ,
+            draw_result (bool) ,
+            palette (dict) { label(str) : color(Union[tuple, list]) },
+        }
+        
+        Args:
+            params (dict): 
+        """
+        
+        if not isinstance(params, dict):
+            log.error("Input type is dict! but your type is {} ,please correct it.".format(type(params.get('draw_area', None))))
+            return
+
+        if isinstance(params.get('draw_bbox', self.draw_bbox) , bool):
+            self.draw_bbox= params.get('draw_bbox', self.draw_bbox)
+            log.info("Change draw_bbox mode , now draw_bbox mode is {} !".format(self.draw_bbox))
+        else:
+            log.error("draw_bbox type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_bbox', self.draw_bbox))))
+        
+        if isinstance(params.get('draw_result', self.draw_result) , bool):    
+            self.draw_result= params.get('draw_result', self.draw_result)
+            log.info("Change draw_result mode , now draw_result mode is {} !".format(self.draw_result))
+        else:
+            log.error("draw_result type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_result', self.draw_result))))
+ 
+        if isinstance(params.get('draw_area', self.draw_area) , bool):    
+            self.draw_area= params.get('draw_area', self.draw_area)
+            log.info("Change draw_area mode , now draw_area mode is {} !".format(self.draw_area))
+        else:
+            log.error("draw_area type is bool! but your type is {} ,please correct it.".format(type(params.get('draw_area', self.draw_area))))
+            
+        color_support_type = Union[tuple, list]
+        palette = params.get('palette', None)
+        if isinstance(palette, dict):
+            if len(palette)==0:
+                log.warning("Not set palette!")
+                pass
+            else:
+                for label,color in palette.items():
+
+                    if isinstance(label, str) and isinstance(color, get_args(color_support_type)):
+                        if self.palette.__contains__(label):
+                           self.palette.update({label:color})
+                        else:
+                            log.error("Model can't recognition the label {} , please checkout your label!.".format(label))
+                        log.info("Label: {} , change color to {}.".format(label,color))
+                    else:
+                        log.error("Value in palette type must (label:str , color :Union[tuple , list] ),your type \
+                                      label:{} , color:{} is error.".format(type(label),type(color)))
+        else:
+            log.warning("Not set palette or your type {} is error.".format(type(palette)))
+
 
     # ------------------------------------------------
 
