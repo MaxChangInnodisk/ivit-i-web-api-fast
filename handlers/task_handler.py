@@ -381,9 +381,9 @@ def run_ai_task(uid:str, data:dict=None) -> str:
 
     # Create Displayer Object
     try:
-        cv_flag = getattr(data, 'cv_display', None) 
+        cv_flag = getattr(data, 'cv_display', True) 
         dpr = create_displayer(
-            cv=cv_flag,
+            cv=True,
             rtsp=True, 
             height=height, 
             width=width, 
