@@ -478,9 +478,13 @@ def stop_ai_task(uid:str, data:dict=None):
 
 def update_ai_task(uid:str, data:dict=None):
     """ update AI Task via uid """
+    uid = uid.upper()
+    print(RT_CONF)
     if uid not in RT_CONF:
+        print('Updated UID !!!!')
         RT_CONF.update({uid: {}})
 
+    print(RT_CONF)
     RT_CONF[uid]['DATA'] = data
     log.info('Update AI Task: {} With {}'.format(uid, data))    
     return 'Update success'
@@ -957,8 +961,6 @@ class InferenceLoop:
                     width = self.src.width,
                     height = self.src.height
                 )
-            else:
-                self.dpr.dps.pop(self.dpr.CV)
 
             # Area Event: Color, ... etc
             palette = getattr(data, 'palette', None)
