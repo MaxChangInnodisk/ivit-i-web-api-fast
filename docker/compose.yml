@@ -53,7 +53,7 @@ services:
   #     --user=turnguest:turnguestpass --realm=xxx \
   #     --allow-loopback-peers --fingerprint --no-cli
   mosquitto:
-    image: eclipse-mosquitto
+    image: innodiskorg/mosquitto:2.0.18
     ports:
       - "6683:1883"
       - "9633:9001"
