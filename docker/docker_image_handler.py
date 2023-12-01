@@ -7,6 +7,7 @@ import argparse
 from typing import Union
 from collections import defaultdict
 import glob
+import abc
 
 # ----------------------------------------------------------------
 
@@ -174,10 +175,12 @@ def convert_bytes(
 
     return f"{ret_value} {unit}" if need_text else ret_value
 
-class InnoDocker:
+class InnoDocker(abc.ABC):
 
     _save_folder = ""
     _processes = defaultdict()
+    progress = None
+    table = None
 
     def __init__(self, folder: str):
         self.save_folder = folder
@@ -205,6 +208,18 @@ class InnoDocker:
             BarColumn(),
             TaskProgressColumn(),
             TimeElapsedColumn() )
+
+    @abc.abstractmethod
+    def define_table(self):
+        pass
+
+    @abc.abstractmethod
+    def update_table(self):
+        pass
+
+    @abc.abstractmethod
+    def start(self):
+        pass
 
 class InnoDockerSaver(InnoDocker):
     
@@ -287,9 +302,8 @@ class InnoDockerLoader(InnoDocker):
         self._tars = self.find_tars( self.save_folder )
         
         # Rich
-        self.table = RichTable()
-        self.table.define_header(["Index", "Name", "Size"])
-        self.update_table_with_tars()
+        self.define_table()
+        self.update_table()
 
     def find_tars(self, folder:str, extension: str="tar") -> dict:        
         temp = defaultdict(dict)
@@ -303,7 +317,10 @@ class InnoDockerLoader(InnoDocker):
         print(f'Find {len(temp)} tar files')
         return temp
 
-    def update_table_with_tars(self):
+    def define_table(self):
+        self.table.define_header(["Index", "Name", "Size"])
+
+    def update_table(self):
         
         for idx, data in self._tars.items():
             self.table.update((
