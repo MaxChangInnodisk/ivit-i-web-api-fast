@@ -44,12 +44,20 @@ event_router = APIRouter( tags=["event"] )
 
 # --------------------------------------------------------------------
 # Event Streamin
-async def event_stream():
+async def event_stream(uid: str=""):
     try:
         while RT_CONF["EVENT_STREAM"]:
             if EVENT_CONF:
-                data = json.dumps(dict(EVENT_CONF)) 
-                yield f"data: {data}\n\n"
+                
+                data = EVENT_CONF
+                raw_data = json.dumps(dict(data)) 
+                    
+                if uid == "":
+                    yield f"data: {raw_data}\n\n"
+
+                elif uid in EVENT_CONF["TASK_UID"]:
+                    yield f"data: {raw_data}\n\n"
+
                 EVENT_CONF.clear()
             await asyncio.sleep(1)
     except GeneratorExit:
@@ -138,10 +146,12 @@ def get_screenshot(data: ScreenShotFormat):
         return http_msg(    content=e, 
                             status_code=500)
 
+
 @event_router.get("/events/stream")
-def get_event_stream():
-    event_generator = event_stream()
+def get_event_stream(uid: str=""):
+    event_generator = event_stream(uid)
     return StreamingResponse(event_generator, media_type="text/event-stream")
+
 
 @event_router.delete("/events/stream")
 def del_event_stream():

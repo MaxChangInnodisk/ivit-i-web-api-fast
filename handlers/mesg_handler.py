@@ -7,13 +7,21 @@ from typing import Union, Literal
 import json
 import logging as log
 from fastapi.responses import Response
+import paho.mqtt.client as mqtt
+from functools import wraps
+import asyncio
 
 try:
-    from ..common import init_ivit_env
-except:
-    from common import init_ivit_env
+    from ..common import init_ivit_env, SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
+    from .ivit_handler import simple_exception, handle_exception
 
-from .ivit_handler import simple_exception, handle_exception
+except:
+    from common import init_ivit_env, SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
+    from handlers.ivit_handler import simple_exception, handle_exception
+
+# from common import init_ivit_env, SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
+# from handlers.ivit_handler import simple_exception, handle_exception
+
 
 K_MESG  = "message"
 K_CODE  = "status_code"
@@ -145,3 +153,148 @@ def http_msg(content: Union[dict, str, Exception], status_code:int=200, media_ty
     return Response(
         content = json.dumps(ret), 
         status_code = status_code, media_type=media_type )
+
+# ---------------------------------------------------------------
+
+# ---------------------------------------------------------------
+
+class Messenger:
+    """Handle message"""
+
+    UID = "UID"
+    ERR = "ERROR"
+    TEM = "TEMP"
+    PRO = "PROC"
+
+    def write(self):
+        pass
+
+class MqttMessenger(Messenger):
+    
+    STOP = "stop"
+    RUN = "run"
+    ERR = "error"
+
+    def __init__(self, broker_address: str, broker_port: str, client_id: str=""):
+        self.broker_address = broker_address
+        self.broker_port = int(broker_port)
+        self.client_id = client_id
+        
+        self.status = self.STOP
+
+        self.client = mqtt.Client(self.client_id, clean_session=True)
+        self.client.on_connect = self.on_connect
+        self.client.on_disconnect = self.on_disconnect
+        self.client.on_message = self.on_message
+        # self.client.on_publish = self.on_publish
+
+    def _check_status(func):
+        
+        def wrap(self, *args, **kwargs):
+            if self.status == self.STOP:
+                print('is stop')
+                return None
+            return func(*args, **kwargs)
+        return wrap
+
+    def on_connect(self, client, userdata, flags, rc):
+        if rc == 0:
+            log.info("Connected to MQTT broker")
+            self.status = self.RUN
+        else:
+            log.info(f"Connection failed with code {rc}")
+            self.status = self.ERR
+
+    def on_disconnect(self, client, userdata,  rc):
+        log.warning('Disconnected')
+
+    def on_message(self, client, userdata, message):
+        print(message.payload.decode("utf-8"))
+
+    def connect(self):
+        self.client.connect(self.broker_address, self.broker_port)
+        self.client.loop_start()
+        log.info('Connected MQTT Broker {}:{}'.format(self.broker_address, self.broker_port))
+
+    def subscribe(self, topic):
+        self.client.subscribe(topic)
+        print('Subscribed Topic: {}'.format(topic))
+
+    def publish(self, topic, message):
+        
+        if not isinstance(message, str):
+            message = json.dumps(message)
+
+        self.client.publish(topic, message)
+
+    def set_message_callback(self, callback):
+        self.client.on_message = callback
+
+    def start(self):
+        self.client.loop_start()
+
+    def stop(self):
+        self.client.loop_stop()
+        self.client.disconnect()
+
+
+class ServerMqttMessenger(MqttMessenger):
+    
+    EVENT = "events"
+    RESULT = "results"
+
+    def __init__(self, broker_address: str, broker_port: str, client_id: str=""):
+        super().__init__(broker_address, broker_port, client_id)
+
+        self.connect()
+        for topic in [ self.EVENT ]:
+            self.subscribe(topic)
+            self.publish(self.EVENT, 'iVIT Registered !')
+    
+    def subscribe_event(self, uid: str) -> None:
+        assert uid!="", f"Subscribe event have to give it a uid."
+        self.subscribe(self.get_event_topic(uid))
+
+    def get_event_topic(self, uid: str = "") -> str:
+        if uid == "":
+            return self.EVENT
+        return f"{self.EVENT}/{uid}"
+
+class WebSocketMessenger(Messenger):
+
+    def write(self, content, type):
+        """ Push message """
+        if WS_CONF.get("WS") is None: 
+            return
+        asyncio.run( WS_CONF["WS"].send_json( 
+            ws_msg(type=type, content=content)) )
+
+class TaskMessenger(WebSocketMessenger):
+
+    def push_mesg(self):
+        """ Push message
+
+        - Workflow
+            1. Print Status
+            2. If WebSocket exists then push message via `WS_CONF["WS"].send_json()`
+        """
+        try:
+            self.write(
+                type=self.PRO,
+                content=SERV_CONF[self.PRO] )
+
+        except Exception as e:
+            log.warning('WebSocket send error ... ', e.message)
+
+if __name__ == "__main__":
+    import time
+    mc = ServerMqttMessenger(broker_address='127.0.0.1', broker_port='6683')
+    TOPIC = 'test/topic'
+    mc.subscribe(TOPIC)
+
+    while(True):
+        time.sleep(1)
+        mc.publish(TOPIC, 'test')
+        print('test')
+
+    pass

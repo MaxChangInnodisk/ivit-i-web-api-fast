@@ -46,11 +46,12 @@ def download_file(file_path):
         file_path = os.path.join( SERV_CONF["EXPORT_DIR"], file_path)
 
         log.info('Start to download file: {}'.format(file_path))
-        return FileResponse(path=file_path, filename=os.path.basename(file_path))
+
+        return FileResponse(
+            path=file_path, 
+            filename=os.path.basename(file_path))
     except Exception as e:
         return http_msg(content=e, status_code=500)
-
-
 
 @sys_router.get("/images/")
 def get_image(path:str):

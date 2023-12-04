@@ -119,7 +119,7 @@ async def get_target_task_information(uid: str):
         return http_msg( content=e, status_code=500)
 
 @task_router.post("/tasks/exec")
-async def execute_task(exec_data: TaskAction):
+def execute_task(exec_data: TaskAction):
     
     # Parse Request
     uid = exec_data.uid
