@@ -389,7 +389,7 @@ def run_ai_task(uid:str, data:dict=None) -> str:
             width=width, 
             fps=30,
             name=uid, 
-            platform='intel')
+            platform=SERV_CONF["platform"])
         
         # dpr = create_rtsp_displayer(
         #     name = uid,
