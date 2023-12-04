@@ -41,9 +41,9 @@ class iDeviceAsync():
     def get_device_info(self, uid: Union[ list, str, None]=None) -> dict:
         if isinstance(uid, list):
             uid = uid[0]
-        device_info = self.idev.info.get(uid)
+        device_info = self.info.get(uid)
         if device_info is None:
-            return self.idev.info
+            return self.info
         else:
             return {uid: device_info}
         
