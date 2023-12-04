@@ -71,7 +71,7 @@ def ivit_i_intel(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
             label_path = params["label_path"],
             device = params["device"],
             architecture_type = correct_arch,
-            anchors = params["anchors"],
+            anchors = str(params["anchors"]),
             confidence_threshold = float(params["confidence_threshold"])
         )
     else:
