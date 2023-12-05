@@ -87,10 +87,16 @@ The specification below shows the recommended requirements. In case of the use o
   * `Docker Compose` > `v2.15.X`
     * **[ VERIFY ]** Use this command ( `docker compose version` ).
     * **[ INSTALL ]** Install docker compose by following this [document](https://docs.docker.com/compose/install/linux/#install-using-the-repository) if you don't have docker compose.
-    
-* ( OPT ) [NVIDIA GPU Driver](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#nvidia-drivers)
-* ( OPT ) [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#step-1-install-nvidia-container-toolkit)
-
+* For NVIDIA dGPU
+  * [NVIDIA GPU Driver](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#nvidia-drivers)
+  * [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#step-1-install-nvidia-container-toolkit)
+* For Jetson Platform
+  * [JetPack 5.0+](https://developer.nvidia.com/embedded/jetpack)
+  * [Jetson-Stats](https://github.com/rbonghi/jetson_stats)
+    ```bash
+    sudo pip3 install -U jetson-stats
+    # reboot or logout
+    ```
 
 # Quick Start
 ## Prepare Repository
