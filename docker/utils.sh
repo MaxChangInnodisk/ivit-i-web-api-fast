@@ -150,14 +150,19 @@ function check_config(){
 	fi
 }
 
-# 檢查 docker compose 是否可用
 function get_docker_compose(){
-	if command -v docker-compose &> /dev/null; then
-		echo "docker-compose"
-	elif command -v "docker compose" &> /dev/null; then
+	$(docker compose version &> /dev/null )
+	if [[ $? = '0' ]];then
 		echo "docker compose"
-	else
-		echo "docker compose 和 docker-compose 都不可用"
-		exit 1
+		return 0
 	fi
+
+	$(docker-compose -v &> /dev/null)
+	if [[ $? = '0' ]];then
+		echo "docker-compose"
+		return 0
+	fi
+
+	echo "Make sure the docker compose is supported !!!"
+	exit 1
 }
