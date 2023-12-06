@@ -81,29 +81,23 @@ The specification below shows the recommended requirements. In case of the use o
 
 
 # Pre-requirements
-*** *Notice: `GPU driver` and `nvidia-docker-toolkit` are required for `NVIDIA` or `Jetson` platforms.* ***
-
-* [Docker 20.10 + ](https://docs.docker.com/engine/install/ubuntu/)
-  * `Docker Compose` > `v2.15.X`
-    * **[ VERIFY ]** Use this command ( `docker compose version` ).
-    * **[ INSTALL ]** Install docker compose by following this [document](https://docs.docker.com/compose/install/linux/#install-using-the-repository) if you don't have docker compose.
+* Basic
+  * [Docker 20.10 + ](https://docs.docker.com/engine/install/ubuntu/)
+    * `Docker Compose` > `v2.15.X`
+      * **[ VERIFY ]** Use this command ( `docker compose version` ).
+      * **[ INSTALL ]** Install docker compose by following this [document](https://docs.docker.com/compose/install/linux/#install-using-the-repository) if you don't have docker compose.
 * For NVIDIA dGPU
   * [NVIDIA GPU Driver](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#nvidia-drivers)
   * [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#step-1-install-nvidia-container-toolkit)
 * For Jetson Platform
-  * [JetPack 5.0+](https://developer.nvidia.com/embedded/jetpack)
+  * [Ensure the JetPack version is 5.0+](https://developer.nvidia.com/embedded/jetpack)
   * [Jetson-Stats](https://github.com/rbonghi/jetson_stats)
-    ```bash
-    sudo pip3 install -U jetson-stats
-    # reboot or logout
-    ```
 
 # Quick Start
 ## Prepare Repository
 ```bash
 
 VER=v1.3
-
 git clone -b ${VER} https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
 ```
 
@@ -206,22 +200,9 @@ You can modify the configuration file ( [`ivit-i.json`](ivit-i.json) ) to change
 * The documentation will be mounted at `<ip>:<nginx_port>/ivit/docs`
 * [FastAPI Swagger ( http://127.0.0.1:6632/ivit/docs )](http://127.0.0.1:6632/ivit/docs)
 
-# Build Web Site for ARM
-Only `aarch64` have to rebuild website service, like `xilinx`, `jetson` platform. More detail please visit [iviti-wa](https://github.com/Jordan00000007/iviti-wa)
-    
-1. Download repository
-    ```bash
-    git clone -b v1.0.3 https://github.com/Jordan00000007/iviti-wa && cd iviti-wa
-    ```
-2. Rebuild docker image
-    ```bash
-    docker-compose -f ./docker-compose-pro.yml build
-    ```
-
 # Other Docs
-## [Trouble Shooting](./assets/docs/trouble-shooting)
-## [Release Note](./assets/docs/release-note.md)
-## [Todo List](./assets/docs/to-do.md)
+* [Trouble Shooting](./assets/docs/trouble-shooting)
+* [Release Note](./assets/docs/release-note.md)
 
 
 # Reference

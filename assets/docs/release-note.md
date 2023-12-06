@@ -1,5 +1,22 @@
 # Release Note
 
+## v1.3
+* Web API
+  1. `Export Task` and `Import Task`.
+  2. Improve the communicate with `iCAP`.
+  3. Improve the launch script for each platform.
+  4. Add `iDeviceAsync` to keep update device information via `iDevice` object.
+  5. Add the event integration: `SSE ( Server-Send Event)` and `MQTT`.
+  6. Provide integration samples for `SSE` and `MQTT`.
+  7. Fix several bugs, enhance the stability of the system.
+  8. Add more information in README.md
+  9. Improve the communication with front end.
+  
+* Website
+  1. Supported `Export Task` and `Import Task`.
+  2. Improve the message bar, make it more smoothly.
+  3. Improve the dropdown menu.
+
 ## v1.2.1
 * Web API
   1. Switch the color of the label font by detecting the lighting value. 
