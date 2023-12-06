@@ -40,6 +40,7 @@ DOCKER_NAME="${PROJECT}-${PLATFORM}-${VERSION}-${TAG}"
 
 # ========================================================
 # Stop
-docker compose -f ${DOCKER_COMPOSE} -p ${TAG} down || echo "Stop relatived service failed."
+COMPOSE_CMD=$(get_docker_compose)
+${COMPOSE_CMD} -f ${DOCKER_COMPOSE} -p ${TAG} down || echo "Stop relatived service failed."
 
 docker stop ${DOCKER_NAME} || echo "Stop iVIT-I service failed."

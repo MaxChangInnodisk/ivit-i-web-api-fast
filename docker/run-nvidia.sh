@@ -170,7 +170,9 @@ if [[ ${QUICK} = false ]];then waitTime 5; fi
 
 # Rund Docker Compose
 printd "Launch Relative Container" G
-docker compose --file ${DOCKER_COMPOSE} -p "${TAG}" up -d 
+
+COMPOSE_CMD=$(get_docker_compose)
+${COMPOSE_CMD} --file ${DOCKER_COMPOSE} -p "${TAG}" up -d 
 
 # Run docker command 
 printd "Launch iVIT-I Container" G
@@ -180,7 +182,7 @@ bash -c "${DOCKER_CMD}"
 
 if [[ ${INTERATIVE} = true ]];then
 	printd "Close Relative Container" R
-	docker compose --file ${DOCKER_COMPOSE} -p "${TAG}" down
+	${COMPOSE_CMD} --file ${DOCKER_COMPOSE} -p "${TAG}" down
 fi
 
 exit 0;
