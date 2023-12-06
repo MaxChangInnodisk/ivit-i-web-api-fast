@@ -1745,7 +1745,10 @@ class TaskImporterWrapper(TaskProcessor):
         self.update_status(self.S_IMPO)
         self._add_into_db()
         self.update_status(self.S_FINISH)
+        
+        time.sleep(1) # Wait a second to ensure the success message is arrived.
         log.info('Finished !!!')
+        
 
     def fail_event(self):
         log.warning("Fail Event ..")
