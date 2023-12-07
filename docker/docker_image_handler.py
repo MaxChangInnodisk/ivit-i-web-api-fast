@@ -4,10 +4,11 @@ import time
 import os
 import random
 import argparse
-from typing import Union
+from typing import Union, Optional, List
 from collections import defaultdict
 import glob
 import abc
+import re
 
 # ----------------------------------------------------------------
 
@@ -181,6 +182,8 @@ class InnoDocker(abc.ABC):
     _processes = defaultdict()
     progress = None
     table = None
+    integer_pattern = re.compile(r'^\d+(,\d+)*$')
+    _valid_index = []
 
     def __init__(self, folder: str):
         self.save_folder = folder
@@ -191,6 +194,17 @@ class InnoDocker(abc.ABC):
     @property
     def save_folder(self):
         return self._save_folder
+
+    @property
+    def valid_index(self):
+        return self._valid_index
+
+    @valid_index.setter
+    def valid_index(self, value: List[Union[int, None]]):
+        if value ==[] or isinstance(value, list):
+            self._valid_index = value
+            return
+        raise TypeError("The valid_index should be list.") 
     
     @save_folder.setter
     def save_folder(self, folder_path:str):
@@ -208,6 +222,29 @@ class InnoDocker(abc.ABC):
             BarColumn(),
             TaskProgressColumn(),
             TimeElapsedColumn() )
+
+    def filter_images_with_index(self, max_index:Optional[list]=None) -> Union[str, list]:
+
+        # Init
+        self.valid_index = []
+
+        # Wait input
+        data = input("Select the docker image you want to save (all/<id>,..,<id>): ")
+        if data.lower() == "all":
+            return self.valid_index
+
+        # Filter mismatch data
+        if not self.integer_pattern.match(data):
+            raise TypeError(f'Unexpect input: {data}')
+        
+        # Check the limit and convert format
+        for value in sorted(set(data.split(','))):
+            value = int(value)
+            if max_index is None or value <= max_index:
+                self.valid_index.append(value)
+
+        print('Validated Index: ', self.valid_index)
+        return self.valid_index
 
     @abc.abstractmethod
     def define_table(self):
@@ -229,7 +266,7 @@ class InnoDockerSaver(InnoDocker):
         self.saver = DockerSaver()
         self.finder = DockerFinder()
         self.finder.find(includes=['inno'], excludes=['none'])
-        self.data = self.finder.get_all().items()
+        self.data = self.finder.get_all()
         self.define_table()
         self.update_table(self.data)
 
@@ -255,6 +292,9 @@ class InnoDockerSaver(InnoDocker):
         # Save
         for idx, image in self.finder.get_all().items():
             
+            if self.valid_index and not (idx in self.valid_index):
+                continue
+
             image_name = image["repo"]
             base_name = os.path.basename(image_name).strip()
             output_file = os.path.join(
@@ -274,13 +314,13 @@ class InnoDockerSaver(InnoDocker):
         
             # Wait
             while not self.progress.finished:
-                for idx, data in enumerate(self._processes.values()):
+                for idx, data in self._processes.items():
                     process_running = (data['proc'].poll() is None)
                     file_exists = (os.path.exists(data['output']))
                     if not process_running and file_exists:
                         self.progress.update(rich_process[idx], completed=100, style="green")
                         continue
-                    self.progress.update(rich_process[idx], advance=random.uniform(0.01, 0.05))
+                    self.progress.update(rich_process[idx], advance=random.uniform(0.01, 0.1))
                     
                     # self.progress.update(rich_process[idx], advance=random.uniform(0.05, 1), style="green")
 
@@ -292,14 +332,14 @@ class InnoDockerSaver(InnoDocker):
 
 class InnoDockerLoader(InnoDocker):
     
-    _tars = None
+    data = None
 
     def __init__(self, folder: str):
         super().__init__(folder)
         self.loader = DockerLoader()
 
         # Find tar
-        self._tars = self.find_tars( self.save_folder )
+        self.data = self.find_tars( self.save_folder )
         
         # Rich
         self.define_table()
@@ -322,7 +362,7 @@ class InnoDockerLoader(InnoDocker):
 
     def update_table(self):
         
-        for idx, data in self._tars.items():
+        for idx, data in self.data.items():
             self.table.update((
                 str(idx),
                 data['input'],
@@ -335,7 +375,10 @@ class InnoDockerLoader(InnoDocker):
         # Temp process for rich progress
         rich_process = defaultdict()
 
-        for idx, data in self._tars.items():
+        for idx, data in self.data.items():
+
+            if self.valid_index and not (idx in self.valid_index):
+                continue
             
             self._processes[idx] = {
                 "id": data["base_name"],
@@ -349,7 +392,8 @@ class InnoDockerLoader(InnoDocker):
             # Wait
             while not self.progress.finished:
 
-                for idx, data in enumerate(self._processes.values()):
+                for idx, data in self._processes.items():
+
                     process_running = (data['proc'].poll() is None)
                     if not process_running:
                         self.progress.update(rich_process[idx], completed=100, style="green")
@@ -368,10 +412,12 @@ class InnoDockerLoader(InnoDocker):
 
 def save_docker_image(args):
     dif = InnoDockerSaver(args.folder)
+    dif.filter_images_with_index(len(dif.data))
     dif.start()
 
 def load_docker_image(args):
     dif = InnoDockerLoader(args.folder)
+    dif.filter_images_with_index(len(dif.data))
     dif.start()
 
 # ----------------------------------------------------------------
