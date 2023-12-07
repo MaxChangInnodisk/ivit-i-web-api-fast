@@ -1,6 +1,7 @@
 import subprocess
 import importlib
 import time
+import sys
 import os
 import random
 import argparse
@@ -12,11 +13,21 @@ import re
 
 # ----------------------------------------------------------------
 
+def install_module(module_name):
+    try:
+        subprocess.check_call(["pip", "install", module_name])
+        print(f"Successfully installed {module_name}")
+    except subprocess.CalledProcessError:
+        print(f"Failed to install {module_name}")
+
 try:
     import docker
+    import yaml
 except ModuleNotFoundError:
     install_module("docker")
+    install_module("pyyaml")
     import docker
+    import yaml
 
 try:
     from rich.console import Console
@@ -48,12 +59,6 @@ except ModuleNotFoundError:
 
 # ----------------------------------------------------------------
 
-def install_module(module_name):
-    try:
-        subprocess.check_call(["pip", "install", module_name])
-        print(f"Successfully installed {module_name}")
-    except subprocess.CalledProcessError:
-        print(f"Failed to install {module_name}")
 
 def import_module(module_name):
     try:
@@ -183,7 +188,6 @@ class InnoDocker(abc.ABC):
     progress = None
     table = None
     integer_pattern = re.compile(r'^\d+(,\d+)*$')
-    _valid_index = []
 
     def __init__(self, folder: str):
         self.save_folder = folder
@@ -195,17 +199,6 @@ class InnoDocker(abc.ABC):
     def save_folder(self):
         return self._save_folder
 
-    @property
-    def valid_index(self):
-        return self._valid_index
-
-    @valid_index.setter
-    def valid_index(self, value: List[Union[int, None]]):
-        if value ==[] or isinstance(value, list):
-            self._valid_index = value
-            return
-        raise TypeError("The valid_index should be list.") 
-    
     @save_folder.setter
     def save_folder(self, folder_path:str):
         if not isinstance(folder_path, str):
@@ -223,29 +216,6 @@ class InnoDocker(abc.ABC):
             TaskProgressColumn(),
             TimeElapsedColumn() )
 
-    def filter_images_with_index(self, max_index:Optional[list]=None) -> Union[str, list]:
-
-        # Init
-        self.valid_index = []
-
-        # Wait input
-        data = input("Select the docker image you want to save (all/<id>,..,<id>): ")
-        if data.lower() == "all":
-            return self.valid_index
-
-        # Filter mismatch data
-        if not self.integer_pattern.match(data):
-            raise TypeError(f'Unexpect input: {data}')
-        
-        # Check the limit and convert format
-        for value in sorted(set(data.split(','))):
-            value = int(value)
-            if max_index is None or value <= max_index:
-                self.valid_index.append(value)
-
-        print('Validated Index: ', self.valid_index)
-        return self.valid_index
-
     @abc.abstractmethod
     def define_table(self):
         pass
@@ -259,6 +229,19 @@ class InnoDocker(abc.ABC):
         pass
 
 class InnoDockerSaver(InnoDocker):
+
+    _valid_index = []
+
+    @property
+    def valid_index(self):
+        return self._valid_index
+
+    @valid_index.setter
+    def valid_index(self, value: List[Union[int, None]]):
+        if value ==[] or isinstance(value, list):
+            self._valid_index = value
+            return
+        raise TypeError("The valid_index should be list.") 
     
     def __init__(self, folder: str):
         super().__init__(folder)
@@ -269,6 +252,9 @@ class InnoDockerSaver(InnoDocker):
         self.data = self.finder.get_all()
         self.define_table()
         self.update_table(self.data)
+
+        # Additional
+        self.filter_images_with_index()
 
     def define_table(self):
         # Define rich parameters
@@ -326,6 +312,33 @@ class InnoDockerSaver(InnoDocker):
 
                 time.sleep(0.5)
 
+    def filter_images_with_index(self) -> list:
+        
+        if not self.data:
+            raise ValueError("No docker images find. Please init the object first.")
+        max_index = len(self.data.keys())
+        
+        # Init
+        self.valid_index = []
+
+        # Wait input
+        data = input("Select the docker image you want to save (all/<id>,..,<id>): ")
+        if data.lower() == "all":
+            return self.valid_index
+
+        # Filter mismatch data
+        if not self.integer_pattern.match(data):
+            raise TypeError(f'Unexpect input: {data}')
+        
+        # Check the limit and convert format
+        for value in sorted(set(data.split(','))):
+            value = int(value)
+            if max_index is None or value <= max_index:
+                self.valid_index.append(value)
+
+        print('Validated Index: ', self.valid_index)
+        return self.valid_index
+
     def __del__(self):
         for key, data in self._processes.items():
             data["proc"].terminate()
@@ -344,6 +357,8 @@ class InnoDockerLoader(InnoDocker):
         # Rich
         self.define_table()
         self.update_table()
+        self.check_services()
+    
 
     def find_tars(self, folder:str, extension: str="tar") -> dict:        
         temp = defaultdict(dict)
@@ -355,6 +370,8 @@ class InnoDockerLoader(InnoDocker):
                 'base_name': base_name,
                 'size': size }
         print(f'Find {len(temp)} tar files')
+        if not temp:
+            raise FileNotFoundError('Can not find any docker tarball files in {}.'.format(folder))
         return temp
 
     def define_table(self):
@@ -376,9 +393,6 @@ class InnoDockerLoader(InnoDocker):
         rich_process = defaultdict()
 
         for idx, data in self.data.items():
-
-            if self.valid_index and not (idx in self.valid_index):
-                continue
             
             self._processes[idx] = {
                 "id": data["base_name"],
@@ -408,16 +422,58 @@ class InnoDockerLoader(InnoDocker):
         for key, data in self._processes.items():
             data["proc"].terminate()
 
+    def get_compose_service(self):
+        # get current file
+        cur_script_path = os.path.realpath(sys.argv[0])
+        cur_script_folder = os.path.dirname(cur_script_path)
+        
+        # find compose.yml file
+        compose_file = "compose.yml"
+        cur_compose_path = os.path.join(cur_script_folder, compose_file)
+
+        with open(cur_compose_path, 'r') as yaml_file:
+            # Parse the YAML content from the file
+            data = yaml.load(yaml_file, Loader=yaml.FullLoader)
+        
+        services = []
+        for service in data["services"].values():
+            name = os.path.basename(service["image"]).split(':')[0]
+            services.append( name )
+        # services = set( data["services"].keys())
+        return services
+
+    def check_services(self):
+        tarballs = [ data['base_name'] for data in self.data.values() ]
+        services = self.get_compose_service()
+        num_services = len(services)
+        
+        # Get the lack service
+        lack_services = services.copy()
+        for tarball in tarballs:
+            need_pop = None
+            for service in lack_services:
+                if service in tarball:
+                    need_pop = service
+                    break
+            if need_pop:
+                lack_services.remove(need_pop)
+
+        # If has lack services
+        if lack_services:
+            num_lack_services = len(lack_services)
+            raise RuntimeError('Basic Services [{}/{}]: Missing {}'.format(
+                num_services-num_lack_services,
+                num_services,
+                ', '.join(lack_services)))
+
 # ----------------------------------------------------------------
 
 def save_docker_image(args):
     dif = InnoDockerSaver(args.folder)
-    dif.filter_images_with_index(len(dif.data))
     dif.start()
 
 def load_docker_image(args):
     dif = InnoDockerLoader(args.folder)
-    dif.filter_images_with_index(len(dif.data))
     dif.start()
 
 # ----------------------------------------------------------------
