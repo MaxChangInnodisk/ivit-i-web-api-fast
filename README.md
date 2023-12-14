@@ -102,7 +102,7 @@ git clone -b ${VER} https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivi
 ```
 
 ## Run `service` with target platform.
-*** Notice: If you don't have network, you can follow the [tutorial](./assets//docs/download-docker-image-without-network.md) to import the docker image from tarball file. ***
+*** Notice: If you don't have network, you can follow the [tutorial](./assets//docs/import-docker-image.md) to import the docker image from tarball file. ***
 ```bash
 # Usage: sudo ./docker/run.sh <framework> <option>
 sudo ./docker/run.sh intel
