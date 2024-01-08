@@ -175,3 +175,19 @@ core
 
 # Event
 events
+
+# Website
+iviti-wa
+
+# Others
+test
+
+# MQTT
+docker/mosquitto/log/*
+docker/mosquitto/data/*
+!docker/mosquitto/log/.gitkeep
+!docker/mosquitto/data/.gitkeep
+
+# Docker Archive
+archives
+**/*.tar

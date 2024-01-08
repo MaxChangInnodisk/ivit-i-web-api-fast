@@ -3,7 +3,7 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-import time, os, shutil, cv2, copy
+import time, os, shutil, cv2, copy, re
 import logging as log
 import numpy as np
 from typing import Union, Tuple
@@ -34,6 +34,8 @@ from .ivit_handler import SourceV2, Displayer, RtspWrapper
 # --------------------------------------------------------
 # Consistant
 K_SRC = 'SRC'
+UNEXPECTED_CHAR = [ "+", "/", "?", "#", "%", "&", "=" ]
+NAME_RULE = r'[{}]'.format(''.join(UNEXPECTED_CHAR))
 
 # --------------------------------------------------------
 # Helper Function
@@ -340,3 +342,8 @@ def get_source_frame(source_uid:str, resolution:list=None) -> np.ndarray:
     
     return frame
 
+
+def is_name_valid(name: str) -> bool:
+    return not re.search(NAME_RULE, name)
+
+    

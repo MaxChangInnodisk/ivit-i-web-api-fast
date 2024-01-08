@@ -1,8 +1,8 @@
 {
   "PROJECT": "ivit-i",
   "PLATFORM": "intel",
-  "VERSION": "v1.2",
-  "IVIT_VERSION": "v1.2",
+  "VERSION": "v1.3",
+  "IVIT_VERSION": "v1.3",
   "TAG": "service",
   "SERVICE": {
     "HOST": "127.0.0.1",
@@ -18,5 +18,8 @@
   },
   "WEB": {
     "PORT": 8001
+  },
+  "MQTT": {
+    "PORT": 6683
   }
 }

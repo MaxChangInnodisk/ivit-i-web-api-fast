@@ -149,3 +149,20 @@ function check_config(){
 		exit
 	fi
 }
+
+function get_docker_compose(){
+	$(docker compose version &> /dev/null )
+	if [[ $? = '0' ]];then
+		echo "docker compose"
+		return 0
+	fi
+
+	$(docker-compose -v &> /dev/null)
+	if [[ $? = '0' ]];then
+		echo "docker-compose"
+		return 0
+	fi
+
+	echo "Make sure the docker compose is supported !!!"
+	exit 1
+}

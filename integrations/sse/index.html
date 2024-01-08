@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SSE Test</title>
+</head>
+<body>
+    <h1>Server-Sent Events Test</h1>
+    <div id="messages"></div>
+    <script>
+
+        const eventSource = new EventSource("http://127.0.0.1:6632/ivit/v1/events/stream");
+        eventSource.onmessage = async function(event) {
+            const messagesDiv = document.getElementById("messages");
+            const message = document.createElement("p");
+            const imageMessage = document.createElement("a");
+            
+            message.textContent = `New message: ${event.data}`;
+            const data = JSON.parse(event.data);
+            const tt = data["START_TIME"];
+            const url = `http://127.0.0.1:6632/ivit/v1/events/screenshot?tt=${tt}&draw=True`;
+            imageMessage.textContent = `Image URL: ${url}`;
+            imageMessage.href = url;
+            
+            messagesDiv.appendChild(message);
+            messagesDiv.appendChild(imageMessage);
+            
+            try {
+                const response = await fetch(url, { method: 'GET' }); // 或 POST 如果适用
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const imageBlob = await response.blob();
+                const imageUrl = URL.createObjectURL(imageBlob);
+
+                const img = document.createElement('img');
+                img.src = imageUrl;
+                img.height = 200;
+                messagesDiv.appendChild(img);
+            } catch (error) {
+                console.error('Could not load image:', error);
+            }
+        };
+    </script>
+</body>
+</html>

@@ -18,6 +18,10 @@ The iVIT-I Service Entry
 # Basic
 import logging as log
 import json
+import time
+from websockets.exceptions import ConnectionClosed
+from starlette.websockets import WebSocketDisconnect
+
 
 # About FastAPI
 import uvicorn
@@ -28,12 +32,14 @@ from utils import check_json, get_pure_jsonify
 from common import SERV_CONF, WS_CONF, ICAP_CONF
 from samples import init_samples
 from handlers import (
+    task_handler,
     model_handler, 
     icap_handler, 
     app_handler, 
-    db_handler
+    db_handler,
+    dev_handler,
+    mesg_handler
 )
-from handlers.mesg_handler import ws_msg
 
 # About ICAP
 import paho
@@ -83,6 +89,13 @@ def startup_event():
 
     model_handler.init_db_model()    # Models
     app_handler.init_db_app()      # AppHandler
+    
+    # Update iDev
+    SERV_CONF["IDEV"] = dev_handler.iDeviceAsync()
+    SERV_CONF["MQTT"] = mesg_handler.ServerMqttMessenger(
+        "127.0.0.1",
+        SERV_CONF["MQTT_PORT"]
+    )
 
     icap_handler.init_icap( 
         tb_url=ICAP_CONF["HOST"],
@@ -178,13 +191,15 @@ async def websocket_endpoint_task(ws: WebSocket):
 
             # Invalid Key
             if not data:
-                if req_type == UID:
-                    sup_keys = list(WS_CONF.keys())
-                    sup_keys.remove('WS')
-                    raise KeyError("Got Invalid AI Task UID, Support is [ {} ]".format(
-                        ', '.join( sup_keys ) ) )
-                else:
-                    raise KeyError("Got Unexpect Error")
+                print('No data with {}'.format(req_data))
+                # if req_type == UID:
+                #     sup_keys = list(WS_CONF.keys())
+                #     sup_keys.remove('WS')
+                #     raise KeyError("Got Invalid AI Task UID, Support is [ {} ]".format(
+                #         ', '.join( sup_keys ) ) )
+
+                # else:
+                #     raise KeyError("Got Unexpect Error")
             
             # Send JSON Data
             await ws.send_json({
@@ -196,12 +211,15 @@ async def websocket_endpoint_task(ws: WebSocket):
             if req_type == UID:
                 init_uid(req_data)
 
+        # Disconnect
+        except WebSocketDisconnect as e:
+            print("Disconnected: ", e)
+            break
+
         # Capture Error ( Exception )
         except Exception as e:
-            log.exception(e)
             await ws.send_json(
-                ws_msg( type=ERR, content=e ))
-
+                mesg_handler.ws_msg( type=ERR, content=e ))
 
 if __name__ == "__main__":
 

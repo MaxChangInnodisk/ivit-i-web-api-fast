@@ -14,15 +14,17 @@ from multiprocessing.pool import ThreadPool
 from fastapi import File
 import shutil
 import wget
-
+from collections import defaultdict
+from typing import Union
+import hashlib
 
 # Custom
 try:
-    from ..common import SERV_CONF, RT_CONF, WS_CONF
-    from ..utils import gen_uid, json_to_str
+    from ..common import SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
+    from ..utils import gen_uid, json_to_str, file_helper, encode
 except:
-    from common import SERV_CONF, RT_CONF, WS_CONF
-    from utils import gen_uid, json_to_str
+    from common import SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
+    from utils import gen_uid, json_to_str, file_helper, encode
 
 from .ai_handler import get_ivit_api, iModel
 from .io_handler import (
@@ -34,7 +36,15 @@ from .io_handler import (
     is_source_using,
     create_rtsp_displayer
 )
-from . import task_handler, db_handler, model_handler, icap_handler, event_handler
+from . import (
+    task_handler, 
+    db_handler, 
+    model_handler, 
+    icap_handler, 
+    event_handler,
+    io_handler,
+    mesg_handler
+)
 from .app_handler import create_app
 from .mesg_handler import json_exception, handle_exception, simple_exception, ws_msg
 from .err_handler import InvalidError, InvalidUidError
@@ -91,10 +101,14 @@ def get_task_info(uid:str=None):
     con, cur = connect_db()
 
     # Move DB Cursor
-    results = db_to_list( cur.execute(
-        '''SELECT * FROM task''' if uid == None \
-            else """SELECT * FROM task WHERE uid=\"{}\"""".format(uid)
-    ))
+    sql_command = '''SELECT * FROM task''' if uid == None \
+        else """SELECT * FROM task WHERE uid=\"{}\"""".format(uid)
+
+    # Sort
+    sql_command = sql_command + " ORDER BY created_time ASC, name ASC"
+    
+    # Get data
+    results = db_to_list( cur.execute(sql_command))
 
     # Check BD is any task exist
     if is_db_empty(SERV_CONF["DB_PATH"]):
@@ -106,6 +120,7 @@ def get_task_info(uid:str=None):
     
     
     # Get Data
+    print([(task[1], task[8]) for task in results])
     for info in map(parse_task_data, results):
   
         task_uid = app_uid = info['uid']
@@ -177,7 +192,7 @@ def update_task_status(uid, status, err_mesg:dict = {}):
     update_data(table='task', data=write_data, condition=f"WHERE uid='{uid}'")
 
 
-def verify_task_exist(uid):
+def verify_task_exist(uid) -> dict:
     
     # Task Information
     task = select_data(table='task', data="*", condition=f"WHERE uid='{uid}'")
@@ -212,6 +227,32 @@ def verify_duplicate_task(task_name:str, duplicate_limit=2):
         # more than 2 task name then raise error
         if duplicate_nums >= duplicate_limit:
             raise NameError('AI Task is already exist ( {}: {} )'.format(uid, name))
+
+
+def has_duplicate_task(task_name:str, duplicate_limit=2) -> bool:
+    """Check duplicate AI task.
+
+    Args:
+        task_name (str): the ai task name
+        edit_mode (bool, optional): if is edit mode. Defaults to False.
+
+    Raises:
+        NameError: if ai task is already exist.
+    """
+    # Calculate duplicate nums
+    duplicate_nums = 0
+
+    # Checking
+    for uid, name in select_data(table='task', data=['uid','name']):
+        
+        # if duplicate then add 1
+        if task_name == name:
+            duplicate_nums += 1
+
+        # more than 2 task name then raise error
+        if duplicate_nums >= duplicate_limit:
+            return 1
+    return 0
 
 
 def verify_thres(threshold:float):
@@ -348,7 +389,7 @@ def run_ai_task(uid:str, data:dict=None) -> str:
             width=width, 
             fps=30,
             name=uid, 
-            platform='intel')
+            platform=SERV_CONF["platform"])
         
         # dpr = create_rtsp_displayer(
         #     name = uid,
@@ -389,6 +430,10 @@ def run_ai_task(uid:str, data:dict=None) -> str:
     except Exception as e:
         del RT_CONF[uid]['EXEC']
         raise RuntimeError("Launch AI Task Failed: {}".format(simple_exception(e)[1]))
+
+    # Add MQTT Topic
+    SERV_CONF["MQTT"].subscribe_event(uid)
+    SERV_CONF["MQTT"].publish(SERV_CONF["MQTT"].get_event_topic(uid), 'iVIT Registered !')
 
     # End
     mesg = 'Run AI Task ( {}: {} )'.format(uid, task_info['name'] )
@@ -434,7 +479,8 @@ def stop_ai_task(uid:str, data:dict=None):
 def update_ai_task(uid:str, data:dict=None):
     """ update AI Task via uid """
     if uid not in RT_CONF:
-        raise RuntimeError("The AI task has not launch yet.")
+        RT_CONF.update({uid: {}})
+
     RT_CONF[uid]['DATA'] = data
     log.info('Update AI Task: {} With {}'.format(uid, data))    
     return 'Update success'
@@ -450,9 +496,6 @@ def add_ai_task(add_data):
     # Generate Task UUID and Application UUID    
     errors = {}
     task_uid = app_uid = gen_uid()
-
-    if add_data.task_name == "":
-        raise NameError("AI task name is empty !!!")
 
     try:
         # Check Database Data
@@ -510,7 +553,8 @@ def add_ai_task(add_data):
             "model_uid": add_data.model_uid,
             "model_setting": add_data.model_setting,
             "status": "stop",
-            "device": add_data.device
+            "device": add_data.device,
+            "created_time": time.time()
         }
 
     )
@@ -551,9 +595,14 @@ def edit_ai_task(edit_data):
     task_uid = app_uid = edit_data.task_uid
 
     # CHECK: AI task is exist or not
-    verify_task_exist(task_uid)
-
-    # CHECK: task exist
+    task_raw_data = verify_task_exist(task_uid)
+    task_info = parse_task_data(task_raw_data)
+    
+    # Check status
+    if task_info["status"] == "run":
+        raise RuntimeError('The AI task is running, can not be edit.')
+         
+    # Name is exists
     verify_duplicate_task(edit_data.task_name)
 
     # CHECK: threshold value is available
@@ -606,7 +655,8 @@ def edit_ai_task(edit_data):
             "model_uid": edit_data.model_uid,
             "model_setting": json_to_str(edit_data.model_setting),
             "status": "stop",
-            "device": edit_data.device
+            "device": edit_data.device,
+            "created_time": task_info["created_time"]
         },
         replace=True
     )
@@ -653,153 +703,31 @@ def del_ai_task(uid:str):
 
 
 def export_ai_task(export_uids:list, to_icap:bool=False) -> list:
-    """Export AI Task
-
-    Args:
-        export_uids (list): a list of uids.
-        to_icap (bool, optional): if need to upload to iCAP or not. Defaults to False.
-
-    Returns:
-        list: a list include each task zip file
     
-    Sample:
-        ```
-        file_id: file name,
-        file_size: the file size,
-        ```
-    """
-    # Parameters
-    ret_info = []
+    exporter = TaskExporter(export_uids[0])
+    exporter.start()
 
-    # Capture information from database
-    con, cur = connect_db()
+    # Waiting the parse status
+    while(exporter.status != exporter.S_PARS):        
+        if exporter.status == exporter.S_FAIL:
+            raise exporter.error
+        print(f"{exporter.status:20}", end='\r')
 
-    def _get_task_db(uid) -> dict:
-
-        info = {}
-
-        # Checking
-        verify_task_exist(uid)
-
-        # Task Table
-        task_table = parse_task_data(db_to_list( cur.execute(
-            """SELECT * FROM task WHERE uid=\"{}\"""".format(uid)
-        ))[0])
-
-        # Parse Data
-        task_name = task_table['name'].replace(' ', '-')
-        task_uid = task_table['uid']
-        app_uid = task_uid
-        source_uid = task_table['source_uid']
-        model_uid = task_table['model_uid']
-
-        # Model Table
-        model_table = parse_model_data(db_to_list( cur.execute(
-            """SELECT * FROM model WHERE uid=\"{}\"""".format(model_uid)
-        ))[0])
-
-        # Source Table
-        source_table = parse_source_data(db_to_list( cur.execute(
-            """SELECT * FROM source WHERE uid=\"{}\"""".format(source_uid)
-        ))[0])
-
-        # App Table
-        app_table = parse_app_data(db_to_list( cur.execute(
-            """SELECT * FROM app WHERE uid=\"{}\"""".format(app_uid)
-        ))[0])
-
-        # Update Return Info
-        info = {
-            "task": task_table,
-            "model": model_table,
-            "source": source_table,
-            "app": app_table
-        }
-
-        # Creat Export Folder if need
-        exp_dir = SERV_CONF["EXPORT_DIR"]
-        if not os.path.exists(exp_dir):
-            os.mkdir(exp_dir)
-
-        # Define Variable
-        platform = SERV_CONF["PLATFORM"]
-        
-        date_time = datetime.fromtimestamp(time.time())
-        str_date_time = date_time.strftime("%Y%m%d")
-
-        file_name_formatter = lambda name, ext: f"{platform}_{task_name}_{str_date_time}.{ext}"
-        cfg_name = file_name_formatter(task_name, 'json')
-        zip_name = file_name_formatter(task_name, 'zip')
-        
-        cfg_path = os.path.join(exp_dir, cfg_name)
-        zip_path = os.path.join(exp_dir, zip_name)
-        
-        zip_files = []
-        
-        # Write a Configuration
-        with open(cfg_path, "w") as f:
-            json.dump(info, f, indent=4)
-        zip_files.append(cfg_path)
-
-        # Append model data
-        model_dir = os.path.dirname(model_table["model_path"])
-        [ zip_files.append( 
-            os.path.join(model_dir, model_file)) \
-                for model_file in os.listdir(model_dir) ]
-        
-        # Append Source data
-        if source_table["type"] in [ "IMAGE", "VIDEO", "DIR" ]:
-            zip_files.append(source_table["input"])
-        
-        # Compress
-        log.info("Compress AI Task: {}".format(uid))
-        with zipfile.ZipFile(zip_path, mode='w') as zf:
-            for _file in zip_files:
-                _file = os.path.relpath(_file)
-                log.debug('\t- Compress file: {}'.format(_file))
-                zf.write(_file)
-
-        # Double check
-        if os.path.exists(zip_path):
-            log.info(f'Export AI Task ({zip_path}) successed !')
-        else:
-            log.warning(f'Export AI Task ({zip_path}) failed !')
-
-        # Get Size
-        zip_size = sys.getsizeof(zip_path)
-
-        # Return
-        return {
-            "task_uid": task_uid,
-            "task_name": task_name,
-            "cfg_name": cfg_name,
-            "zip_name": zip_name,
-            "zip_size": zip_size,
-        }
-
-    for uid in export_uids:
-
-        try:
-            ret_info.append(_get_task_db(uid=uid))
-
-        except Exception as e:
-            log.exception(e)
-        
-
-    return ret_info
+    return {
+        "uid": exporter.uid,
+        "status": exporter.status
+    }
 
 
 def import_ai_task(file:File, url:str=None):
     
-   
-    if (url == "") or (url is None):
-        importer = TASK_ZIP_IMPORTER(file=file)
-    else:
-        importer = TASK_URL_IMPORTER(url=url)
-
+    importer = TASK_ZIP_IMPORTER(file=file)
     importer.start()
 
     while(importer.status != importer.S_PARS):
+        if importer.status == importer.S_FAIL:
+            raise importer.error
+
         print(f"{importer.status:20}", end='\r')
 
     return {
@@ -1021,6 +949,17 @@ class InferenceLoop:
     def _update_app_setup_func(self, data):
         """Update the parameters of the application, like: palette, draw_bbox, etc."""
         try:
+            # Display
+            need_cv = getattr(data, 'cv_display', False)
+            if need_cv:
+                self.dpr._setup_cv(
+                    name = self.uid,
+                    width = self.src.width,
+                    height = self.src.height
+                )
+            else:
+                self.dpr.dps.pop(self.dpr.CV)
+
             # Area Event: Color, ... etc
             palette = getattr(data, 'palette', None)
             if palette:
@@ -1068,54 +1007,6 @@ class InferenceLoop:
         # Clear dara
         RT_CONF[self.uid]['DATA']={}
 
-    # def _launch_event(self, event_output: dict) -> None:
-    #     """Launch event function """
-        
-    #     if not event_output: return
-        
-    #     # Get value
-    #     event_output = event_output.get('event')
-    #     if not event_output: 
-    #         return
-
-    #     # NOTE: store in database, event start if status is True else False
-    #     for event in event_output:
-            
-    #         # Combine data
-    #         data = {
-    #             "uid": event["uid"],
-    #             "title": event["title"],
-    #             "app_uid": self.uid,
-    #             "start_time": event["start_time"],
-    #             "end_time": event["end_time"]
-    #         }
-
-    #         # Event Trigger First Time: status=True and event_output!=[]
-    #         if event["event_status"]:
-    #             # Add new data            
-    #             insert_data( table= 'event', data= data )
-            
-    #         else:
-    #             # Update old data ( update end_time )
-    #             update_data( table= 'event', data= data,
-    #                 condition= f"WHERE start_time={event['start_time']}" )
-                
-    #             # No need to send websocket
-    #             continue
-
-    #         # Send to front end via WebSocket
-    #         if "WS" not in WS_CONF: return
-            
-    #         # Tidy up data
-    #         data["start_time"] = str(data["start_time"])
-    #         data["end_time"] = str(data["end_time"])
-    #         try:
-    #             # Send data to front end
-    #             asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=data )) )
-    #         except Exception as e:
-    #             log.warning('Send websocket failed!!!!')
-    #             log.exception(e)
-
     def _launch_event(self, event_output: dict) -> None:
         """Launch event function """
         
@@ -1152,22 +1043,31 @@ class InferenceLoop:
                 # No need to send websocket
                 continue
 
-            # Send to front end via WebSocket
-            if "WS" not in WS_CONF: 
-                log.debug('No socket')
-                print(data)
-                return
-            
             # Tidy up data
+            data["task_uid"] = self.uid
             data["annotation"].pop("detections")
             data["start_time"] = str(data["start_time"])
             data["end_time"] = str(data["end_time"])
-            try:
-                # Send data to front end
-                asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="EVENT", content=data )) )
-            except Exception as e:
-                log.warning('Send websocket failed!!!!')
-                log.exception(e)
+
+            # Send data to front end
+            event_message = ws_msg( type="EVENT", content=data )
+            EVENT_CONF.update(data)
+
+            # Send to front end via WebSocket
+            if "WS" in WS_CONF:                 
+                try:
+
+                    asyncio.run( WS_CONF["WS"].send_json(event_message) )
+                except Exception as e:
+                    log.warning('Send websocket failed!!!!')
+                    log.exception(e)
+
+            if "MQTT" in SERV_CONF:
+                main_topic = SERV_CONF["MQTT"].get_event_topic()
+                trg_topic = SERV_CONF["MQTT"].get_event_topic(data["task_uid"])
+                for topic in [ main_topic, trg_topic]:
+                    SERV_CONF["MQTT"].publish(topic, event_message)
+                    time.sleep(0.1)
 
     # NOTE: MAIN LOOP
     def _infer_loop(self):
@@ -1322,22 +1222,276 @@ class InferenceLoop:
         self.thread_object = None
 
 
-# Task Importer
+# Task Messager, Processors
 
-class TaskImporterWrapper(abc.ABC):
+class TaskProcessor(mesg_handler.TaskMessenger):
+    
+    S_FAIL = "Failure"
+    S_INIT = "Waiting (0%)"
+    S_FINISH = "Success (100%)"
+    
+    def __init__(self, uid: Union[str, None]=None):
+        self.status = self.S_INIT
+        self.uid = uid if uid else gen_uid()
+        self.thread = self._create_thread()
+        self.message = ""
+        self.error = Exception()
+        self.topic = "TASK"
+        self.action = ""
+
+    def update_status(self, 
+        status:str, 
+        message: Union[str, Exception]="", 
+        push_mesg:bool=True):
+        """ Update Status and push message to front end """
+        
+        self.status = status
+        
+        if status == self.S_FAIL:
+            if isinstance(message, Exception):
+                self.error = message
+            self.message = handle_exception(message)
+        else:
+            self.message = message
+        
+        # Add PROC
+        if "PROC" not in SERV_CONF:
+            print('Add PROC in SERV_CONF')
+            SERV_CONF.update({"PROC": defaultdict(dict)})
+
+        # Update Message
+        if self.uid not in SERV_CONF["PROC"]:
+            SERV_CONF["PROC"].update({ self.uid: dict()})
+            
+        SERV_CONF["PROC"][self.uid].update({
+            "status": self.status,
+            "message": self.message
+        })
+
+        # Update Topic and Action
+        if self.topic and self.action:
+            SERV_CONF["PROC"][self.uid].update({
+                "topic": self.topic,
+                "action": self.action
+            })
+
+        # Push data
+        if push_mesg:
+            self.push_mesg()
+
+        # Clear error, finish or unused data
+        if status in [ self.S_FAIL, self.S_FINISH ]:
+            SERV_CONF["PROC"].pop(self.uid, None)
+
+    def main_event(self):
+        pass
+
+    def fail_event(self):
+        pass
+
+    def thread_event(self):
+        try:
+            self.main_event()
+
+        except Exception as e:
+            self.fail_event()
+            log.exception(e)
+            self.update_status(status=self.S_FAIL, message=e)
+            time.sleep(1)
+            
+        finally:
+            log.info('End of event')
+
+    def _create_thread(self) -> threading.Thread:
+        """ Create a thread which will run self.export_event at once """
+        return threading.Thread(
+            target=self.thread_event, daemon=True)
+        
+    def start(self):
+        self.thread.start()
+
+    def stop(self):
+        self.thread.join()
+
+# Task Exporter
+class TaskExporter(TaskProcessor):
+    S_PARS = "Verifying"
+    S_CONV = "Packaging"
+
+    def __init__(self, uid: str):
+        super().__init__(self._valid_empty_uid(uid))
+        self.performance = defaultdict(float)
+        self.action = "EXPORT"
+
+    def _valid_empty_uid(self, uid: str):
+        if uid=="": 
+            raise NameError("UID should not be empty.")
+        return uid
+
+    def _parse_event(self) -> dict:
+        
+        # Checking
+        verify_task_exist(self.uid)
+
+        # Capture information from database
+        con, cur = connect_db()
+        
+        # Task Table
+        task_table = parse_task_data(db_to_list( cur.execute(
+            """SELECT * FROM task WHERE uid=\"{}\"""".format(self.uid)
+        ))[0])
+
+        # Parse Data
+        task_name = task_table['name'].replace(' ', '-')
+        task_uid = task_table['uid']
+        app_uid = task_uid
+        source_uid = task_table['source_uid']
+        model_uid = task_table['model_uid']
+
+        # Model Table
+        model_table = parse_model_data(db_to_list( cur.execute(
+            """SELECT * FROM model WHERE uid=\"{}\"""".format(model_uid)
+        ))[0])
+
+        # Source Table
+        source_table = parse_source_data(db_to_list( cur.execute(
+            """SELECT * FROM source WHERE uid=\"{}\"""".format(source_uid)
+        ))[0])
+
+        # App Table
+        app_table = parse_app_data(db_to_list( cur.execute(
+            """SELECT * FROM app WHERE uid=\"{}\"""".format(app_uid)
+        ))[0])
+
+        close_db(con, cur)
+
+        # Update Return Info
+        db_data = {
+            "task": task_table,
+            "model": model_table,
+            "source": source_table,
+            "app": app_table
+        }
+
+        return db_data
+
+    def _get_export_dir(self):
+        """Create Export Folder if need"""
+        exp_dir = SERV_CONF["EXPORT_DIR"]
+        if not os.path.exists(exp_dir):
+            os.mkdir(exp_dir)
+        return exp_dir
+
+    def _package_event(self, db_data: dict):
+
+        # Parse 
+        model_table = db_data["model"]
+        source_table = db_data["source"]
+        
+        # Define Variable
+        platform = SERV_CONF["PLATFORM"]
+        exp_dir = self._get_export_dir()
+        task_name = db_data["task"]["name"]
+        task_uid = db_data["task"]["uid"]
+        zip_files = []
+
+        date_time = datetime.fromtimestamp(time.time())
+        str_date_time = date_time.strftime("%Y%m%d")
+        file_name_formatter = lambda name, ext: f"{platform}_{task_name}_{str_date_time}.{ext}"
+
+        # --------------------------------------------------
+        # Write a Configuration
+        cfg_name = file_name_formatter(task_name, 'json')
+        cfg_path = os.path.join(exp_dir, cfg_name)
+        with open(cfg_path, "w") as f:
+            json.dump(db_data, f, indent=4)
+        zip_files.append(cfg_path)
+
+        # --------------------------------------------------
+        # Append file to compress
+        zip_name = file_name_formatter(task_name, 'zip')
+        zip_path = os.path.join(exp_dir, zip_name)    
+
+        # Append model data
+        model_dir = os.path.dirname(model_table["model_path"])
+        [ zip_files.append( 
+            os.path.join(model_dir, model_file)) \
+                for model_file in os.listdir(model_dir) ]
+        
+        # Append Source data
+        if source_table["type"] in [ "IMAGE", "VIDEO", "DIR" ]:
+            zip_files.append(source_table["input"])
+        
+        # Compress
+        first_zip_flag = file_helper.compress_files(zip_path=zip_path, zip_files=zip_files)
+        assert first_zip_flag, "Fail to zip with all files!"
+
+        # Remove temperate file
+        os.remove(cfg_path)
+
+        # --------------------------------------------------
+
+        # Get checksum
+        md5sums = encode.md5(zip_path)
+        checksum_name = "MD5SUMS"
+        checksum_path = os.path.join(exp_dir, checksum_name)
+        with open(checksum_path, "w") as f:
+            f.write(md5sums)
+
+        # Compress again
+        zip_files = [ zip_path, checksum_path ]
+        temp_zip_path = "temperate.zip"
+        second_zip_flag = file_helper.compress_files(
+            zip_path=temp_zip_path, zip_files=zip_files, keep_dir=False)
+        assert second_zip_flag, "Fail to zip with checksum! "
+        
+        os.rename(temp_zip_path, zip_path)
+        assert os.path.exists(zip_path), "Fail rename zip."
+
+        # Delete temperate checksum
+        os.remove(checksum_path)
+
+        # Return
+        package_data = {
+            "task_uid": task_uid,
+            "task_name": task_name,
+            "cfg_name": cfg_name,
+            "zip_name": zip_name,
+        }
+
+        SERV_CONF["PROC"][self.uid].update(package_data)
+
+    def main_event(self):
+        log.info('Waiting')
+        self.update_status(self.S_INIT)
+
+        t_parse = time.time()
+        log.info('Packaging')
+        self.update_status(self.S_PARS)
+        db_data = self._parse_event()
+        self.performance['parse'] = time.time() - t_parse
+
+        t_package = time.time()
+        log.info('Packaging')
+        self.update_status(self.S_CONV)
+        packaged_data = self._package_event(db_data)
+        self.performance['package'] = time.time() - t_parse
+
+        self.update_status(self.S_FINISH)
+        log.info('Finished !!!')
+
+# Task Importer
+class TaskImporterWrapper(TaskProcessor):
     """ Model Helper 
     1. Download ZIP
     2. Extract ZIP
     3. Convert Model if need
     4. Initailize AI Task into Database
     """
-    S_FAIL = "Failure"
-    S_INIT = "Waiting"
-    S_DOWN = "Downloading"      # Downloading ({N}%)
-    S_PARS = "Verifying"
-    S_CONV = "Converting"       # Converting ({N}%)
-    S_FINISH = "Success"
-
+    S_DOWN = "Downloading (25%)"
+    S_PARS = "Verifying (50%)"
+    S_IMPO = "Importing (75%)"
+    
     def __init__(self) -> None:
         """
         uid:
@@ -1346,12 +1500,7 @@ class TaskImporterWrapper(abc.ABC):
         benchmark:
         """
         super().__init__()
-        
-        # Basic Parameters
-        self.uid = gen_uid()
-
-        # Status Parameters
-        self.status = self.S_INIT
+        self.action = "IMPORT"
 
         # Task information
         self.task_platform = None
@@ -1364,24 +1513,14 @@ class TaskImporterWrapper(abc.ABC):
         self.file_folder = ""
         self.cfg_path = ""
         
-        # Convert Process
-        self.process = None
-
         # Benchmark
-        self.performance = {
-            "download": None,
-            "parse": None
-        }
+        self.performance = defaultdict(float)
 
         # Init
         self._update_uid_into_share_env()
 
         self.tmp_dir = SERV_CONF["TEMP_DIR"]
         self._create_tmp_dir(self.tmp_dir)
-
-        # Thread Placeholder and Create Thread
-        self.import_thread = None
-        self._create_thread()
 
     def _create_tmp_dir(self, tmp_dir:str):
         if os.path.exists(tmp_dir): return
@@ -1390,7 +1529,7 @@ class TaskImporterWrapper(abc.ABC):
     def _update_uid_into_share_env(self):
         """ Updae Environment Object """
         if SERV_CONF.get("PROC") is None:
-            SERV_CONF.update({"PROC": {}})
+            SERV_CONF.update({"PROC": defaultdict()})
         if SERV_CONF["PROC"].get(self.uid) is None:
             SERV_CONF["PROC"].update({
                 self.uid: { 
@@ -1399,42 +1538,10 @@ class TaskImporterWrapper(abc.ABC):
                 }
             })
 
-    def push_mesg(self):
-        """ Push message
-
-        - Workflow
-            1. Print Status
-            2. If WebSocket exists then push message via `WS_CONF["WS"].send_json()`
-        """
-
-        print(' '*80, end='\r') # Clear console
-        print(SERV_CONF["PROC"][self.uid]['status'], end='\r')
-
-        if WS_CONF.get("WS") is None: return
-        try:
-            asyncio.run( WS_CONF["WS"].send_json( 
-                ws_msg(type="PROC", content=SERV_CONF["PROC"])) )
-        except Exception as e:
-            log.exception(e)
-
-    def update_status(self, status:str, message: str="", push_mesg:bool=True):
-        """ Update Status and push message to front end """
-
-        self.status = status
-        
-        SERV_CONF["PROC"][self.uid].update({
-            "status": status,
-            "message": message,
-            "performace": self.performance
-        })
-
-        if push_mesg:
-            self.push_mesg()
-
-    def download_event(self):
+    def _download_event(self):
         pass
     
-    def parse_event(self):
+    def _parse_event(self):
         """Parsing Event
         
         - Structure
@@ -1459,16 +1566,51 @@ class TaskImporterWrapper(abc.ABC):
 
             shutil.move(org_path, trg_path)
             log.info('\t- Move file from {} to {}'.format(file_path, trg_path))
-            
+
+        # Parse ZIP Name
+        self.task_platform, self.task_name, self.export_time \
+            = self._parse_zip_name(self.file_name)
+
+        # Concate data
+        self.file_folder = os.path.join( SERV_CONF["TEMP_DIR"], self.task_name )
+
+        log.debug('Parsing File:')
+        log.debug(f'\t- Platform: {self.task_platform}')
+        log.debug(f'\t- Name: {self.task_name}')
+        log.debug(f'\t- Export Time: {self.export_time}')
+        log.debug(f'\t- Save Path: {self.file_path}')
+
         # Extract
-        with zipfile.ZipFile(self.file_path, 'r') as zip_ref:
-            zip_ref.extractall(self.file_folder)
+        file_helper.extract_files(
+            zip_path=self.file_path, trg_folder=self.file_folder)
+        log.debug(f'Extract to {self.file_folder}')
+
+        # Verify
+        files = os.listdir(self.file_folder)
+        if len(files)!=2:
+            raise FileExistsError(f"Expected 2 file, but got {len(files)}")
+        else:
+            print(files)
         
+        for file_name in files:
+            file_path = os.path.join(self.file_folder, file_name)
+            if "MD5" in file_name:
+                checksum = encode.load_txt(file_path)[0]
+        
+        real_zip_path = os.path.join(self.file_folder, self.file_name)
+
+        if checksum != encode.md5(real_zip_path):
+            raise RuntimeError('File is broken...')
+        flag = file_helper.extract_files(
+            zip_path=real_zip_path,
+            trg_folder=self.file_folder
+        )
+        if not flag: 
+            raise FileNotFoundError('Extract second file failed')
+
         # Remove Zip File
         os.remove(self.file_path)
-
-        # Check duplicate name
-        verify_duplicate_task(self.task_name, duplicate_limit=1)
+        os.remove(real_zip_path)
 
         # Get Configuration
         _cfg_path = glob.glob(os.path.join(self.file_folder, 'export/*'))
@@ -1477,22 +1619,35 @@ class TaskImporterWrapper(abc.ABC):
                 ', '.join(_cfg_path)))
         self.cfg_path = _cfg_path[0]
         
-        
         # Get All Path: [ temp/<task_name>/<file_type>/<files> ... ]
         for file_path in glob.glob(os.path.join(self.file_folder, "*/*"), recursive=True):
 
             tmp_dir, task_name, file_type, file_name = file_path.split('/')
             
-
             if file_type in [ "data", "model" ]:
                 trg_path = os.path.join(file_type, file_name) 
                 move_data(
                     org_path = file_path,
                     trg_path = trg_path
                 )
-        
 
-    def add_into_db(self):
+    def _get_valid_task_name(self, task_name: str):
+        # Check duplicate name
+        if not has_duplicate_task(task_name, duplicate_limit=1):
+            return task_name
+
+        new_task_name = task_name
+        idx = 1
+        while(True):
+            new_task_name = f"{task_name} ({idx})"
+            if not has_duplicate_task(new_task_name, duplicate_limit=1):
+                break    
+            idx += 1
+
+        log.warning(f"Task rename from {task_name} to {new_task_name}")
+        return new_task_name
+
+    def _add_into_db(self):
         
         # Get Config Data
         with open(self.cfg_path, 'r') as f:
@@ -1502,6 +1657,9 @@ class TaskImporterWrapper(abc.ABC):
         model_table     = cfg_data["model"]
         source_table    = cfg_data["source"]
         app_table       = cfg_data["app"]
+
+        # Check duplicate name
+        task_table["name"] = self._get_valid_task_name(task_table["name"])
 
         # Source
         db_handler.insert_data(
@@ -1521,7 +1679,7 @@ class TaskImporterWrapper(abc.ABC):
         db_handler.insert_data(
             table="app",
             data={
-                "uid": app_table["uid"],
+                "uid": self.uid,
                 "name": app_table["name"],
                 "type": app_table["type"],
                 "app_setting": app_table["app_setting"]
@@ -1533,13 +1691,14 @@ class TaskImporterWrapper(abc.ABC):
         db_handler.insert_data(
             table="task",
             data={
-                "uid": task_table["uid"],
+                "uid": self.uid,
                 "name": task_table["name"],
                 "source_uid": task_table["source_uid"],
                 "model_uid": task_table["model_uid"],
                 "model_setting": task_table["model_setting"],
                 "status": task_table["status"],
-                "device": task_table["device"]
+                "device": task_table["device"],
+                "created_time": time.time()
             },
             replace=True
         )
@@ -1549,38 +1708,81 @@ class TaskImporterWrapper(abc.ABC):
         
         log.info('Get the config of the import task , trying to add into database ...')
         
+        # Updated
+        SERV_CONF["PROC"][self.uid].update(task_handler.get_task_info(self.uid)[0])
 
-    def import_event(self):
-        try:
-            t_down = time.time()
-            log.info('Downloading')
-            self.update_status(self.S_DOWN)
-            self.download_event()
-            self.performance['download'] = time.time() - t_down
+        # Delete file
+        file_need_to_clean = [ self.file_path, self.file_folder ]
+        for file in file_need_to_clean:
+            
+            if not os.path.exists(file): continue
 
-            t_parse = time.time()
-            log.info('Parsing')
-            self.update_status(self.S_PARS)
-            self.parse_event()
-            self.performance['parse'] = time.time() - t_parse
+            try:
+                if os.path.isfile(file):
+                    os.remove(file)
+                    print(f'Clear file: {file}')
+                elif os.path.isdir(file):
+                    shutil.rmtree(file)
+                    print(f'Clear folder: {len(os.listdir(file))}')
+            
+            except Exception as e:
+                print(e)
 
-            self.add_into_db()
-            self.update_status(self.S_FINISH)
-            log.info('Finished !!!')
+    def main_event(self):
+        t_down = time.time()
+        log.info(self.S_DOWN)
+        self.update_status(self.S_DOWN)
+        self._download_event()
+        self.performance['download'] = time.time() - t_down
 
-        except Exception as e:
-            self.update_status(status=self.S_FAIL, message=handle_exception(e))
-        finally:
-            log.info('End of import event')
+        t_parse = time.time()
+        log.info(self.S_PARS)
+        self.update_status(self.S_PARS)
+        self._parse_event()
+        self.performance['parse'] = time.time() - t_parse
 
-    def _create_thread(self):
-        """ Create a thread which will run self.import_event at once """
-        self.import_thread = threading.Thread(target=self.import_event, daemon=True)
-        log.warning('Created deploy thread')
+        log.info(self.S_IMPO)
+        self.update_status(self.S_IMPO)
+        self._add_into_db()
+        self.update_status(self.S_FINISH)
+        
+        time.sleep(1) # Wait a second to ensure the success message is arrived.
+        log.info('Finished !!!')
+        
 
-    def start(self):
-        self.import_thread.start()
+    def fail_event(self):
+        log.warning("Fail Event ..")
+        # Clear files
+        file_need_to_clean = [ self.file_path, self.file_folder ]
+        for file in file_need_to_clean:
+            
+            if not os.path.exists(file): continue
 
+            try:
+                if os.path.isfile(file):
+                    os.remove(file)
+                    print(f'Clear file: {file}')
+                elif os.path.isdir(file):
+                    shutil.rmtree(file)
+                    print(f'Clear folder: {len(os.listdir(file))}')
+            
+            except Exception as e:
+                print(e)
+
+    def _parse_zip_name(self, file_name: str) -> tuple:
+        file_name = os.path.basename(file_name)
+        name_formats = os.path.splitext(file_name)[0].split('_')
+        task_platform = name_formats[0]
+        task_name = ''.join(name_formats[1:-1])
+        export_time = name_formats[-1]
+
+        support_platforms = [ "intel", "nv", "nvidia", "hailo", "xilinx" ]
+        if task_platform not in support_platforms:
+            raise NameError("Got unexpected platform, expect platform is {}".format(support_platforms))
+        if not export_time.isdigit() :
+            raise NameError(f'Go invalidate export time, it should be as <year><month><day>')
+
+        return ( task_platform, task_name, export_time )
 
 class TASK_ZIP_IMPORTER(TaskImporterWrapper):
     """ IMPORTER for ZIP Model """
@@ -1592,60 +1794,107 @@ class TASK_ZIP_IMPORTER(TaskImporterWrapper):
         self.file = file
         
         # Name
-        self.file_name = self.file.filename                   
+        self.zip_name = self.file.filename    
+        self.zip_path = os.path.join( SERV_CONF["TEMP_DIR"], self.zip_name )
 
-        # Parse ZIP Name
-        self.task_platform, self.task_name, self.export_time = self.file_name.split('_')
+    def _parse_event(self):
+        """Parsing Event
         
-        self.file_path = os.path.join( SERV_CONF["TEMP_DIR"], self.file_name )
-        self.file_folder = os.path.join( SERV_CONF["TEMP_DIR"], self.task_name )
-        log.debug('Import Task via File')
+        - Structure
+            <task_name>/
+                data/   
+                model/
+                export/     # db
+
+        - Workflow
+            1. Extract ZIP.
+            2. Remove ZIP.
+            3. Move the file to correct path
+        """
+
+        def move_data(org_path, trg_path):
+            if os.path.exists(trg_path):
+                if os.path.isdir(trg_path):
+                    shutil.rmtree(trg_path)
+                else:
+                    os.remove(trg_path)
+                log.warning('\t- Import file exists, auto remove it. ({})'.format(trg_path))
+
+            shutil.move(org_path, trg_path)
+            log.debug('\t- Move file from {} to {}'.format(org_path, trg_path))
+
+        # Extract
+        self.zip_folder = os.path.join( SERV_CONF["TEMP_DIR"], os.path.splitext(self.zip_name)[0] )
+        file_helper.extract_files(
+            zip_path=self.zip_path, trg_folder=self.zip_folder)
+
+        # Parse the task zip ( file_name, file_path means the task zip name and path )
+        task_zips = glob.glob(f"{self.zip_folder}/*.zip")
+        assert len(task_zips) == 1, "ZIP file should only have one."
+        self.file_path = task_zips[0]
+        self.file_name = os.path.basename(self.file_path)
+
+        # Get platform, name and timestamp
+        self.task_platform, self.task_name, self.export_time \
+            = self._parse_zip_name(self.file_path)
+
+        # Update PROC information
+        SERV_CONF["PROC"][self.uid]["name"] = self.task_name
+
+        # Concatenate data
+        self.file_folder = os.path.join( SERV_CONF["TEMP_DIR"], self.task_name)
+        
+        # Rename and update file_path
+        os.rename(self.zip_folder, self.file_folder)
+        self.file_path = self.file_path.replace(self.zip_folder, self.file_folder)
+
+        log.debug('Parsing File:')
         log.debug(f'\t- Platform: {self.task_platform}')
         log.debug(f'\t- Name: {self.task_name}')
         log.debug(f'\t- Export Time: {self.export_time}')
-        log.debug(f'\t- Save Path: {self.file_path}')
+        log.debug(f'\t- Save Path: {self.zip_path}')
+        log.debug(f'\t- Target Task Path: {self.file_path}')
+        
+        # Verify with MD5
+        md5_path = glob.glob(f"{self.file_folder}/MD5SUMS")[0]
+        if encode.load_txt(md5_path)[0] != encode.md5(self.file_path):
+            raise RuntimeError('File is broken...')
 
-    def download_event(self):
+
+        # Extract task zip
+        try:
+            file_helper.extract_files(
+                zip_path = self.file_path,
+                trg_folder = self.file_folder )
+        except Exception as e:
+            raise FileNotFoundError('Extract second file failed')
+
+        # Remove Zip File
+        os.remove(self.zip_path)
+        os.remove(self.file_path)
+
+        # Get Configuration
+        export_files = glob.glob(os.path.join(self.file_folder, 'export/*'))
+        if len(export_files)!=1:
+            raise FileNotFoundError('Configuration only have one, but got {}'.format(
+                ', '.join(export_files)))
+        self.cfg_path = export_files[0]
+        
+        # Get All Path: [ temp/<task_name>/<file_type>/<files> ... ]
+        for file_path in glob.glob(os.path.join(self.file_folder, "*/*"), recursive=True):
+
+            tmp_dir, task_name, file_type, file_name = file_path.split('/')
+            if file_type not in [ "data", "model" ]: continue
+
+            trg_path = os.path.join(file_type, file_name) 
+            move_data( org_path = file_path, trg_path = trg_path )
+
+    def _download_event(self):
         """ Download file via FastAPI """
-
-        with open(self.file_name, "wb") as buffer:
+        
+        with open(self.zip_name, "wb") as buffer:
             shutil.copyfileobj(self.file.file, buffer)
-        shutil.move(self.file_name, self.file_path)
+        shutil.move(self.zip_name, self.zip_path)
         
-        if not os.path.exists(self.file_path):
-            raise FileNotFoundError('Save ZIP File Failed')
-
-        SERV_CONF["PROC"][self.uid]["name"] = os.path.basename(self.task_name)
-
-
-class TASK_URL_IMPORTER(TaskImporterWrapper):
-    """ IMPORTER for URL Model """
-    def __init__(self, url:str) -> None:
-        super().__init__()
-
-        self.url = url
-        
-        # Update Download Parameters
-        self.tmp_proc_rate = 0  # avoid keeping send the same proc_rate
-        self.push_rate = 10
-        self.push_buf = None
-
-    def _download_progress_event(self, current, total, width=80):
-        proc_rate = int(current / total * 100)
-        proc_mesg = f"{self.S_DOWN} ( {proc_rate}% )"
-
-        if ((proc_rate%self.push_rate)==0 and proc_rate!=self.tmp_proc_rate) :
-            self.tmp_proc_rate = proc_rate
-            self.update_status(status=proc_mesg)
-
-    def download_event(self):
-        """ Download file via URL from iVIT-T """
-        self.update_status(self.S_DOWN)
-        
-        self.file_name = wget.download( self.url, bar=self._download_progress_event)
-        self.file_path = os.path.join( SERV_CONF["MODEL_DIR"], self.file_name)
-        shutil.move( self.file_name, self.file_path )
-        self.file_folder =  os.path.splitext( self.file_path )[0]
-        
-        SERV_CONF["PROC"][self.uid]["name"] = os.path.basename(self.file_folder)
+        file_helper.valid_zip(self.zip_path)
 

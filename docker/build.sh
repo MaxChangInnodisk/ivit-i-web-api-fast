@@ -45,7 +45,7 @@ case ${OPT_ARR[0]} in
         echo "Launching iVIT-I-NVIDIA"
         ;;
     "jetson" )
-        echo "Launching iVIT-I-NVIDIA"
+        echo "Launching iVIT-I-JETSON"
         ;;
     *)
         echo "Not detect platform !!!!"

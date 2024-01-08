@@ -3,7 +3,7 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-import uuid, json, re
+import uuid, json, re, hashlib
 
 def gen_uid3(name):
     return str(uuid.uuid3(uuid.NAMESPACE_DNS, name))[:8]
@@ -14,9 +14,14 @@ def gen_uid4():
 def gen_uid(name:str=None):
     return gen_uid3(name) if name else gen_uid4() 
 
-def load_json(path:str):
+def load_json(path:str) -> dict:
     with open(path, 'r') as f:
         data = json.load(f)
+    return data
+
+def load_txt(path: str) -> list:
+    with open(path, 'r') as f:
+        data = f.readlines()
     return data
 
 def json_to_str(data:dict) -> str:
@@ -68,3 +73,6 @@ class NumpyEncoder(json.JSONEncoder):
         elif isinstance(obj, np.int64):
             return int(obj)
         return json.JSONEncoder.default(self, obj)
+
+def md5(file_path: str) -> str:
+    return hashlib.md5(open(file_path,'rb').read()).hexdigest()

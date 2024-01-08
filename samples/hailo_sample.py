@@ -30,6 +30,7 @@ except:
     from utils import gen_uid, json_to_str
     from handlers import db_handler
 
+CREATED_TIME = time.time()
 
 def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
     """ Add intel sample information into database 
@@ -125,7 +126,8 @@ def intel_sample_cls(db_path: str = SERV_CONF["DB_PATH"]):
             "model_uid": model_uid,
             "model_setting": model_setting,
             "status": task_status,
-            "device": device
+            "device": device,
+            "created_time": CREATED_TIME
         },
         replace=True
     )
@@ -222,7 +224,8 @@ def intel_sample_yolov4_leaky(db_path: str = SERV_CONF["DB_PATH"]):
             "model_uid": model_uid,
             "model_setting": model_setting,
             "status": task_status,
-            "device": device
+            "device": device,
+            "created_time": CREATED_TIME
         },
         replace=True
     )
@@ -319,7 +322,8 @@ def intel_sample_yolov4_tiny(db_path: str = SERV_CONF["DB_PATH"]):
             "model_uid": model_uid,
             "model_setting": model_setting,
             "status": task_status,
-            "device": device
+            "device": device,
+            "created_time": CREATED_TIME
         },
         replace=True
     )

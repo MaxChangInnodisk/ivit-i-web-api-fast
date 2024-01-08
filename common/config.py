@@ -12,7 +12,7 @@ import logging as log
 from typing import Any
 
 from .env import init_ivit_env
-from ivit_i.utils import iDevice
+# from ivit_i.utils import iDevice
 
 
 # Wrapper
@@ -33,7 +33,7 @@ class ConfigWrapper(collections.UserDict):
 
     @property
     def get_name(self):
-        return self.__class__.__name__
+        return self.__getitem__("NAME")
 
 # Update SERV_CONF at first time
 def update_service_config_at_first(config_path:str='ivit-i.json'):
@@ -45,22 +45,27 @@ def update_service_config_at_first(config_path:str='ivit-i.json'):
     with open(config_path, 'r') as f:
         json_data = json.load(f)
     
-    trg_conf = SERV_CONF
     
     for key, val in json_data.items():
         
-        if key in "WEB":
-            trg_conf["WEB_PORT"] = val
+        if key in [ "WEB", "MQTT" ]:
+            new_key, new_val = f"{key}_PORT", val["PORT"]
+            SERV_CONF[new_key] = new_val
+            log.info('({}) Update {}: {}'.format(SERV_CONF.get_name, new_key, new_val))
 
-        if not (key in [ "SERVICE", "MQTT", "ICAP" ]):
-            trg_conf[key] = val
-            log.info('({}) Update {}: {}'.format(trg_conf.get_name, key, val))
+            continue
+
+        if not (key in [ "SERVICE", "ICAP" ]):
+            SERV_CONF[key] = val
+            log.info('({}) Update {}: {}'.format(SERV_CONF.get_name, key, val))
             continue
         
         for sub_key, sub_val in val.items():
             # Point to target config object
-            if key == "ICAP": trg_conf = ICAP_CONF
-            else: trg_conf = SERV_CONF
+            trg_conf = SERV_CONF
+            if key == "ICAP": 
+                trg_conf = ICAP_CONF
+            
             # Modify key and value
             trg_conf[sub_key] = sub_val
             log.info('({}) Update {}: {}'.format( trg_conf.get_name, sub_key, sub_val))
@@ -82,6 +87,7 @@ def update_service_config_at_first(config_path:str='ivit-i.json'):
 
 """ Service Object """
 SERV_CONF = ConfigWrapper(
+        NAME = "SERV",
         ROOT = "/ivit",
         HOST = '127.0.0.1',
         PORT = '819',
@@ -96,13 +102,14 @@ SERV_CONF = ConfigWrapper(
         NGINX_PORT = "6632",
         RTSP_PORT = "8554",
         WEB_PORT = "8001",
-        IDEV = iDevice()
+        IDEV = None,
+        MQTT = None
 )
 
 
 """ Model Object """
 MODEL_CONF = ConfigWrapper(
-    
+    NAME = "MODEL",
     # Platform
     NV = 'nvidia',
     JETSON = 'jetson',
@@ -133,6 +140,7 @@ MODEL_CONF = ConfigWrapper(
 
 """ iCAP Object """
 ICAP_CONF = ConfigWrapper(
+    NAME = "ICAP",
     HOST = "10.204.16.115",
     PORT = "3000",
     API_REG_DEVICE  = "/api/v1/devices",
@@ -152,12 +160,15 @@ ICAP_CONF = ConfigWrapper(
 
 """ Runtime Object to store each AI Task ( Thread Ojbect ) and Source ( Ojbect ) """
 RT_CONF = ConfigWrapper(
-    SRC = {}
+    NAME = "RT",
+    SRC = {},
+    EVENT_STREAM = True
 )
 
 
 """ WebSocket Object to store each WebSocket Object"""
 WS_CONF = ConfigWrapper()
+EVENT_CONF = ConfigWrapper()
 
 # Update config at first time
 first_update_flag = True
