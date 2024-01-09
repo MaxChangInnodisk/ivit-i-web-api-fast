@@ -20,10 +20,10 @@ import hashlib
 
 # Custom
 try:
-    from ..common import SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
+    from ..common import SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF, manager
     from ..utils import gen_uid, json_to_str, file_helper, encode
 except:
-    from common import SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
+    from common import SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF, manager
     from utils import gen_uid, json_to_str, file_helper, encode
 
 from .ai_handler import get_ivit_api, iModel
@@ -1056,11 +1056,14 @@ class InferenceLoop:
             # Send to front end via WebSocket
             if "WS" in WS_CONF:                 
                 try:
-
-                    asyncio.run( WS_CONF["WS"].send_json(event_message) )
+                    print('Send Event Before...', WS_CONF["WS"])
+                    asyncio.run(manager.send(self.uid, event_message))
+                    # asyncio.run( WS_CONF["WS"].send_json(event_message) )
+                    # asyncio.sleep(0)
+                    # time.sleep(0.05)
+                    # print('Send Event')
                 except Exception as e:
                     log.warning('Send websocket failed!!!!')
-                    log.exception(e)
 
             if "MQTT" in SERV_CONF:
                 main_topic = SERV_CONF["MQTT"].get_event_topic()

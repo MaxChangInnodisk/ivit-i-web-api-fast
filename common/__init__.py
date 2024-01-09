@@ -19,5 +19,7 @@ from .config import (
     EVENT_CONF
 )
 
+from .ivit_socket import manager
+
 init_ivit_env()
 init_ivit_logger()
