@@ -190,15 +190,15 @@ async def websocket_each_task(ws: WebSocket, ver: str, task_uid: str):
             # Get Data
             req_data = req_data.upper()
             await manager.send(task_uid, get_pure_jsonify(WS_CONF.get(task_uid.upper())))
-            
+
             # Clear Data
             if req_type == UID:
                 init_uid(req_data)
 
     # Disconnect
     except WebSocketDisconnect as e:
-        manager.disconnect(task_uid)
-        await manager.broadcast(mesg_handler.ws_msg(type=UID, content=f"Task ({task_uid}) leave"))
+        manager.disconnect(ws=ws, uid=task_uid)
+        await manager.broadcast(mesg_handler.ws_msg(type=UID, content=f"Task ({task_uid}:{id(ws)}) leave"))
     # Capture Error ( Exception )
     except Exception as e:
         await manager.broadcast(mesg_handler.ws_msg(type=ERR, content=e))
