@@ -12,11 +12,11 @@ from functools import wraps
 import asyncio
 
 try:
-    from ..common import init_ivit_env, SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
+    from ..common import init_ivit_env, SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF, manager
     from .ivit_handler import simple_exception, handle_exception
 
 except:
-    from common import init_ivit_env, SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
+    from common import init_ivit_env, SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF, manager
     from handlers.ivit_handler import simple_exception, handle_exception
 
 # from common import init_ivit_env, SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
@@ -264,9 +264,7 @@ class WebSocketMessenger(Messenger):
 
     def write(self, content, type):
         """ Push message """
-        if WS_CONF.get("WS") is None: 
-            return
-        asyncio.run( WS_CONF["WS"].send_json( 
+        asyncio.run( manager.broadcast( 
             ws_msg(type=type, content=content)) )
 
 class TaskMessenger(WebSocketMessenger):

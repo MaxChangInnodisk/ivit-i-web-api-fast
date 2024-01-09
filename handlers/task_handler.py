@@ -1054,16 +1054,10 @@ class InferenceLoop:
             EVENT_CONF.update(data)
 
             # Send to front end via WebSocket
-            if "WS" in WS_CONF:                 
-                try:
-                    print('Send Event Before...', WS_CONF["WS"])
-                    asyncio.run(manager.send(self.uid, event_message))
-                    # asyncio.run( WS_CONF["WS"].send_json(event_message) )
-                    # asyncio.sleep(0)
-                    # time.sleep(0.05)
-                    # print('Send Event')
-                except Exception as e:
-                    log.warning('Send websocket failed!!!!')
+            try:
+                asyncio.run(manager.send(self.uid, event_message))
+            except Exception as e:
+                log.warning('Send websocket failed!!!!')
 
             if "MQTT" in SERV_CONF:
                 main_topic = SERV_CONF["MQTT"].get_event_topic()
@@ -1162,8 +1156,7 @@ class InferenceLoop:
             ret_mesg = ws_msg( type="ERROR", content=error.message )
             ret_mesg["data"] = {
                     "source_uid": self.src_uid }
-            if "WS" in WS_CONF:
-                asyncio.run( WS_CONF["WS"].send_json(ret_mesg) )
+            asyncio.run( manager.send(uid=self.uid, message=ret_mesg) )
 
     def _infer_thread(self):
         
@@ -1180,9 +1173,9 @@ class InferenceLoop:
 
             # Send and Store Error Message with Json Format
             json_exp = json_exception(e)
-            if "WS" in WS_CONF:
-                # FIXME: modify error message
-                asyncio.run( WS_CONF["WS"].send_json(ws_msg( type="ERROR", content=e )) )
+            asyncio.run( 
+                manager.send(self.uid, ws_msg( type="ERROR", content=e ))
+            )
             update_task_status(
                 uid=self.uid, status='error', err_mesg=json_exp)
 
