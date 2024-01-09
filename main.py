@@ -225,7 +225,8 @@ async def websocket_endpoint_task(ws: WebSocket):
         }
 
     """
-    await manager.connect(ws, str(id(ws)))
+    uid=  str(id(ws))
+    await manager.connect(ws, uid)
 
     while True:
 
@@ -238,7 +239,7 @@ async def websocket_endpoint_task(ws: WebSocket):
             # Get Data
             data = None
             if req_type == UID:
-                uid = req_data = req_data.upper()
+                uid = req_data.upper()
                 manager.register(ws, uid=uid)
                 data = WS_CONF.get(uid)
                 if data:
@@ -262,7 +263,7 @@ async def websocket_endpoint_task(ws: WebSocket):
                     SERV_CONF[IDEV].get_device_info()
                 if data:
                     # await manager.broadcast(message=)
-                    await manager.send_current(ws=ws, message={
+                    await manager.send(uid=uid, message={
                         K_TYPE: req_type,
                         K_DATA: get_pure_jsonify(data)
                     })
