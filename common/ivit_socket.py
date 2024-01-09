@@ -35,6 +35,8 @@ class ConnectionManager:
 
     def register(self, ws: WebSocket, uid: str):
         uid = uid.upper()
+        if ws in self.active_connections[uid]:
+            return
         self.active_connections[uid].add(ws)
         logger.info(f'Submit WebSocket: {uid}')
 
@@ -48,9 +50,21 @@ class ConnectionManager:
             await ws.send_json(message)
 
     async def broadcast(self, message: dict):
+        idx = 0
+        need_pop = defaultdict(list)
         for uid, wss in self.active_connections.items():
             for ws in wss:
-                await ws.send_json(message)
+                try:
+                    await ws.send_json(message)
+                    idx += 1
+                except:
+                    need_pop[uid].append(ws)
+        for uid, wss in need_pop.items():
+            for ws in wss:      
+                logger.debug(f'Pop out disconnected websocket: {ws}')
+                self.active_connections[uid].remove(ws)
+        
+        logger.debug(f'WebSocket Broadcast: {idx}')
 
 
 manager = ConnectionManager()
