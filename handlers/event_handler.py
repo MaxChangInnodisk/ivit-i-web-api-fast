@@ -1,16 +1,20 @@
 # Copyright (c) 2023 Innodisk Corporation
-# 
+#
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-import sys, os, time, re, shutil
+import sys
+import os
+import time
+import re
+import shutil
 import logging as log
 from typing import Union, Optional
 import cv2
 import numpy as np
 import json
 
-# Import iVIT-I 
+# Import iVIT-I
 try:
     from ..common import SERV_CONF, RT_CONF
     from .db_handler import (
@@ -37,6 +41,7 @@ except:
 
     from handlers.app_handler import create_app
 
+
 class DetectionWrapper:
     xmin = None,
     ymin = None,
@@ -47,17 +52,19 @@ class DetectionWrapper:
 
 
 def verify_event_exist(uid: str):
-    
+
     # Task Information
-    events = select_data(table='event', data="*", condition=f"WHERE uid='{uid}'")
-    
+    events = select_data(table='event', data="*",
+                         condition=f"WHERE uid='{uid}'")
+
     # Not found AI Task
     if events == []:
         raise RuntimeError("Could not find Event ({})".format(uid))
 
     return events[0]
 
-def get_all_events(condition: Optional[str]=None) -> list:
+
+def get_all_events(condition: Optional[str] = None) -> list:
     events = select_data(table='event', data="*", condition=condition)
     event_nums = len(events)
     print(f'Get {event_nums} events')
@@ -70,7 +77,8 @@ def get_all_events(condition: Optional[str]=None) -> list:
         ret.append(data)
     return ret
 
-def del_all_events()->None:
+
+def del_all_events() -> None:
     events = select_data(table='event', data="*", condition=condition)
     event_nums = len(events)
     print(f'Get {event_nums} events')
@@ -81,20 +89,21 @@ def del_all_events()->None:
             del_event(data['uid'])
         except Exception as e:
             log.warning('Delete event error.')
-        
+
 
 def get_cond_events(condition: str) -> list:
 
     events = select_data(table='event', data="*", condition=condition)
     event_nums = len(events)
-    print(f'Get {event_nums} events')    
-    return [ parse_event_data(event) for event in events ]
+    print(f'Get {event_nums} events')
+    return [parse_event_data(event) for event in events]
 
-def get_events( data ):
+
+def get_events(data):
 
     conditions = []
 
-    # if event_uids is 
+    # if event_uids is
     if data.event_uid:
         new_condition = f"uid='{data.event_uid}'"
         conditions.append(new_condition)
@@ -109,14 +118,14 @@ def get_events( data ):
         new_condition = f"end_time <= {data.end_time}"
         conditions.append(new_condition)
 
-    
     if len(conditions) == 0:
         return get_all_events()
-    
+
     raw_conditions = "WHERE "
     raw_conditions += " AND ".join(conditions)
     print(raw_conditions)
     return get_all_events(condition=raw_conditions)
+
 
 def del_event(uid: str):
     """"""
@@ -131,34 +140,35 @@ def del_event(uid: str):
         table='event',
         condition=f"WHERE uid='{uid}'")
 
+
 def get_event_screenshot(timestamp: int, draw_result: bool = False) -> np.ndarray:
     """"""
     # ------------------------------------
     # Get data from db
     con, cur = connect_db()
-    event_db_data = db_to_list( cur.execute(
+    event_db_data = db_to_list(cur.execute(
         f'''SELECT * FROM event WHERE start_time={timestamp} OR end_time={timestamp}'''))
-    
+
     if is_list_empty(event_db_data):
         raise KeyError(f'Can not find the timestamp ({timestamp})')
-        
+
     event_data = parse_event_data(event_db_data[0])
 
     # Parse event data
     event_uid = event_data["uid"]
     task_uid = app_uid = event_data["app_uid"]
-    
+
     # Get detections from event data
     file_path = f"events/{event_uid}/{timestamp}.json"
     with open(file_path, 'r') as f:
         event_data = json.load(f)
-    
+
     # Get another require data ( model_uid, label_uid )
     model_uid = db_to_list(cur.execute(
         f'''SELECT model_uid FROM task WHERE uid="{task_uid}"'''))[0][0]
-    label_path = db_to_list( cur.execute(
+    label_path = db_to_list(cur.execute(
         f'''SELECT label_path FROM model WHERE uid="{model_uid}"'''))[0][0]
-    
+
     close_db(con, cur)
 
     # ------------------------------------
@@ -174,30 +184,31 @@ def get_event_screenshot(timestamp: int, draw_result: bool = False) -> np.ndarra
 
     # ------------------------------------
     # Retur original frame if not draw_results
-    if not draw_result: return frame
+    if not draw_result:
+        return frame
 
     # ------------------------------------
     # init app, need_clean
     if app_uid in RT_CONF:
         need_clean = False
         app = RT_CONF[app_uid].app
-        
+
     else:
         # NOTE: create new app
         need_clean = True
         app = create_app(app_uid=app_uid, label_path=label_path)
-    
+
     # Update Options
     app.draw_area = False
     app.draw_bbox = True
     app.draw_label = True
     app.draw_result = True
     app.force_close_event = True
-    
+
     # from collections import namedtuple
     # Wrapper = namedtuple("Wrapper", "xmin, ymin, xmax, ymax, label, score")
-    # wrap_dets = [ Wrapper( 
-    #     det["xmin"], det["ymin"], det["xmax"], det["ymax"], 
+    # wrap_dets = [ Wrapper(
+    #     det["xmin"], det["ymin"], det["xmax"], det["ymax"],
     #     det["label"], det["score"]
     # ) for det in dets ]
     # draw, _, _ = app(frame, wrap_dets)
@@ -207,9 +218,10 @@ def get_event_screenshot(timestamp: int, draw_result: bool = False) -> np.ndarra
 
     # clear app
     if need_clean:
-        del app 
+        del app
 
     return draw
+
 
 def del_event_screenshot(uid: str) -> None:
     """Delete the screenshot of the event
@@ -218,7 +230,7 @@ def del_event_screenshot(uid: str) -> None:
         uid (str): event uid
     """
     event_folder = os.path.join("events", uid)
-    
+
     if not os.path.exists(event_folder):
         return
 
