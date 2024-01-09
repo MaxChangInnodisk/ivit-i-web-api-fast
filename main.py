@@ -178,9 +178,6 @@ async def websocket_each_task(ws: WebSocket, ver: str, task_uid: str):
     # Connect WebSocket with Manager
     await manager.connect(ws=ws, uid=task_uid)
 
-    def init_uid(key:str, val=None):
-        WS_CONF.update({ key: val})
-
     try:
         while True:
             # Check keys
@@ -193,7 +190,7 @@ async def websocket_each_task(ws: WebSocket, ver: str, task_uid: str):
 
             # Clear Data
             if req_type == UID:
-                init_uid(req_data)
+                WS_CONF.update({ req_data: None})
 
     # Disconnect
     except WebSocketDisconnect as e:
@@ -227,43 +224,15 @@ async def websocket_endpoint_task(ws: WebSocket):
 
     """
 
-    # Key
-    UID = "UID"
-    ERR = "ERROR"
-    TEM = "TEMP"
-    PRO = "PROC"
-
-    # Data Key
-    K_DATA = "data"
-    K_TYPE = "type"
-
-    # Other Key
-    IDEV = "IDEV"
-
-    SUP_KEYS = [K_DATA, K_TYPE]
-
-    def init_uid(key: str, val=None):
-        WS_CONF.update({key: val})
-
-    init_uid("WS", ws)
-
     await ws.accept()
 
     while True:
 
         try:
 
-            req = await ws.receive_json()
-
             # Check keys
-            if sum([1 for sup in SUP_KEYS if sup in req.keys()]) < 2:
-                raise KeyError('Unexpect request key, support key is {}'.format(
-                    ', '.join(SUP_KEYS)))
-
-            # Parse keys
-            req_data = req[K_DATA]
-            req_type = req[K_TYPE]
-
+            req = await ws.receive_json()
+            req_data, req_type = parse_ws_req(req)
             # Get Data
             data = None
             if req_type == TEM:
@@ -274,31 +243,27 @@ async def websocket_endpoint_task(ws: WebSocket):
                     if req_data != "" else \
                     SERV_CONF[IDEV].get_device_info()
 
+                if data:
+                    await manager.broadcast(message={
+                        K_TYPE: req_type,
+                        K_DATA: get_pure_jsonify(data)
+                    })
+
             elif req_type == UID:
                 req_data = req_data.upper()
+                manager.register(ws, req_data)                
                 data = WS_CONF.get(req_data)
 
-            # Invalid Key
-            if not data:
-                print('No data with {}'.format(req_data))
-                # if req_type == UID:
-                #     sup_keys = list(WS_CONF.keys())
-                #     sup_keys.remove('WS')
-                #     raise KeyError("Got Invalid AI Task UID, Support is [ {} ]".format(
-                #         ', '.join( sup_keys ) ) )
-
-                # else:
-                #     raise KeyError("Got Unexpect Error")
-            else:
-                # Send JSON Data
-                await ws.send_json({
-                    K_TYPE: req_type,
-                    K_DATA: get_pure_jsonify(data)
-                })
+                if data:
+                    # Send JSON Data
+                    await manager.send(uid=req_data, message={
+                        K_TYPE: req_type,
+                        K_DATA: get_pure_jsonify(data)
+                    })
 
             # Clear Data
             if req_type == UID:
-                init_uid(req_data)
+                WS_CONF.update({ req_data: None})
 
         # Disconnect
         except WebSocketDisconnect as e:
@@ -307,7 +272,7 @@ async def websocket_endpoint_task(ws: WebSocket):
 
         # Capture Error ( Exception )
         except Exception as e:
-            await ws.send_json(
+            await manager.broadcast(
                 mesg_handler.ws_msg(type=ERR, content=e))
 
 if __name__ == "__main__":
