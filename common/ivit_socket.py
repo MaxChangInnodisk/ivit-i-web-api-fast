@@ -23,19 +23,27 @@ import logging as logger
 #         for connection in self.active_connections:
 #             await connection.send_json(message)
 
+
 class ConnectionManager:
     def __init__(self):
-        self.active_connections: dict = defaultdict(list)
+        self.active_connections: dict = defaultdict(set)
 
     async def connect(self, ws: WebSocket, uid: str):
         await ws.accept()
-        self.active_connections[uid].append(ws)
+        uid = uid.upper()
+        self.register(ws, uid)
+
+    def register(self, ws: WebSocket, uid: str):
+        uid = uid.upper()
+        self.active_connections[uid].add(ws)
         logger.info(f'Submit WebSocket: {uid}')
 
     def disconnect(self, ws: WebSocket, uid: str):
+        uid = uid.upper()
         self.active_connections[uid].remove(ws)
 
     async def send(self, uid: str, message: dict):
+        uid = uid.upper()
         for ws in self.active_connections[uid]:
             await ws.send_json(message)
 
@@ -43,5 +51,6 @@ class ConnectionManager:
         for uid, wss in self.active_connections.items():
             for ws in wss:
                 await ws.send_json(message)
+
 
 manager = ConnectionManager()
