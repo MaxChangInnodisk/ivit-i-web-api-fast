@@ -3,6 +3,7 @@ import threading
 import time
 from ivit_i.utils import iDevice 
 from typing import Union ,get_args
+import contextlib
 
 class iDeviceAsync():
     
@@ -21,7 +22,8 @@ class iDeviceAsync():
             log.warning('iDevice start')
             while(not self.is_stop):
                 self.lock.acquire()
-                self.info = self.idev.get_device_info()
+                with contextlib.redirect_stdout(None):
+                    self.info = self.idev.get_device_info()
                 self.lock.release()
                 time.sleep(1)
         except Exception as e:
