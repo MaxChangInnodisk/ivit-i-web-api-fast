@@ -17,10 +17,10 @@ import logging as log
 from fastapi import File
 
 try:
-    from ..common import SERV_CONF, MODEL_CONF, WS_CONF
+    from ..common import SERV_CONF, MODEL_CONF, WS_CONF, manager
     from ..utils import gen_uid, load_db_json
 except:
-    from common import SERV_CONF, MODEL_CONF, WS_CONF
+    from common import SERV_CONF, MODEL_CONF, WS_CONF, manager
     from utils import gen_uid, load_db_json
 
 from .db_handler import select_data, insert_data, update_data, delete_data
@@ -110,9 +110,9 @@ class ModelDeployerWrapper(abc.ABC):
         print(' '*80, end='\r') # Clear console
         print(SERV_CONF["PROC"][self.uid]['status'], end='\r')
 
-        if WS_CONF.get("WS") is None: return
+        # if WS_CONF.get("WS") is None: return
         try:
-            asyncio.run( WS_CONF["WS"].send_json( 
+            asyncio.run( manager.broadcast( 
                 ws_msg(type="PROC", content=SERV_CONF["PROC"])) )
         except Exception as e:
             log.exception(e)
