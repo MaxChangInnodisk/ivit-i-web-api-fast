@@ -9,4 +9,5 @@ iVIT-I support WebRTC and MSE streaming to integration.
 1. Launch iVIT-I and execute at least one AI task.
 2. Move to `mse` folder.
 3. Double click the [`grid-monitor.html`](./figures/grid-monitor.html).
+
    ![demo](./figures/demo.gif)
