@@ -21,63 +21,50 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. You can use iVIT-T t
 - [Hardware Recommendations](#hardware-recommendations)
 - [Pre-requirements](#pre-requirements)
 - [Quick Start](#quick-start)
-  - [Prepare Repository](#prepare-repository)
-  - [Run `service` quickly with platform.](#run-service-quickly-with-platform)
   - [Visit Web Site](#visit-web-site)
 - [Install Service](#install-service)
 - [Configuration](#configuration)
 - [About Running Scripts](#about-running-scripts)
 - [Web API Documentation](#web-api-documentation)
-- [Build Web Site for ARM](#build-web-site-for-arm)
 - [Other Docs](#other-docs)
-  - [Trouble Shooting](#trouble-shooting)
-  - [Release Note](#release-note)
-  - [Todo List](#todo-list)
 - [Reference](#reference)
 
 # Hardware Recommendations
 The specification below shows the recommended requirements. In case of the use of another hardware, the correct functionality can not be guaranteed:
-* `Intel`
-  | Item    | Detail
-  | ---     | ---
-  | CPU     | Intel® 12th Gen Core™i7/i5 processors
-  | Memory  | 16GB
-  | Storage | 500GB
-  | OS    | Ubuntu 20.04.4
-* `NVIDIA`
-  | Item    | Detail
-  | ---     | ---
-  | CPU     | Intel® 12th Gen Core™i7/i5 processors
-  | GPU     | NVIDIA RTX A2000, A4500
-  | Memory  | 16GB
-  | Storage | 500GB
-  | OS      | Ubuntu 20.04.4
 
-* `Xilinx`
-  
-  | Item    | Detail
-  | ---     | ---
-  | Module  | [exmu-x261](https://www.innodisk.com/en/products/embedded-peripheral/fpga/exmu-x261)
-  | OS  | Petalinux
-  | Mics    | Vitis-AI 2.5.0
+<details style="margin-top:0.5em; margin-bottom:0.5em">
+    <summary><code>Intel</code></summary>
 
-  If you want to get more detail, please visit [ivit-i-xilinx](https://github.com/InnoIPA/ivit-i-xilinx) 
+| Item    | Detail
+| ---     | ---
+| CPU     | Intel® 12th Gen Core™i7/i5 processors
+| Memory  | 16GB
+| Storage | 500GB
+| OS    | Ubuntu 20.04.4
+</details>
 
-* `Jetson`
+<details style="margin-top:0.5em; margin-bottom:0.5em">
+    <summary><code>NVIDIA</code></summary>
   
-  | Item  | Detail
-  | ---   | ---
-  | Platform  | Jetson Nano, Xavier NX, Xavier AGX, and Orin products.
-  | JetPack   | 5.1.2+ ( without CUDA is okay! )
-  
-* `Hailo`
-  | Item  | Name
-  | ---   | ---
-  | CPU   | Intel® 12th Gen Core™i7/i5 processors
-  | Accerelator | [Hailo-8™ Starter Kit](https://hailo.ai/products/hailo-8-starter-kit/)
-  | Memory   | 16GB
-  | Storage | 500GB
-  | OS    | Ubuntu 20.04.4
+| Item    | Detail
+| ---     | ---
+| CPU     | Intel® 12th Gen Core™i7/i5 processors
+| GPU     | NVIDIA RTX A2000, A4500
+| Memory  | 16GB
+| Storage | 500GB
+| OS      | Ubuntu 20.04.4
+</details>
+
+<details style="margin-top:0.5em; margin-bottom:0.5em">
+    <summary><code>Jetson</code></summary>
+
+| Item  | Detail
+| ---   | ---
+| Platform  | Jetson Nano, Xavier NX, Xavier AGX, and Orin products.
+| JetPack   | 5.1.2+ ( without CUDA is okay! )
+</details>
+
+
 
 
 # Pre-requirements
@@ -94,22 +81,24 @@ The specification below shows the recommended requirements. In case of the use o
   * [Jetson-Stats](https://github.com/rbonghi/jetson_stats)
 
 # Quick Start
-## Prepare Repository
-```bash
-
-VER=v1.3
-git clone -b ${VER} https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
-```
-
-## Run `service` with target platform.
 *** Notice: If you don't have network, you can follow the [tutorial](./assets//docs/import-docker-image.md) to import the docker image from tarball file. ***
-```bash
-# Usage: sudo ./docker/run.sh <framework> <option>
-sudo ./docker/run.sh intel
-```
-* `framework` support `intel`, `xilinx`, `hailo`, `nvidia`, `jetson` now.
-* NOTE: you have to re-build website container if you are using `xilinx` device. ( [tutorial](#build-web-site-for-arm) )
 
+* Prepare Repository
+  ```bash
+
+  VER=v1.3
+  git clone -b ${VER} https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
+  ```
+
+* Run `service` with target platform.
+
+  ```bash
+  # Usage: sudo ./docker/run.sh <framework> <option>
+  sudo ./docker/run.sh intel
+  ```
+  `framework` support `intel`, `nvidia`, `jetson` now.
+  
+  
 ## Visit Web Site
 * Open Browser and enter the url: [http://127.0.0.1:8001](http://127.0.0.1:8001)
   ![ivit-i-hint](assets/images/ivit-i-hint.png)
