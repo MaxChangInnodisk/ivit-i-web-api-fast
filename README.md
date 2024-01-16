@@ -21,11 +21,11 @@ iVIT (Vision Intelligence Toolkit) is an AI suite software. You can use iVIT-T t
 - [Hardware Recommendations](#hardware-recommendations)
 - [Pre-requirements](#pre-requirements)
 - [Quick Start](#quick-start)
-  - [Visit Web Site](#visit-web-site)
 - [Install Service](#install-service)
 - [Configuration](#configuration)
 - [About Running Scripts](#about-running-scripts)
 - [Web API Documentation](#web-api-documentation)
+- [About Integrations](#about-integrations)
 - [Other Docs](#other-docs)
 - [Reference](#reference)
 
@@ -93,17 +93,21 @@ The specification below shows the recommended requirements. In case of the use o
 * Run `service` with target platform.
 
   ```bash
-  # Usage: sudo ./docker/run.sh <framework> <option>
+  # Usage: sudo ./docker/run.sh <framework>
   sudo ./docker/run.sh intel
   ```
-  `framework` support `intel`, `nvidia`, `jetson` now.
+  | Arguments   | Details
+  | ---         | ---
+  | `framework` | support `intel`, `nvidia`, `jetson` now.
   
-  
-## Visit Web Site
-* Open Browser and enter the url: [http://127.0.0.1:8001](http://127.0.0.1:8001)
-  ![ivit-i-hint](assets/images/ivit-i-hint.png)
-* Entrance
-  ![ivit-i-entrance](assets/images/ivit-i-entrance.png)
+* Visit Web Site
+  * Open Browser and enter the url: [http://127.0.0.1:8001](http://127.0.0.1:8001)
+    
+    ![ivit-i-hint](assets/images/ivit-i-hint.png)
+
+  * Entrance
+    
+    ![ivit-i-entrance](assets/images/ivit-i-entrance.png)
 
 # Install Service
 We also support `systemctl` to launch iVIT-I when booting. you can select `cli` mode if your system doesn't have GUI and the default value is `gui` if you not set up the mode option.
@@ -116,7 +120,7 @@ We also support `systemctl` to launch iVIT-I when booting. you can select `cli` 
       ```bash
       Usage:  install.sh [PLATFORM] [MODE].
   
-          - PLATFORM: support intel, xilinx, nvidia, jetson, hailo.
+          - PLATFORM: support intel, nvidia, jetson.
           - MODE: support cli, gui. default is gui.
       ```
 * Start iVIT-I service
@@ -189,6 +193,15 @@ You can modify the configuration file ( [`ivit-i.json`](ivit-i.json) ) to change
 *** *Make sure the web API service has already been launched.* ***
 * The documentation will be mounted at `<ip>:<nginx_port>/ivit/docs`
 * [FastAPI Swagger ( http://127.0.0.1:6632/ivit/docs )](http://127.0.0.1:6632/ivit/docs)
+
+# About Integrations
+1. Message Output
+   1. MQTT [🔗](./integrations/mqtt/README.md)
+   2. SSE [🔗](./integrations/sse/README.md)
+2. Stream Output
+   1. WebRTC [🔗](./integrations/stream/webrtc/README.md)
+   2. MSE [🔗](./integrations/stream/mse/README.md)
+
 
 # Other Docs
 * [Trouble Shooting](./assets/docs/trouble-shooting)
