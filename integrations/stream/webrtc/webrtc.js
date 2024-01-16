@@ -51,7 +51,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   
     const videoEl = document.querySelector('#webrtc-video')
-    const webrtcUrl = document.querySelector('#webrtc-url').value
+    const uid = document.querySelector('#webrtc-uid').value
+    const webrtcUrl = `http://127.0.0.1:8083/stream/${uid}/channel/0/webrtc`
   
     startPlay(videoEl, webrtcUrl)
   })
