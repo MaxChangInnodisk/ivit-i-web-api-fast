@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<style>
+  .checkbox-wrapper-47 input[type="checkbox"] {
+    display: none;
+    visibility: hidden;
+  }
+
+  .checkbox-wrapper-47 label {
+    position: relative;
+    padding-left: 2em;
+    padding-right: 1em;
+    line-height: 2;
+    cursor: pointer;
+    display: inline-flex;
+  }
+
+  .checkbox-wrapper-47 label:before {
+    box-sizing: border-box;
+    content: " ";
+    position: absolute;
+    top: 0.3em;
+    left: 0;
+    display: block;
+    width: 1.4em;
+    height: 1.4em;
+    border: 2px solid #9098A9;
+    border-radius: 6px;
+    z-index: -1;
+  }
+
+  .checkbox-wrapper-47 input[type=checkbox]:checked+label {
+    padding-left: 1em;
+    color: #0f5229;
+  }
+
+  .checkbox-wrapper-47 input[type=checkbox]:checked+label:before {
+    top: 0;
+    width: 100%;
+    height: 2em;
+    background: #b7e6c9;
+    border-color: #2cbc63;
+  }
+
+  .checkbox-wrapper-47 label,
+  .checkbox-wrapper-47 label::before {
+    transition: 0.25s all ease;
+  }
+
+  .button-3 {
+    appearance: none;
+    background-color: #2ea44f;
+    border: 1px solid rgba(27, 31, 35, .15);
+    border-radius: 6px;
+    box-shadow: rgba(27, 31, 35, .1) 0 1px 0;
+    box-sizing: border-box;
+    color: #fff;
+    cursor: pointer;
+    display: inline-block;
+    font-family: -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+    font-size: 14px;
+    width: 100%;
+    font-weight: 600;
+    line-height: 20px;
+    padding: 6px 16px;
+    position: relative;
+    text-align: center;
+    text-decoration: none;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  .button-3:focus:not(:focus-visible):not(.focus-visible) {
+    box-shadow: none;
+    outline: none;
+  }
+
+  .button-3:hover {
+    background-color: #2c974b;
+  }
+
+  .button-3:focus {
+    box-shadow: rgba(46, 164, 79, .4) 0 0 0 3px;
+    outline: none;
+  }
+
+  .button-3:disabled {
+    background-color: #94d3a2;
+    border-color: rgba(27, 31, 35, .1);
+    color: rgba(255, 255, 255, .8);
+    cursor: default;
+  }
+
+  .button-3:active {
+    background-color: #298e46;
+    box-shadow: rgba(20, 70, 32, .2) 0 1px 0 inset;
+  }
+
+  .grid-container {
+    display: flex;
+    flex-wrap: wrap;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .grid-item {
+    /* box-sizing: border-box; */
+    border: 1px solid black;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 50px;
+    /* 可以根據需要調整高度 */
+  }
+
+</style>
+
+<head>
+  <meta charset="utf-8">
+  <title>RTSPtoWeb WebRTC example</title>
+</head>
+
+<body>
+  <h1>Integrate Streaming with iVIT-I</h1>
+  <div style="display: flex; height: 100%">
+    <div id="control-pannel" style="flex: 1;margin-left: 1em;">
+      <!-- Streaming List -->
+      <div style="flex: auto;">
+        <p>Select a streaming: </p>
+        <ul id="stream-list">
+        </ul>
+      </div>
+      <br>
+      <!-- Streaming Log -->
+      <div id="control-log">
+        <div id="status"></div>
+      </div>
+      <br>
+      <!-- Button -->
+      <div style="bottom: 0;">
+        <button class="button-3" role="button" id="start_btn" onclick="start()">Start</button>
+      </div>
+
+    </div>
+    <div id="stream-pannel" style="flex: 8; margin-left: 1em;">
+      <!-- <h2>MSE</h2> -->
+
+      <div id="grid-container" class="grid-container"></div>
+      <!-- <video id=" mse-video" autoplay muted playsinline controls style="max-width: 100%; max-height: 100%;"></video> -->
+
+    </div>
+
+    <!-- JS -->
+    <script src="mse.js"></script>
+
+</body>
+
+</html>
