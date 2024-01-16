@@ -74,7 +74,7 @@ The specification below shows the recommended requirements. In case of the use o
       * **[ VERIFY ]** Use this command ( `docker compose version` ).
       * **[ INSTALL ]** Install docker compose by following this [document](https://docs.docker.com/compose/install/linux/#install-using-the-repository) if you don't have docker compose.
 * For NVIDIA dGPU
-  * [NVIDIA GPU Driver](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#nvidia-drivers)
+  * [NVIDIA GPU Driver](https://docs.nvidia.com/datacenter/tesla/tesla-installation-notes/index.html)
   * [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#step-1-install-nvidia-container-toolkit)
 * For Jetson Platform
   * [Ensure the JetPack version is 5.0+](https://developer.nvidia.com/embedded/jetpack)
