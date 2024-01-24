@@ -98,21 +98,35 @@ def box_web_url():
 @app.on_event("startup")
 def startup_event():
 
-    model_handler.init_db_model()    # Models
-    app_handler.init_db_app()      # AppHandler
+    try:
+        model_handler.init_db_model()    # Models
+    except Exception as e:
+        log.warning(f'Init model error ... ({e})')
 
+    try:
+        app_handler.init_db_app()      # AppHandler
+    except Exception as e:
+        log.warning(f'Init application error ... ({e})')
+    
     # Update iDev
-    SERV_CONF["IDEV"] = dev_handler.iDeviceAsync()
-    SERV_CONF["MQTT"] = mesg_handler.ServerMqttMessenger(
-        "127.0.0.1",
-        SERV_CONF["MQTT_PORT"]
-    )
+    try:
+        SERV_CONF["IDEV"] = dev_handler.iDeviceAsync()
+    except Exception as e:
+        log.warning(f'Init iDevice error ... ({e})')
+    
+    try:
+        SERV_CONF["MQTT"] = mesg_handler.ServerMqttMessenger(
+            "127.0.0.1",
+            SERV_CONF["MQTT_PORT"]
+        )
 
-    icap_handler.init_icap(
-        tb_url=ICAP_CONF["HOST"],
-        tb_port=ICAP_CONF["PORT"],
-        device_name=ICAP_CONF["DEVICE_NAME"]
-    )        # iCAP
+        icap_handler.init_icap(
+            tb_url=ICAP_CONF["HOST"],
+            tb_port=ICAP_CONF["PORT"],
+            device_name=ICAP_CONF["DEVICE_NAME"]
+        )        # iCAP
+    except Exception as e:
+        log.warning(f'Init MQTT error ... ({e})')
 
     db_handler.reset_db()
     log.info('iVIT-I Web Service Initialized !!!')
@@ -169,6 +183,7 @@ async def websocket_temp(ws: WebSocket):
 
     # Capture Error ( Exception )
     except Exception as e:
+        print(e)
         await ws.send_json(
             mesg_handler.ws_msg(type=ERR, content=e))
 
@@ -273,6 +288,9 @@ async def websocket_endpoint_task(ws: WebSocket):
         except WebSocketDisconnect as e:
             print("Disconnected: ", e)
             break
+        
+        except RuntimeError as e:
+            print('Might disconnected', e)
 
         # Capture Error ( Exception )
         except Exception as e:
@@ -288,7 +306,10 @@ if __name__ == "__main__":
     db_handler.init_tables(dp_path)
     if db_handler.is_db_empty(dp_path):
         db_handler.init_sqlite(dp_path)
-        init_samples(framework=framework)
+        try:
+            init_samples(framework=framework)
+        except Exception as e:
+            log.warning(f'Init sample error ... ({e})')
 
     # Fast API
 
