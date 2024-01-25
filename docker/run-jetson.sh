@@ -118,6 +118,8 @@ fi
 MOUNT_ACCELERATOR="--device /dev/dri --device-cgroup-rule='c 189:* rmw' --runtime nvidia -v /run/jtop.sock:/run/jtop.sock"
 # MOUNT_GPU="--gpus"
 # MOUNT_GPU="${MOUNT_GPU} device=all"
+LAZY_LOAD="-e CUDA_MODULE_LOADING=LAZY"
+
 
 # [VISION] Set up Vision option for docker if need
 if [[ ! -z $(echo ${DISPLAY}) ]];then
@@ -155,6 +157,7 @@ ${MOUNT_CAM} \
 ${SET_NETS} \
 ${SET_MEM} \
 ${SET_TIME} \
+${LAZY_LOAD} \
 ${MOUNT_WS} \
 ${SET_VISION} \
 ${DOCKER_IMAGE} ${RUN_CMD}"
