@@ -27,7 +27,7 @@
 2. Use python script (`paho` ).
    1. Install modules
         ```bash
-        pip install paho-mqtt
+        pip install paho-mqtt rich
         ```
    2. Run Sample
         ```bash
