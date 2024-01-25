@@ -1,6 +1,16 @@
 # Release Note
 
-## v1.3
+## v1.3.1
+* Web API
+  * FIX: Capture WebSocket disconnected error.
+  * FIX: `ivit-i-intel` the wrong type of parameters in YOLO.
+  * CHORE: Correct the unclear message.
+  * FEAT: add LAZY_LOAD to improve the loading time of the TensorRT Engine.
+* Website
+  * Replace `+` button to `ADD` button.
+  * Disable the dragging behavior on the alert message.
+
+## v1.3.0
 * Web API
   1. `Export Task` and `Import Task`.
   2. Improve the communicate with `iCAP`.
