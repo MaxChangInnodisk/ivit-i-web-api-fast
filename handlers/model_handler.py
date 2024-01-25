@@ -12,6 +12,7 @@ import sys, os, time, json, re, shutil, zipfile, abc, wget
 import asyncio, threading
 import requests
 import subprocess as sp
+from typing import Optional
 
 import logging as log
 from fastapi import File
@@ -363,14 +364,18 @@ def parse_model_data(data: dict) -> dict:
     }
 
 
-def get_model_info(uid: str=None):
+def get_model_info(uid: Optional[str]=None, name: Optional[str]=None):
     """ Get Model Information from database """
-    if uid == None:    
+    if uid is None and name is None:    
         data = select_data(table='model', data="*")
-    else:
+    elif uid:
         uid = str(uid.strip())
         data = select_data(table='model', data="*", condition=f"WHERE uid='{uid}'")
-    
+    elif name:
+        data = select_data(table='model', data="*", condition=f"WHERE name='{name}'")
+    else:
+        raise ValueError('get_model_info should provide at least uid or name.')
+
     ret = [ parse_model_data(model) for model in data ]
     return ret
 
@@ -541,6 +546,10 @@ def init_db_model(model_dir:str=SERV_CONF["MODEL_DIR"], add_db:bool=True) -> dic
         - models_information
             - type: dict
             - desc: all information of each model
+    - workflow
+        1. Get model folder and parse it
+        2. If model in database then just set the status to default value
+        3. If mode not in database then add into database
     """
     log.info('Initialize Database\'s Models')
     ts = time.time()
@@ -550,12 +559,17 @@ def init_db_model(model_dir:str=SERV_CONF["MODEL_DIR"], add_db:bool=True) -> dic
     model_dirs = [ os.path.join(model_root, model) \
                     for model in os.listdir( model_root )]
 
-    # Parse all file 
+    # Parse all file )
     for model_dir in model_dirs:
         # Ensure it's folder
         if not os.path.isdir(model_dir): continue
         # Get model information
         model_info = parse_model_folder(model_dir)
+        # Check model is already exists in database
+        db_model_info = get_model_info(name=model_info['name'])
+        if len(db_model_info)!=0:
+            log.debug(f'Model already in database: {db_model_info[0]["name"]}')
+            return db_model_info[0]
         # Try to add into database
         try: 
             add_model_into_db(model_info=model_info)
@@ -584,7 +598,6 @@ def add_model_into_db(model_info:dict, model_uid: str=None, db_path:str=SERV_CON
     with open(model_info["label_path"], 'r') as f:
         classes = [ re.sub('[\'"]', '', line.strip()) for line in f.readlines() ]
         classes = re.sub('["]', '\'', json.dumps(classes))
-
     # Prepare data
     model_db_data = {
         "uid": model_uid,
