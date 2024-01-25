@@ -27,10 +27,7 @@ class iDeviceAsync():
                 self.lock.release()
                 time.sleep(1)
         except Exception as e:
-            log.exception(e)
-
-        finally:
-            log.warning(f'{self.__class__.__name__} is stopped !')
+            log.warning(f'iDevice Warning: {type(e).__name__} {e}')
 
     def create_thread(self, start:bool) -> threading.Thread:
         thr = threading.Thread(
