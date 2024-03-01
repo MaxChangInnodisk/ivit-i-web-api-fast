@@ -29,12 +29,14 @@ services:
       - NGINX_PORT=8001
       - BACKEND_PORT=6632
       - STREAM_PORT=8083
+      - FILE_PORT=819
     command: >
       /bin/sh -c
       "envsubst '
       $${NGINX_PORT}
       $${BACKEND_PORT}
       $${STREAM_PORT}
+      $${FILE_PORT}
       '< /etc/nginx/nginx.conf.template
       > /etc/nginx/nginx.conf
       && nginx -g 'daemon off;'"
