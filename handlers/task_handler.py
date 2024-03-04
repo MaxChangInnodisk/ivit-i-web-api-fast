@@ -433,8 +433,8 @@ def stop_ai_task(uid:str, data:dict=None):
 
 def update_ai_task(uid:str, data:dict=None):
     """ update AI Task via uid """
-    if uid not in RT_CONF:
-        raise RuntimeError("The AI task has not launch yet.")
+    if uid.upper() not in RT_CONF:
+        raise RuntimeError(f"The AI task has not launch yet. ({uid}, {','.join(RT_CONF.keys())})")
     RT_CONF[uid]['DATA'] = data
     log.info('Update AI Task: {} With {}'.format(uid, data))    
     return 'Update success'
