@@ -1,8 +1,8 @@
 {
   "PROJECT": "ivit-i",
   "PLATFORM": "intel",
-  "VERSION": "v1.2",
-  "IVIT_VERSION": "v1.2",
+  "VERSION": "v1.2-torch-yolo",
+  "IVIT_VERSION": "v1.2-torch-yolo",
   "TAG": "service",
   "SERVICE": {
     "HOST": "127.0.0.1",
