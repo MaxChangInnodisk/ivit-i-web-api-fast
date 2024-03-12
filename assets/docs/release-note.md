@@ -1,5 +1,9 @@
 # Release Note
 
+## v1.2.2
+* Web API
+  1. Update `gdown` version from 4.6 to 5.1.0.
+
 ## v1.2.1
 * Web API
   1. Switch the color of the label font by detecting the lighting value. 
