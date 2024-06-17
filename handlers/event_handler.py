@@ -74,17 +74,17 @@ def get_all_events(condition: Optional[str] = None) -> list:
     return ret
 
 
-def del_all_events() -> None:
-    events = select_data(table="event", data="*", condition=condition)
-    event_nums = len(events)
-    print(f"Get {event_nums} events")
-    ret = []
-    for event in events:
-        data = parse_event_data(event)
-        try:
-            del_event(data["uid"])
-        except Exception:
-            log.warning("Delete event error.")
+# def del_all_events() -> None:
+#     events = select_data(table="event", data="*", condition=condition)
+#     event_nums = len(events)
+#     print(f"Get {event_nums} events")
+#     ret = []
+#     for event in events:
+#         data = parse_event_data(event)
+#         try:
+#             del_event(data["uid"])
+#         except Exception:
+#             log.warning("Delete event error.")
 
 
 def get_cond_events(condition: str) -> list:
