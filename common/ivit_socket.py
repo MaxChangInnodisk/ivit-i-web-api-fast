@@ -1,7 +1,7 @@
-from typing import List, Optional
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from collections import defaultdict
 import logging as logger
+from collections import defaultdict
+
+from fastapi import WebSocket
 
 # class ConnectionManager:
 #     def __init__(self):
@@ -38,7 +38,7 @@ class ConnectionManager:
         if ws in self.active_connections[uid]:
             return
         self.active_connections[uid].add(ws)
-        logger.info(f'Submit WebSocket: {uid}')
+        logger.info(f"Submit WebSocket: {uid}")
 
     def disconnect(self, ws: WebSocket, uid: str):
         uid = uid.upper()
@@ -60,11 +60,11 @@ class ConnectionManager:
                 except:
                     need_pop[uid].append(ws)
         for uid, wss in need_pop.items():
-            for ws in wss:      
-                logger.debug(f'Pop out disconnected websocket: {ws}')
+            for ws in wss:
+                logger.debug(f"Pop out disconnected websocket: {ws}")
                 self.active_connections[uid].remove(ws)
-        
-        logger.debug(f'WebSocket Broadcast: {idx}')
+
+        logger.debug(f"WebSocket Broadcast: {idx}")
 
 
 manager = ConnectionManager()
