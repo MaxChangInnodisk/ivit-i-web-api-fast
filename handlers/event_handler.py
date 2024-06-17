@@ -3,71 +3,67 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-import sys
-import os
-import time
-import re
-import shutil
+import json
 import logging as log
-from typing import Union, Optional
+import os
+import shutil
+from typing import Optional
+
 import cv2
 import numpy as np
-import json
 
 # Import iVIT-I
 try:
-    from ..common import SERV_CONF, RT_CONF
-    from .db_handler import (
-        select_data,
-        update_data,
-        delete_data,
-        insert_data,
-        parse_event_data,
-        connect_db, close_db, db_to_list, is_list_empty
-    )
-
+    from ..common import RT_CONF
     from .app_handler import create_app
-
-except:
-    from common import SERV_CONF, RT_CONF
-    from handlers.db_handler import (
-        select_data,
-        update_data,
+    from .db_handler import (
+        close_db,
+        connect_db,
+        db_to_list,
         delete_data,
-        insert_data,
+        is_list_empty,
         parse_event_data,
-        connect_db, close_db, db_to_list, is_list_empty
+        select_data,
     )
 
+except BaseException:
+    from common import RT_CONF
     from handlers.app_handler import create_app
+    from handlers.db_handler import (
+        close_db,
+        connect_db,
+        db_to_list,
+        delete_data,
+        is_list_empty,
+        parse_event_data,
+        select_data,
+    )
 
 
 class DetectionWrapper:
-    xmin = None,
-    ymin = None,
-    xmax = None,
-    ymax = None,
-    label = None,
-    score = None,
+    xmin = (None,)
+    ymin = (None,)
+    xmax = (None,)
+    ymax = (None,)
+    label = (None,)
+    score = (None,)
 
 
 def verify_event_exist(uid: str):
-
     # Task Information
-    events = select_data(table='event', data="*",
-                         condition=f"WHERE uid='{uid}'")
+    events = select_data(table="event", data="*", condition=f"WHERE uid='{uid}'")
 
     # Not found AI Task
     if events == []:
-        raise RuntimeError("Could not find Event ({})".format(uid))
+        raise RuntimeError(f"Could not find Event ({uid})")
 
     return events[0]
 
 
 def get_all_events(condition: Optional[str] = None) -> list:
-    events = select_data(table='event', data="*", condition=condition)
+    events = select_data(table="event", data="*", condition=condition)
     event_nums = len(events)
-    print(f'Get {event_nums} events')
+    print(f"Get {event_nums} events")
     ret = []
     for event in events:
         data = parse_event_data(event)
@@ -79,28 +75,26 @@ def get_all_events(condition: Optional[str] = None) -> list:
 
 
 def del_all_events() -> None:
-    events = select_data(table='event', data="*", condition=condition)
+    events = select_data(table="event", data="*", condition=condition)
     event_nums = len(events)
-    print(f'Get {event_nums} events')
+    print(f"Get {event_nums} events")
     ret = []
     for event in events:
         data = parse_event_data(event)
         try:
-            del_event(data['uid'])
-        except Exception as e:
-            log.warning('Delete event error.')
+            del_event(data["uid"])
+        except Exception:
+            log.warning("Delete event error.")
 
 
 def get_cond_events(condition: str) -> list:
-
-    events = select_data(table='event', data="*", condition=condition)
+    events = select_data(table="event", data="*", condition=condition)
     event_nums = len(events)
-    print(f'Get {event_nums} events')
+    print(f"Get {event_nums} events")
     return [parse_event_data(event) for event in events]
 
 
 def get_events(data):
-
     conditions = []
 
     # if event_uids is
@@ -136,9 +130,7 @@ def del_event(uid: str):
     del_event_screenshot(uid)
 
     # Del App
-    delete_data(
-        table='event',
-        condition=f"WHERE uid='{uid}'")
+    delete_data(table="event", condition=f"WHERE uid='{uid}'")
 
 
 def get_event_screenshot(timestamp: int, draw_result: bool = False) -> np.ndarray:
@@ -146,11 +138,14 @@ def get_event_screenshot(timestamp: int, draw_result: bool = False) -> np.ndarra
     # ------------------------------------
     # Get data from db
     con, cur = connect_db()
-    event_db_data = db_to_list(cur.execute(
-        f'''SELECT * FROM event WHERE start_time={timestamp} OR end_time={timestamp}'''))
+    event_db_data = db_to_list(
+        cur.execute(
+            f"""SELECT * FROM event WHERE start_time={timestamp} OR end_time={timestamp}"""
+        )
+    )
 
     if is_list_empty(event_db_data):
-        raise KeyError(f'Can not find the timestamp ({timestamp})')
+        raise KeyError(f"Can not find the timestamp ({timestamp})")
 
     event_data = parse_event_data(event_db_data[0])
 
@@ -160,14 +155,16 @@ def get_event_screenshot(timestamp: int, draw_result: bool = False) -> np.ndarra
 
     # Get detections from event data
     file_path = f"events/{event_uid}/{timestamp}.json"
-    with open(file_path, 'r') as f:
+    with open(file_path) as f:
         event_data = json.load(f)
 
     # Get another require data ( model_uid, label_uid )
-    model_uid = db_to_list(cur.execute(
-        f'''SELECT model_uid FROM task WHERE uid="{task_uid}"'''))[0][0]
-    label_path = db_to_list(cur.execute(
-        f'''SELECT label_path FROM model WHERE uid="{model_uid}"'''))[0][0]
+    model_uid = db_to_list(
+        cur.execute(f'''SELECT model_uid FROM task WHERE uid="{task_uid}"''')
+    )[0][0]
+    label_path = db_to_list(
+        cur.execute(f'''SELECT label_path FROM model WHERE uid="{model_uid}"''')
+    )[0][0]
 
     close_db(con, cur)
 
@@ -175,7 +172,7 @@ def get_event_screenshot(timestamp: int, draw_result: bool = False) -> np.ndarra
     # NOTE: Image
     file_path = f"events/{event_uid}/{timestamp}.jpg"
     if not os.path.exists(file_path):
-        raise FileNotFoundError("Can not find image: {}".format(file_path))
+        raise FileNotFoundError(f"Can not find image: {file_path}")
 
     # Read Image
     frame = cv2.imread(file_path)
@@ -236,6 +233,8 @@ def del_event_screenshot(uid: str) -> None:
 
     shutil.rmtree(event_folder)
 
-    log.warning("Delete event screenshot folder ... {}".format(
-        "FAIL" if os.path.exists(event_folder) else "PASS"
-    ))
+    log.warning(
+        "Delete event screenshot folder ... {}".format(
+            "FAIL" if os.path.exists(event_folder) else "PASS"
+        )
+    )
