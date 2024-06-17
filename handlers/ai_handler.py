@@ -1,10 +1,11 @@
 # Copyright (c) 2023 Innodisk Corporation
-# 
+#
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-import sys
 import logging as log
+import sys
+
 if sys.version_info < (3, 8):
     from typing_extensions import Literal
 else:
@@ -13,15 +14,14 @@ else:
 from .ivit_handler import iModel
 
 try:
-    from ..common import init_ivit_env
     from ..common import SERV_CONF
 except:
-    from common import init_ivit_env
     from common import SERV_CONF
 
 CLS = "CLS"
 OBJ = "OBJ"
 SEG = "SEG"
+
 
 class InvalidModelTypeError(Exception):
     def __init__(self, message) -> None:
@@ -29,7 +29,7 @@ class InvalidModelTypeError(Exception):
 
 
 # OpenVINO
-def ivit_i_intel(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
+def ivit_i_intel(type: Literal["CLS", "OBJ", "SEG"], params: dict) -> iModel:
     """Initialize iVIT-I Intel Function
 
     Args:
@@ -44,47 +44,54 @@ def ivit_i_intel(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
     """
     if type == CLS:
         from ivit_i.core.models import iClassification
+
         model = iClassification(
-            model_path = params['model_path'],
-            label_path = params['label_path'],
-            device = params['device'],
-            confidence_threshold = params['confidence_threshold'],
-            topk = params.get('topk', 3)
+            model_path=params["model_path"],
+            label_path=params["label_path"],
+            device=params["device"],
+            confidence_threshold=params["confidence_threshold"],
+            topk=params.get("topk", 3),
         )
     elif type == OBJ:
         from ivit_i.core.models import iDetection
-        
+
         # Update arch for intel platform
         orig_arch = params["arch"]
         correct_arch = orig_arch
-        if 'yolov4' in orig_arch:
-            correct_arch = 'yolov4'
-            log.warning(f'Detect arch is tiny ({orig_arch}), auto convert to {correct_arch}')
-            
-        elif 'yolov3' in orig_arch:
-            correct_arch = 'yolo'
-            log.warning(f'Detect arch is tiny ({orig_arch}), auto convert to {correct_arch}')
-        
+        if "yolov4" in orig_arch:
+            correct_arch = "yolov4"
+            log.warning(
+                f"Detect arch is tiny ({orig_arch}), auto convert to {correct_arch}"
+            )
+
+        elif "yolov3" in orig_arch:
+            correct_arch = "yolo"
+            log.warning(
+                f"Detect arch is tiny ({orig_arch}), auto convert to {correct_arch}"
+            )
+
         # Support yolo,yolov4,yolof,yolox,yolov3-onnx
         model = iDetection(
-            model_path = params["model_path"],
-            label_path = params["label_path"],
-            device = params["device"],
-            architecture_type = correct_arch,
-            anchors = params["anchors"],
-            confidence_threshold = float(params["confidence_threshold"])
+            model_path=params["model_path"],
+            label_path=params["label_path"],
+            device=params["device"],
+            architecture_type=correct_arch,
+            anchors=params["anchors"],
+            confidence_threshold=float(params["confidence_threshold"]),
         )
     else:
-        raise InvalidModelTypeError('Unexpect Type: {}'.format(type))
-    
+        raise InvalidModelTypeError(f"Unexpect Type: {type}")
+
     return model
+
 
 # Jetson
 def ivit_i_jetson():
     pass
 
+
 # dGPU
-def ivit_i_dgpu(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
+def ivit_i_dgpu(type: Literal["CLS", "OBJ", "SEG"], params: dict) -> iModel:
     """Initialize iVIT-I NVIDIA Function
 
     Args:
@@ -98,35 +105,38 @@ def ivit_i_dgpu(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
         iModel: return model which inherit iModel
     """
 
-    info = SERV_CONF['IDEV'].get_device_info( [ str(params['device']) ] )
-    dev = int([ val['id'] for val in info.values() ][0])
+    info = SERV_CONF["IDEV"].get_device_info([str(params["device"])])
+    dev = int([val["id"] for val in info.values()][0])
 
     if type == CLS:
         from ivit_i.core.models import iClassification
+
         model = iClassification(
-            model_path = params['model_path'],
-            label_path = params['label_path'],
-            device = dev,
-            confidence_threshold = float(params['confidence_threshold']),
-            topk = params.get('topk', 1),
-            preproc_mode = "caffe"
+            model_path=params["model_path"],
+            label_path=params["label_path"],
+            device=dev,
+            confidence_threshold=float(params["confidence_threshold"]),
+            topk=params.get("topk", 1),
+            preproc_mode="caffe",
         )
     elif type == OBJ:
         from ivit_i.core.models import iDetection
+
         model = iDetection(
-            model_path = params["model_path"],
-            label_path = params["label_path"],
-            device = dev,
-            anchors = params["anchors"],
-            confidence_threshold = float(params["confidence_threshold"])
+            model_path=params["model_path"],
+            label_path=params["label_path"],
+            device=dev,
+            anchors=params["anchors"],
+            confidence_threshold=float(params["confidence_threshold"]),
         )
     else:
-        raise InvalidModelTypeError('Unexpect Type: {}'.format(type))
+        raise InvalidModelTypeError(f"Unexpect Type: {type}")
 
     return model
 
+
 # Hailo
-def ivit_i_hailo(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
+def ivit_i_hailo(type: Literal["CLS", "OBJ", "SEG"], params: dict) -> iModel:
     """Initialize iVIT-I Hailo Function
 
     Args:
@@ -141,30 +151,33 @@ def ivit_i_hailo(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
     """
     if type == CLS:
         from ivit_i.core.models import iClassification
+
         model = iClassification(
-            model_path = params['model_path'],
-            label_path = params['label_path'],
-            device = params['device'],
-            confidence_threshold = params['confidence_threshold'],
-            topk = params.get('topk', 1),
+            model_path=params["model_path"],
+            label_path=params["label_path"],
+            device=params["device"],
+            confidence_threshold=params["confidence_threshold"],
+            topk=params.get("topk", 1),
         )
     elif type == OBJ:
         from ivit_i.core.models import iDetection
+
         model = iDetection(
-            model_path = params["model_path"],
-            label_path = params["label_path"],
-            device = params["device"],
-            architecture_type = params["arch"],
-            anchors = params["anchors"],
-            confidence_threshold = float(params["confidence_threshold"])
+            model_path=params["model_path"],
+            label_path=params["label_path"],
+            device=params["device"],
+            architecture_type=params["arch"],
+            anchors=params["anchors"],
+            confidence_threshold=float(params["confidence_threshold"]),
         )
     else:
-        raise InvalidModelTypeError('Unexpect Type: {}'.format(type))
-    
+        raise InvalidModelTypeError(f"Unexpect Type: {type}")
+
     return model
 
+
 # Xilinx
-def ivit_i_xlnx(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
+def ivit_i_xlnx(type: Literal["CLS", "OBJ", "SEG"], params: dict) -> iModel:
     """Initialize iVIT-I Xilinx Function
 
     Args:
@@ -179,31 +192,34 @@ def ivit_i_xlnx(type: Literal["CLS", "OBJ", "SEG"], params:dict) -> iModel:
     """
     if type == CLS:
         from ivit_i.core.models import iClassification
+
         model = iClassification(
-            model_path = params['model_path'],
-            label_path = params['label_path'],
+            model_path=params["model_path"],
+            label_path=params["label_path"],
             # device = params['device'],
-            confidence_threshold = params['confidence_threshold'],
-            topk = params.get('topk', 1),
+            confidence_threshold=params["confidence_threshold"],
+            topk=params.get("topk", 1),
         )
     elif type == OBJ:
         from ivit_i.core.models import iDetection
+
         model = iDetection(
-            model_path = params["model_path"],
-            label_path = params["label_path"],
+            model_path=params["model_path"],
+            label_path=params["label_path"],
             # device = params["device"],
             # architecture_type = params["arch"],
-            anchors = params["anchors"],
-            confidence_threshold = float(params["confidence_threshold"])
+            anchors=params["anchors"],
+            confidence_threshold=float(params["confidence_threshold"]),
         )
     else:
-        raise InvalidModelTypeError('Unexpect Type: {}'.format(type))
-    
+        raise InvalidModelTypeError(f"Unexpect Type: {type}")
+
     return model
 
 
-
-def get_ivit_api(framework:Literal["openvino", "tensorrt", "jetson", "vitis-ai", "hailort"]) -> iModel:
+def get_ivit_api(
+    framework: Literal["openvino", "tensorrt", "jetson", "vitis-ai", "hailort"],
+) -> iModel:
     """Get iVIT-I API
 
     Args:
@@ -216,8 +232,7 @@ def get_ivit_api(framework:Literal["openvino", "tensorrt", "jetson", "vitis-ai",
         "openvino": ivit_i_intel,
         "tensorrt": ivit_i_dgpu,
         "vitis-ai": ivit_i_xlnx,
-        "hailort": ivit_i_hailo
+        "hailort": ivit_i_hailo,
     }
 
     return map[framework]
-

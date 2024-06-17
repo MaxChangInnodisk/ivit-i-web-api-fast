@@ -3,83 +3,73 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
+import asyncio
+import copy
+import glob
+import json
+import logging as log
+import os
+import shutil
 import threading
 import time
-import sqlite3
-import copy
-import os
-import sys
-import zipfile
-import json
-import abc
-import glob
-from datetime import datetime
-import logging as log
-import asyncio
-import numpy as np
-from multiprocessing.pool import ThreadPool
-from fastapi import File
-import shutil
-import wget
 from collections import defaultdict
+from datetime import datetime
+from multiprocessing.pool import ThreadPool
 from typing import Union
-import hashlib
+
+import numpy as np
+from fastapi import File
 
 # Custom
 try:
-    from ..common import SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF, manager
-    from ..utils import gen_uid, json_to_str, file_helper, encode
+    from ..common import EVENT_CONF, RT_CONF, SERV_CONF, WS_CONF, manager
+    from ..utils import encode, file_helper, gen_uid, json_to_str
 except:
-    from common import SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF, manager
-    from utils import gen_uid, json_to_str, file_helper, encode
+    from common import EVENT_CONF, RT_CONF, SERV_CONF, WS_CONF, manager
+    from utils import encode, file_helper, gen_uid, json_to_str
 
+from . import (
+    db_handler,
+    event_handler,
+    icap_handler,
+    mesg_handler,
+    model_handler,
+    task_handler,
+)
 from .ai_handler import get_ivit_api, iModel
+from .app_handler import create_app
+from .db_handler import (
+    close_db,
+    connect_db,
+    db_to_list,
+    delete_data,
+    insert_data,
+    is_db_empty,
+    is_list_empty,
+    parse_app_data,
+    parse_model_data,
+    parse_source_data,
+    parse_task_data,
+    select_column_by_uid,
+    select_data,
+    update_data,
+)
+from .err_handler import InvalidUidError
 from .io_handler import (
     create_displayer,
     create_source,
-    update_src_status,
     start_source,
     stop_source,
-    is_source_using,
-    create_rtsp_displayer
+    update_src_status,
 )
-from . import (
-    task_handler,
-    db_handler,
-    model_handler,
-    icap_handler,
-    event_handler,
-    io_handler,
-    mesg_handler
-)
-from .app_handler import create_app
-from .mesg_handler import json_exception, handle_exception, simple_exception, ws_msg
-from .err_handler import InvalidError, InvalidUidError
-from .db_handler import (
-    select_data,
-    update_data,
-    delete_data,
-    insert_data,
-    parse_task_data,
-    parse_model_data,
-    parse_app_data,
-    parse_source_data,
-    db_to_list,
-    is_db_empty,
-    is_list_empty,
-    connect_db,
-    close_db,
-    select_column_by_uid,
-    update_column_by_uid
-)
-
 from .ivit_handler import Metric
-
+from .mesg_handler import handle_exception, json_exception, simple_exception, ws_msg
 
 # --------------------------------------------------------
 
+
 def get_task_info(uid: str = None):
-    """ Get AI Task Information from Database
+    """Get AI Task Information from Database
     1. Get All AI Task Information
     2. Parse Each AI Task Information
 
@@ -108,8 +98,11 @@ def get_task_info(uid: str = None):
     con, cur = connect_db()
 
     # Move DB Cursor
-    sql_command = '''SELECT * FROM task''' if uid == None \
-        else """SELECT * FROM task WHERE uid=\"{}\"""".format(uid)
+    sql_command = (
+        """SELECT * FROM task"""
+        if uid == None
+        else f"""SELECT * FROM task WHERE uid=\"{uid}\""""
+    )
 
     # Sort
     sql_command = sql_command + " ORDER BY created_time ASC, name ASC"
@@ -123,58 +116,58 @@ def get_task_info(uid: str = None):
 
     # Check DB Data
     if is_list_empty(results):
-        raise InvalidUidError("Got invalid task uid: {}".format(uid))
+        raise InvalidUidError(f"Got invalid task uid: {uid}")
 
     # Get Data
     print([(task[1], task[8]) for task in results])
     for info in map(parse_task_data, results):
-
-        task_uid = app_uid = info['uid']
-        task_name = info['name']
-        source_uid = info['source_uid']
-        model_uid = info['model_uid']
-        error = info['error']
+        task_uid = app_uid = info["uid"]
+        task_name = info["name"]
+        source_uid = info["source_uid"]
+        model_uid = info["model_uid"]
+        error = info["error"]
 
         # Source
-        results = select_column_by_uid(cur, 'source', source_uid, ["name"])
+        results = select_column_by_uid(cur, "source", source_uid, ["name"])
 
         if is_list_empty(results):
             source_name = None
-            return_errors.append(f'Got invalid source uid: {source_uid}')
+            return_errors.append(f"Got invalid source uid: {source_uid}")
         else:
             source_name = results[0][0]
 
         # Model
-        results = select_column_by_uid(
-            cur, 'model', model_uid, ["name", "type"])
+        results = select_column_by_uid(cur, "model", model_uid, ["name", "type"])
         if is_list_empty(results):
             model_name, model_type = None, None
-            return_errors.append(f'Got invalid source uid: {model_uid}')
+            return_errors.append(f"Got invalid source uid: {model_uid}")
         else:
             model_name, model_type = results[0]
 
         # App
         results = select_column_by_uid(cur, "app", app_uid, ["name"])
         if is_list_empty(results):
-            return_errors.append(f'Got invalid application uid: {app_uid}')
+            return_errors.append(f"Got invalid application uid: {app_uid}")
             app_name = None
         else:
             app_name = results[0][0]
 
         # Add More Data
-        info.update({
-            'task_uid': task_uid,
-            'task_name': task_name,
-            'source_name': source_name,
-            'model_name': model_name,
-            'model_type': model_type,
-            'app_uid': app_uid,
-            'app_name': app_name,
-            'error': return_errors if return_errors != [] else error
-        })
+        info.update(
+            {
+                "task_uid": task_uid,
+                "task_name": task_name,
+                "source_name": source_name,
+                "model_name": model_name,
+                "model_type": model_type,
+                "app_uid": app_uid,
+                "app_name": app_name,
+                "error": return_errors if return_errors != [] else error,
+            }
+        )
 
         # Pop unused data
-        for key in ['uid', 'name']:
+        for key in ["uid", "name"]:
             info.pop(key, None)
 
         return_data.append(info)
@@ -187,26 +180,24 @@ def get_task_info(uid: str = None):
 
 def get_task_status(uid):
     """Get Status of AI Task"""
-    return select_data(table='task', data=['status'], condition=f"WHERE uid='{uid}'")[0][0]
+    return select_data(table="task", data=["status"], condition=f"WHERE uid='{uid}'")[
+        0
+    ][0]
 
 
 def update_task_status(uid, status, err_mesg: dict = {}):
     """Update Status of AI Task"""
-    write_data = {
-        'status': status,
-        'error': err_mesg
-    }
-    update_data(table='task', data=write_data, condition=f"WHERE uid='{uid}'")
+    write_data = {"status": status, "error": err_mesg}
+    update_data(table="task", data=write_data, condition=f"WHERE uid='{uid}'")
 
 
 def verify_task_exist(uid) -> dict:
-
     # Task Information
-    task = select_data(table='task', data="*", condition=f"WHERE uid='{uid}'")
+    task = select_data(table="task", data="*", condition=f"WHERE uid='{uid}'")
 
     # Not found AI Task
     if task == []:
-        raise RuntimeError("Could not find AI Task ({})".format(uid))
+        raise RuntimeError(f"Could not find AI Task ({uid})")
 
     return task[0]
 
@@ -225,16 +216,14 @@ def verify_duplicate_task(task_name: str, duplicate_limit=2):
     duplicate_nums = 0
 
     # Checking
-    for uid, name in select_data(table='task', data=['uid', 'name']):
-
+    for uid, name in select_data(table="task", data=["uid", "name"]):
         # if duplicate then add 1
         if task_name == name:
             duplicate_nums += 1
 
         # more than 2 task name then raise error
         if duplicate_nums >= duplicate_limit:
-            raise NameError(
-                'AI Task is already exist ( {}: {} )'.format(uid, name))
+            raise NameError(f"AI Task is already exist ( {uid}: {name} )")
 
 
 def has_duplicate_task(task_name: str, duplicate_limit=2) -> bool:
@@ -251,8 +240,7 @@ def has_duplicate_task(task_name: str, duplicate_limit=2) -> bool:
     duplicate_nums = 0
 
     # Checking
-    for uid, name in select_data(table='task', data=['uid', 'name']):
-
+    for uid, name in select_data(table="task", data=["uid", "name"]):
         # if duplicate then add 1
         if task_name == name:
             duplicate_nums += 1
@@ -265,28 +253,27 @@ def has_duplicate_task(task_name: str, duplicate_limit=2) -> bool:
 
 def verify_thres(threshold: float):
     if threshold < 0.01 and threshold > 1.0:
-        raise ValueError('Threshold value should in range 0 to 1')
+        raise ValueError("Threshold value should in range 0 to 1")
 
 
 def check_single_task_for_hailo():
-
     # NOTE: Hailo only support one task running
     if SERV_CONF["PLATFORM"] != "hailo":
         return
 
     running_tasks = select_data(
-        table='task', data=['uid'], condition=f"WHERE status='run'")
+        table="task", data=["uid"], condition="WHERE status='run'"
+    )
     if len(running_tasks) > 0:
-        raise RuntimeError('Not support multiple AI task !!!')
+        raise RuntimeError("Not support multiple AI task !!!")
 
 
 def check_event_params(app_setting: dict, app_name: str = ""):
-    """Check event parameters and update event status in application setting ( which key is 'enable'). """
+    """Check event parameters and update event status in application setting ( which key is 'enable')."""
 
     # NOTE: check event first because the setting was in app_setting
     # Add Event Information
     for area_info in app_setting["application"]["areas"]:
-
         if "events" not in area_info:
             continue
         log.info(f"Get event setting in area ( {area_info['name']} )")
@@ -295,10 +282,12 @@ def check_event_params(app_setting: dict, app_name: str = ""):
                 area_info["events"].update({"enable": True})
             log.debug("\t* {}: {}".format(key, area_info["events"].get(key)))
 
-            if key == "logic_operator" and (app_name in ["Tracking_Zone", "Movement_Zone"]):
+            if key == "logic_operator" and (
+                app_name in ["Tracking_Zone", "Movement_Zone"]
+            ):
                 if area_info["events"][key] == "<":
-                    raise KeyError(
-                        "Tracking and Movement not support \"<\" operator. ")
+                    raise KeyError('Tracking and Movement not support "<" operator. ')
+
 
 # --------------------------------------------------------
 # Execute AI Task
@@ -311,8 +300,8 @@ def run_ai_task(uid: str, data: dict = None) -> str:
     1. Check task is exist
     2. Parse task information
     3. Check task status
-        If run then return message; 
-        If stop or error then keep going; 
+        If run then return message;
+        If stop or error then keep going;
         If loading then wait for N seconds ( default is 20 ).
     4. Get model information and load model
     5. Get source object and displayer object
@@ -325,62 +314,62 @@ def run_ai_task(uid: str, data: dict = None) -> str:
     check_single_task_for_hailo()
 
     # Get Task Information
-    task = select_data(table='task', data="*", condition=f"WHERE uid='{uid}'")
+    task = select_data(table="task", data="*", condition=f"WHERE uid='{uid}'")
 
     # Not found AI Task
     if is_list_empty(task):
-        raise RuntimeError("Could not find AI Task ({})".format(uid))
+        raise RuntimeError(f"Could not find AI Task ({uid})")
 
     # Parse Information
     task_info = parse_task_data(task[0])
-    source_uid = task_info['source_uid']
-    model_uid = task_info['model_uid']
+    source_uid = task_info["source_uid"]
+    model_uid = task_info["model_uid"]
 
     # Check Status: Wait Task if there is someone launching task
     timeout = 0
-    while (True):
+    while True:
         status = get_task_status(uid)
 
-        if status == 'run':
-            mesg = 'AI Task is running'
+        if status == "run":
+            mesg = "AI Task is running"
             log.warn(mesg)
             return mesg
         elif status in ["stop", "error"]:
-            update_task_status(uid, 'loading')
+            update_task_status(uid, "loading")
             break
         else:
             time.sleep(1)
             timeout += 1
             if timeout >= 20:
-                raise RuntimeError('Waitting AI Task Timeout')
+                raise RuntimeError("Waitting AI Task Timeout")
 
     # Prepare AI Model Config and Load Model
     try:
-        model_data = select_data(table='model', data="*",
-                                 condition=f"WHERE uid='{model_uid}'")[0]
+        model_data = select_data(
+            table="model", data="*", condition=f"WHERE uid='{model_uid}'"
+        )[0]
         model_info = parse_model_data(model_data)
-    except Exception as e:
+    except Exception:
         raise RuntimeError("Load AI Model Failed: Can not found AI Model")
 
     # Load Application
     try:
-        app = create_app(app_uid=uid, label_path=model_info['label_path'])
+        app = create_app(app_uid=uid, label_path=model_info["label_path"])
     except Exception as e:
-        raise RuntimeError(
-            "Load Application Failed: {}".format(simple_exception(e)[1]))
+        raise RuntimeError(f"Load Application Failed: {simple_exception(e)[1]}")
 
     # Load Model
     try:
-        model_info['meta_data'].update(
-            {**task_info['model_setting'], 'device': task_info['device']})
+        model_info["meta_data"].update(
+            {**task_info["model_setting"], "device": task_info["device"]}
+        )
 
         # Load AI Model
         load_model = get_ivit_api(SERV_CONF["FRAMEWORK"])
-        model = load_model(model_info['type'], model_info['meta_data'])
+        model = load_model(model_info["type"], model_info["meta_data"])
 
     except Exception as e:
-        raise RuntimeError(
-            "Load AI Model Failed: {}".format(simple_exception(e)[1]))
+        raise RuntimeError(f"Load AI Model Failed: {simple_exception(e)[1]}")
 
     # Create Source Object
     try:
@@ -388,13 +377,12 @@ def run_ai_task(uid: str, data: dict = None) -> str:
         height, width = src.get_shape()
 
     except Exception as e:
-        update_src_status(source_uid, 'error')
-        raise RuntimeError(
-            "Load Source Failed: {}".format(simple_exception(e)[1]))
+        update_src_status(source_uid, "error")
+        raise RuntimeError(f"Load Source Failed: {simple_exception(e)[1]}")
 
     # Create Displayer Object
     try:
-        cv_flag = getattr(data, 'cv_display', None)
+        cv_flag = getattr(data, "cv_display", None)
         dpr = create_displayer(
             cv=cv_flag,
             rtsp=True,
@@ -402,7 +390,8 @@ def run_ai_task(uid: str, data: dict = None) -> str:
             width=width,
             fps=30,
             name=uid,
-            platform=SERV_CONF["platform"])
+            platform=SERV_CONF["platform"],
+        )
 
         # dpr = create_rtsp_displayer(
         #     name = uid,
@@ -414,96 +403,98 @@ def run_ai_task(uid: str, data: dict = None) -> str:
         # )
 
     except Exception as e:
-        raise RuntimeError(
-            "Load Displayer Failed: {}".format(simple_exception(e)[1]))
+        raise RuntimeError(f"Load Displayer Failed: {simple_exception(e)[1]}")
 
     # Create Threading
     try:
         # Check Keyword in RT_CONF
         if RT_CONF.get(uid) is None:
-            RT_CONF.update({uid: {'EXEC': None}})
+            RT_CONF.update({uid: {"EXEC": None}})
 
-        RT_CONF[uid].update({
-            'EXEC': InferenceLoop(
-                uid=uid,
-                src=src,
-                model=model,
-                app=app,
-                src_uid=source_uid,
-                model_uid=model_uid,
-                dpr=dpr
-            ),
-            'DATA': {}
-        })
+        RT_CONF[uid].update(
+            {
+                "EXEC": InferenceLoop(
+                    uid=uid,
+                    src=src,
+                    model=model,
+                    app=app,
+                    src_uid=source_uid,
+                    model_uid=model_uid,
+                    dpr=dpr,
+                ),
+                "DATA": {},
+            }
+        )
 
         # Start each threading
         start_source(source_uid)
-        RT_CONF[uid]['EXEC'].start()
+        RT_CONF[uid]["EXEC"].start()
 
     except Exception as e:
-        del RT_CONF[uid]['EXEC']
-        raise RuntimeError(
-            "Launch AI Task Failed: {}".format(simple_exception(e)[1]))
+        del RT_CONF[uid]["EXEC"]
+        raise RuntimeError(f"Launch AI Task Failed: {simple_exception(e)[1]}")
 
     # Add MQTT Topic
     SERV_CONF["MQTT"].subscribe_event(uid)
     SERV_CONF["MQTT"].publish(
-        SERV_CONF["MQTT"].get_event_topic(uid), 'iVIT Registered !')
+        SERV_CONF["MQTT"].get_event_topic(uid), "iVIT Registered !"
+    )
 
     # End
-    mesg = 'Run AI Task ( {}: {} )'.format(uid, task_info['name'])
+    mesg = "Run AI Task ( {}: {} )".format(uid, task_info["name"])
     return mesg
 
 
 def stop_ai_task(uid: str, data: dict = None):
-    """ Stop AI Task via uid """
+    """Stop AI Task via uid"""
 
     # Task Information
     task = verify_task_exist(uid=uid)
     task_info = parse_task_data(task)
 
-    task_uid = app_uid = task_info['uid']
-    source_uid = task_info['source_uid']
+    task_uid = app_uid = task_info["uid"]
+    source_uid = task_info["source_uid"]
 
-    if get_task_status(uid=uid) != 'run':
-        mesg = 'AI Task is stopped !'
+    if get_task_status(uid=uid) != "run":
+        mesg = "AI Task is stopped !"
         return mesg
 
-    mesg = 'Stop AI Task ( {}: {} )'.format(uid, task_info['name'])
+    mesg = "Stop AI Task ( {}: {} )".format(uid, task_info["name"])
 
     # Clear event
     try:
-        events = select_data(table='event', data="uid",
-                             condition=f"WHERE app_uid='{app_uid}'")
+        events = select_data(
+            table="event", data="uid", condition=f"WHERE app_uid='{app_uid}'"
+        )
         [event_handler.del_event(event[0]) for event in events]
-    except Exception as e:
-        log.warning('Delete event fail when stopping AI task.')
+    except Exception:
+        log.warning("Delete event fail when stopping AI task.")
 
     # Stop AI Task
-    RT_CONF[uid]['EXEC'].stop()
-    del RT_CONF[uid]['EXEC']
+    RT_CONF[uid]["EXEC"].stop()
+    del RT_CONF[uid]["EXEC"]
 
     # Stop Source if not using
     stop_source(source_uid)
 
-    update_task_status(uid, 'stop')
+    update_task_status(uid, "stop")
 
     log.info(mesg)
     return mesg
 
 
 def update_ai_task(uid: str, data: dict = None):
-    """ update AI Task via uid """
+    """update AI Task via uid"""
     if uid not in RT_CONF:
         RT_CONF.update({uid: {}})
 
-    RT_CONF[uid]['DATA'] = data
-    log.info('Update AI Task: {} With {}'.format(uid, data))
-    return 'Update success'
+    RT_CONF[uid]["DATA"] = data
+    log.info(f"Update AI Task: {uid} With {data}")
+    return "Update success"
 
 
 def add_ai_task(add_data):
-    """ Add a AI Task 
+    """Add a AI Task
     ---
     1. Add task information into database ( table: task )
     2. Add application information into database ( table: app )
@@ -518,33 +509,38 @@ def add_ai_task(add_data):
         con, cur = connect_db()
 
         # Task Name
-        results = db_to_list(cur.execute(
-            """SELECT uid, name FROM task WHERE name=\"{}\" """.format(add_data.task_name)))
+        results = db_to_list(
+            cur.execute(
+                f"""SELECT uid, name FROM task WHERE name=\"{add_data.task_name}\" """
+            )
+        )
         if not is_list_empty(results):
             uid, name = results[0]
-            errors.update(
-                {"task_name": "Duplicate task name: {} ({})".format(name, uid)})
+            errors.update({"task_name": f"Duplicate task name: {name} ({uid})"})
 
         # Source UID
-        results = db_to_list(cur.execute(
-            """SELECT uid FROM source WHERE uid=\"{}\" """.format(add_data.source_uid)))
+        results = db_to_list(
+            cur.execute(
+                f"""SELECT uid FROM source WHERE uid=\"{add_data.source_uid}\" """
+            )
+        )
         if is_list_empty(results):
-            errors.update(
-                {"source_uid": "Unkwon Source UID: {}".format(add_data.source_uid)})
+            errors.update({"source_uid": f"Unkwon Source UID: {add_data.source_uid}"})
 
         # Model UID
-        results = db_to_list(cur.execute(
-            """SELECT uid FROM model WHERE uid=\"{}\" """.format(add_data.model_uid)))
+        results = db_to_list(
+            cur.execute(
+                f"""SELECT uid FROM model WHERE uid=\"{add_data.model_uid}\" """
+            )
+        )
         if is_list_empty(results):
-            errors.update(
-                {"model_uid": "Unkwon model UID: {}".format(add_data.model_uid)})
+            errors.update({"model_uid": f"Unkwon model UID: {add_data.model_uid}"})
 
         # Check Event
         try:
             check_event_params(add_data.app_setting, add_data.app_name)
         except Exception as e:
-            errors.update(
-                {"events": "Event setting error ({})".format(e.message)})
+            errors.update({"events": f"Event setting error ({e.message})"})
 
     except Exception as e:
         log.exception(e)
@@ -554,18 +550,17 @@ def add_ai_task(add_data):
         close_db(con, cur)
 
     # Model Setting
-    threshold = add_data.model_setting['confidence_threshold']
+    threshold = add_data.model_setting["confidence_threshold"]
     if threshold < 0.01 or threshold > 1.0:
         errors.update(
-            {"confidence_threshold": "Invalid confidence threshold, should in range 0 to 1"})
+            {
+                "confidence_threshold": "Invalid confidence threshold, should in range 0 to 1"
+            }
+        )
 
     # Find Error and return errors
     if len(errors.keys()) > 0:
-        return {
-            "uid": task_uid,
-            "status": "failed",
-            "data": errors
-        }
+        return {"uid": task_uid, "status": "failed", "data": errors}
 
     # Add Task Information into Database
     insert_data(
@@ -578,9 +573,8 @@ def add_ai_task(add_data):
             "model_setting": add_data.model_setting,
             "status": "stop",
             "device": add_data.device,
-            "created_time": time.time()
-        }
-
+            "created_time": time.time(),
+        },
     )
 
     # Add App Information into Database
@@ -592,19 +586,15 @@ def add_ai_task(add_data):
             "uid": app_uid,
             "name": add_data.app_name,
             "type": app_type,
-            "app_setting": add_data.app_setting
-        }
+            "app_setting": add_data.app_setting,
+        },
     )
 
-    return {
-        "uid": task_uid,
-        "status": "success",
-        "data": errors
-    }
+    return {"uid": task_uid, "status": "success", "data": errors}
 
 
 def edit_ai_task(edit_data):
-    """ Edit AI Task
+    """Edit AI Task
     ---
     1. Check task_uid and task_name is exist or not ( ignore itself )
     2. Check threshold is available
@@ -623,13 +613,13 @@ def edit_ai_task(edit_data):
 
     # Check status
     if task_info["status"] == "run":
-        raise RuntimeError('The AI task is running, can not be edit.')
+        raise RuntimeError("The AI task is running, can not be edit.")
 
     # Name is exists
     verify_duplicate_task(edit_data.task_name)
 
     # CHECK: threshold value is available
-    verify_thres(threshold=edit_data.model_setting['confidence_threshold'])
+    verify_thres(threshold=edit_data.model_setting["confidence_threshold"])
 
     # CHECK Others
     errors = {}
@@ -637,27 +627,31 @@ def edit_ai_task(edit_data):
         # Check Database Data
         con, cur = connect_db()
         # Source UID
-        results = db_to_list(cur.execute(
-            """SELECT uid FROM source WHERE uid=\"{}\" """.format(edit_data.source_uid)))
+        results = db_to_list(
+            cur.execute(
+                f"""SELECT uid FROM source WHERE uid=\"{edit_data.source_uid}\" """
+            )
+        )
         if is_list_empty(results):
-            errors.update(
-                {"source_uid": "Unkwon Source UID: {}".format(edit_data.source_uid)})
+            errors.update({"source_uid": f"Unkwon Source UID: {edit_data.source_uid}"})
         # Model UID
-        results = db_to_list(cur.execute(
-            """SELECT uid FROM model WHERE uid=\"{}\" """.format(edit_data.model_uid)))
+        results = db_to_list(
+            cur.execute(
+                f"""SELECT uid FROM model WHERE uid=\"{edit_data.model_uid}\" """
+            )
+        )
         if is_list_empty(results):
-            errors.update(
-                {"model_uid": "Unkwon model UID: {}".format(edit_data.model_uid)})
+            errors.update({"model_uid": f"Unkwon model UID: {edit_data.model_uid}"})
 
         # Check Event
         try:
             check_event_params(edit_data.app_setting, edit_data.app_name)
         except Exception as e:
-            errors.update({"events": "Event setting error ({})".format(e)})
+            errors.update({"events": f"Event setting error ({e})"})
 
     except Exception as e:
         log.exception(e)
-        errors.update({"unknown": "Unknown error ({})".format(e)})
+        errors.update({"unknown": f"Unknown error ({e})"})
 
     finally:
         # Close DB
@@ -666,11 +660,7 @@ def edit_ai_task(edit_data):
     # Find Error and return errors
     print(errors)
     if len(errors.keys()) > 0:
-        return {
-            "uid": task_uid,
-            "status": "failed",
-            "data": errors
-        }
+        return {"uid": task_uid, "status": "failed", "data": errors}
 
     # Add Task Information into Database
     insert_data(
@@ -683,9 +673,9 @@ def edit_ai_task(edit_data):
             "model_setting": json_to_str(edit_data.model_setting),
             "status": "stop",
             "device": edit_data.device,
-            "created_time": task_info["created_time"]
+            "created_time": task_info["created_time"],
         },
-        replace=True
+        replace=True,
     )
 
     # check_event_params(edit_data.app_setting, edit_data.app_name)
@@ -699,19 +689,16 @@ def edit_ai_task(edit_data):
             "uid": app_uid,
             "name": edit_data.app_name,
             "type": app_type,
-            "app_setting": json_to_str(edit_data.app_setting)
+            "app_setting": json_to_str(edit_data.app_setting),
         },
-        replace=True
+        replace=True,
     )
 
-    return {
-        "uid": task_uid,
-        "status": "success"
-    }
+    return {"uid": task_uid, "status": "success"}
 
 
 def del_ai_task(uid: str):
-    """ Delete a AI Task 
+    """Delete a AI Task
     1. Delete task information into database ( table: task )
     2. Delete application information into database ( table: app )
     """
@@ -719,52 +706,39 @@ def del_ai_task(uid: str):
     verify_task_exist(uid)
 
     # Del Task
-    delete_data(
-        table='task',
-        condition=f"WHERE uid='{uid}'")
+    delete_data(table="task", condition=f"WHERE uid='{uid}'")
 
     # Del App
-    delete_data(
-        table='app',
-        condition=f"WHERE uid='{uid}'")
+    delete_data(table="app", condition=f"WHERE uid='{uid}'")
 
 
 def export_ai_task(export_uids: list, to_icap: bool = False) -> list:
-
     exporter = TaskExporter(export_uids[0])
     exporter.start()
 
     # Waiting the parse status
-    while (exporter.status != exporter.S_PARS):
+    while exporter.status != exporter.S_PARS:
         if exporter.status == exporter.S_FAIL:
             raise exporter.error
-        print(f"{exporter.status:20}", end='\r')
+        print(f"{exporter.status:20}", end="\r")
 
-    return {
-        "uid": exporter.uid,
-        "status": exporter.status
-    }
+    return {"uid": exporter.uid, "status": exporter.status}
 
 
 def import_ai_task(file: File, url: str = None):
-
     importer = TASK_ZIP_IMPORTER(file=file)
     importer.start()
 
-    while (importer.status != importer.S_PARS):
+    while importer.status != importer.S_PARS:
         if importer.status == importer.S_FAIL:
             raise importer.error
 
-        print(f"{importer.status:20}", end='\r')
+        print(f"{importer.status:20}", end="\r")
 
-    return {
-        "uid": importer.uid,
-        "status": importer.status
-    }
+    return {"uid": importer.uid, "status": importer.status}
 
 
 class EasyTimer:
-
     def __init__(self, limit: float) -> None:
         self._prev_time = time.time()
         self.limit = limit
@@ -782,7 +756,7 @@ class EasyTimer:
         # log.debug(f'Start {self.__class__.__name__}')
 
     def update(self):
-        self._duration = time.time()-self._prev_time
+        self._duration = time.time() - self._prev_time
         return self._duration
 
     @property
@@ -795,18 +769,23 @@ class EasyTimer:
 
 
 class FakeDisplayer:
-    log.warning('Initialize Fake Displayer')
-    def show(frame): return frame
-    def release(): return log.warning('Release Fake Displayer')
+    log.warning("Initialize Fake Displayer")
+
+    def show(frame):
+        return frame
+
+    def release():
+        return log.warning("Release Fake Displayer")
 
 
 class AsyncInference:
-
-    def __init__(self,
-                 imodel: iModel,
-                 workers: int = 1,
-                 freqency: float = 0.066,
-                 clean_duration: int = 1) -> None:
+    def __init__(
+        self,
+        imodel: iModel,
+        workers: int = 1,
+        freqency: float = 0.066,
+        clean_duration: int = 1,
+    ) -> None:
         """Asynchorize Inference Object
 
         Args:
@@ -840,10 +819,9 @@ class AsyncInference:
 
     def _is_full_pool(self):
         """full pool"""
-        return (len(self.pools) > self.workers)
+        return len(self.pools) > self.workers
 
     def _check_time_to_clean_results(self):
-
         # If no need to clean
         if not self.start_clean_timer:
             return
@@ -862,7 +840,7 @@ class AsyncInference:
     def async_infer_wrapper(self, frame):
         prev_time = time.time()
         result = self.imodel.inference(frame)
-        self.async_infer_fps = 1//(time.time() - prev_time)
+        self.async_infer_fps = 1 // (time.time() - prev_time)
 
         return result
 
@@ -911,8 +889,10 @@ class AsyncInference:
         self.pools.append(
             self.pool.apply_async(
                 func=self.async_infer_wrapper,
-                args=(frame, ),
-                callback=self.infer_callback))
+                args=(frame,),
+                callback=self.infer_callback,
+            )
+        )
 
     def get_results(self) -> list:
         """Get results
@@ -927,10 +907,9 @@ class AsyncInference:
 
 
 class InferenceLoop:
-    """ Inference Thread Helper """
+    """Inference Thread Helper"""
 
     def __init__(self, uid, src, model, app, src_uid, model_uid, dpr=None) -> None:
-
         # Basic Parameter
         self.uid = uid
         self.src = src
@@ -954,18 +933,16 @@ class InferenceLoop:
         self.latency_limitor = Metric()
 
         # RTSP Output
-        self.display_latency = 1/30
+        self.display_latency = 1 / 30
 
         # For iCAP
-        self.icap_alive = 'ICAP' in SERV_CONF and not (
-            SERV_CONF['ICAP'] is None)
+        self.icap_alive = "ICAP" in SERV_CONF and SERV_CONF["ICAP"] is not None
 
         # Create AsyncInference Object
         self.async_infer = AsyncInference(
-            imodel=self.model,
-            workers=1,
-            freqency=self.display_latency*2)
-        log.warning('Create a InferenceLoop')
+            imodel=self.model, workers=1, freqency=self.display_latency * 2
+        )
+        log.warning("Create a InferenceLoop")
 
         # FPS and Running Time
         self.fps = -1
@@ -978,81 +955,84 @@ class InferenceLoop:
         """Update the parameters of the application, like: palette, draw_bbox, etc."""
         try:
             # Display
-            need_cv = getattr(data, 'cv_display', False)
+            need_cv = getattr(data, "cv_display", False)
             if need_cv:
                 self.dpr._setup_cv(
-                    name=self.uid,
-                    width=self.src.width,
-                    height=self.src.height
+                    name=self.uid, width=self.src.width, height=self.src.height
                 )
             else:
                 self.dpr.dps.pop(self.dpr.CV)
 
             # Area Event: Color, ... etc
-            palette = getattr(data, 'palette', None)
+            palette = getattr(data, "palette", None)
             if palette:
                 for key, val in palette.items():
                     try:
                         key = key.strip()
                         self.app.palette[key] = val
-                        log.warning(
-                            'Update Color Successed ( {} -> {} )'.format(key, val))
+                        log.warning(f"Update Color Successed ( {key} -> {val} )")
                     except Exception as e:
-                        log.warning('Update Color Failed ... {}'.format(
-                            handle_exception(e)))
+                        log.warning(f"Update Color Failed ... {handle_exception(e)}")
 
             # Draw Something
-            app_setup = {key: getattr(data, key)
-                         for key in ["draw_bbox", "draw_result", "draw_area", "draw_tracking", "draw_line"]
-                         if getattr(data, key, None) is not None
-                         }
+            app_setup = {
+                key: getattr(data, key)
+                for key in [
+                    "draw_bbox",
+                    "draw_result",
+                    "draw_area",
+                    "draw_tracking",
+                    "draw_line",
+                ]
+                if getattr(data, key, None) is not None
+            }
             if app_setup:
                 self.app.set_draw(app_setup)
 
             # AI Model Threshold
-            thres = getattr(data, 'thres', None)
+            thres = getattr(data, "thres", None)
             if thres:
                 self.model.set_thres(thres)
-                log.warning('Set threshold')
+                log.warning("Set threshold")
 
         except Exception as e:
-            log.error('Setting Parameters ... Failed')
+            log.error("Setting Parameters ... Failed")
             log.exception(e)
 
         finally:
-            log.warning('App Setup Finished')
+            log.warning("App Setup Finished")
 
     def _dynamic_change_app_setup(self):
-        """ Dynamic Modify Varaible of the Application """
+        """Dynamic Modify Varaible of the Application"""
 
         # Return: No dynamic variable setting
-        if RT_CONF[self.uid]['DATA'] == {}:
+        if RT_CONF[self.uid]["DATA"] == {}:
             return
 
         # Copy a data
-        data = copy.deepcopy(RT_CONF[self.uid]['DATA'])
+        data = copy.deepcopy(RT_CONF[self.uid]["DATA"])
 
         # Create a thread to update task value
-        threading.Thread(target=self._update_app_setup_func,
-                         args=(data, ), daemon=True).start()
+        threading.Thread(
+            target=self._update_app_setup_func, args=(data,), daemon=True
+        ).start()
 
         # Clear dara
-        RT_CONF[self.uid]['DATA'] = {}
+        RT_CONF[self.uid]["DATA"] = {}
 
     def _launch_event(self, event_output: dict) -> None:
-        """Launch event function """
+        """Launch event function"""
 
         if not event_output:
             return
 
         # Get value
-        event_output = event_output.get('event')
+        event_output = event_output.get("event")
         if not event_output:
             return
 
         # NOTE: store in database, event start if status is True else False
         for event in event_output:
-
             # Combine data
             data = {
                 "uid": event["uid"],
@@ -1060,18 +1040,21 @@ class InferenceLoop:
                 "app_uid": self.uid,
                 "start_time": event["start_time"],
                 "end_time": event["end_time"],
-                "annotation": event["meta"]
+                "annotation": event["meta"],
             }
 
             # Event Trigger First Time: status=True and event_output!=[]
             if event["event_status"]:
                 # Add new data
-                insert_data(table='event', data=data)
+                insert_data(table="event", data=data)
 
             else:
                 # Update old data ( update end_time )
-                update_data(table='event', data=data,
-                            condition=f"WHERE start_time={event['start_time']}")
+                update_data(
+                    table="event",
+                    data=data,
+                    condition=f"WHERE start_time={event['start_time']}",
+                )
 
                 # No need to send websocket
                 continue
@@ -1089,8 +1072,8 @@ class InferenceLoop:
             # Send to front end via WebSocket
             try:
                 asyncio.run(manager.send(self.uid, event_message))
-            except Exception as e:
-                log.warning('Send websocket failed!!!!')
+            except Exception:
+                log.warning("Send websocket failed!!!!")
 
             if "MQTT" in SERV_CONF:
                 main_topic = SERV_CONF["MQTT"].get_event_topic()
@@ -1101,13 +1084,11 @@ class InferenceLoop:
 
     # NOTE: MAIN LOOP
     def _infer_loop(self):
-
-        log.warning('Start AI Task Inference Stream')
-        update_task_status(self.uid, 'run')
+        log.warning("Start AI Task Inference Stream")
+        update_task_status(self.uid, "run")
 
         # Make sure source is ready
-        while (self.is_ready and self.src.is_ready):
-
+        while self.is_ready and self.src.is_ready:
             # Ready to calculate performance
             self.stream_metric.update()
             self.latency_limitor.update()
@@ -1124,8 +1105,7 @@ class InferenceLoop:
 
             # Run Application
             try:
-                _draw, _results, _event = self.app(
-                    copy.deepcopy(frame), cur_data)
+                _draw, _results, _event = self.app(copy.deepcopy(frame), cur_data)
 
                 # Not replace directly to avoid variable is replaced when interrupted
                 self.draw, self.results, self.event_output = _draw, _results, _event
@@ -1133,7 +1113,7 @@ class InferenceLoop:
                 self._launch_event(_event)
 
             except Exception as e:
-                log.warning('Run Application Error')
+                log.warning("Run Application Error")
                 log.exception(e)
 
             try:
@@ -1149,11 +1129,13 @@ class InferenceLoop:
             self.fps = self.async_infer.get_fps()
 
             # Send Data
-            self.results.update({
-                "fps": self.fps,
-                "stream_fps": self.stream_metric.get_fps(),
-                "live_time": self.stream_metric.get_exec_time()
-            })
+            self.results.update(
+                {
+                    "fps": self.fps,
+                    "stream_fps": self.stream_metric.get_fps(),
+                    "live_time": self.stream_metric.get_exec_time(),
+                }
+            )
             WS_CONF.update({self.uid: self.results})
 
             # Limit FPS
@@ -1167,19 +1149,17 @@ class InferenceLoop:
             self.stream_metric.update()
 
         # Update Task Status to Stop
-        update_task_status(self.uid, 'stop')
+        update_task_status(self.uid, "stop")
 
     def _capture_src_error(self):
-
         # Means no error and some tasks is still running
         if self.src.is_ready and len(self.src.errors) == 0:
             return
 
         # Check is error from source or not
         if (not self.src.is_ready) and len(self.src.errors) > 0:
-
             # Update Status
-            update_src_status(self.src_uid, 'error')
+            update_src_status(self.src_uid, "error")
 
             # Lastest error
             error = self.src.errors[-1]
@@ -1189,42 +1169,35 @@ class InferenceLoop:
 
             # Add Source uid
             ret_mesg = ws_msg(type="ERROR", content=error.message)
-            ret_mesg["data"] = {
-                "source_uid": self.src_uid}
+            ret_mesg["data"] = {"source_uid": self.src_uid}
             asyncio.run(manager.send(uid=self.uid, message=ret_mesg))
 
     def _infer_thread(self):
-
         try:
             self._infer_loop()
             self._capture_src_error()
 
         # If Get Exception
         except Exception as e:
-
             # Write Log
-            log.error('InferenceLoop Error!!!')
+            log.error("InferenceLoop Error!!!")
             log.exception(e)
 
             # Send and Store Error Message with Json Format
             json_exp = json_exception(e)
-            asyncio.run(
-                manager.send(self.uid, ws_msg(type="ERROR", content=e))
-            )
-            update_task_status(
-                uid=self.uid, status='error', err_mesg=json_exp)
+            asyncio.run(manager.send(self.uid, ws_msg(type="ERROR", content=e)))
+            update_task_status(uid=self.uid, status="error", err_mesg=json_exp)
 
         finally:
-
             self.model.release()
             self.dpr.release()
 
             if self.icap_alive:
-                SERV_CONF['ICAP'].send_attr(data={
-                    'ivitTask': icap_handler.get_icap_task_info()
-                })
+                SERV_CONF["ICAP"].send_attr(
+                    data={"ivitTask": icap_handler.get_icap_task_info()}
+                )
 
-        log.warning('InferenceLoop ({}) is Stop'.format(self.uid))
+        log.warning(f"InferenceLoop ({self.uid}) is Stop")
 
     def get_results(self):
         return self.results
@@ -1241,8 +1214,8 @@ class InferenceLoop:
         if not self.thread_object.is_alive():
             try:
                 self.thread_object.start()
-            except Exception as e:
-                log.warning('Initialize thread again !!!')
+            except Exception:
+                log.warning("Initialize thread again !!!")
                 self.thread_object = self.create_thread()
                 self.thread_object.start()
 
@@ -1254,8 +1227,8 @@ class InferenceLoop:
 
 # Task Messager, Processors
 
-class TaskProcessor(mesg_handler.TaskMessenger):
 
+class TaskProcessor(mesg_handler.TaskMessenger):
     S_FAIL = "Failure"
     S_INIT = "Waiting (0%)"
     S_FINISH = "Success (100%)"
@@ -1269,11 +1242,10 @@ class TaskProcessor(mesg_handler.TaskMessenger):
         self.topic = "TASK"
         self.action = ""
 
-    def update_status(self,
-                      status: str,
-                      message: Union[str, Exception] = "",
-                      push_mesg: bool = True):
-        """ Update Status and push message to front end """
+    def update_status(
+        self, status: str, message: Union[str, Exception] = "", push_mesg: bool = True
+    ):
+        """Update Status and push message to front end"""
 
         self.status = status
 
@@ -1286,24 +1258,22 @@ class TaskProcessor(mesg_handler.TaskMessenger):
 
         # Add PROC
         if "PROC" not in SERV_CONF:
-            print('Add PROC in SERV_CONF')
+            print("Add PROC in SERV_CONF")
             SERV_CONF.update({"PROC": defaultdict(dict)})
 
         # Update Message
         if self.uid not in SERV_CONF["PROC"]:
             SERV_CONF["PROC"].update({self.uid: dict()})
 
-        SERV_CONF["PROC"][self.uid].update({
-            "status": self.status,
-            "message": self.message
-        })
+        SERV_CONF["PROC"][self.uid].update(
+            {"status": self.status, "message": self.message}
+        )
 
         # Update Topic and Action
         if self.topic and self.action:
-            SERV_CONF["PROC"][self.uid].update({
-                "topic": self.topic,
-                "action": self.action
-            })
+            SERV_CONF["PROC"][self.uid].update(
+                {"topic": self.topic, "action": self.action}
+            )
 
         # Push data
         if push_mesg:
@@ -1330,18 +1300,18 @@ class TaskProcessor(mesg_handler.TaskMessenger):
             time.sleep(1)
 
         finally:
-            log.info('End of event')
+            log.info("End of event")
 
     def _create_thread(self) -> threading.Thread:
-        """ Create a thread which will run self.export_event at once """
-        return threading.Thread(
-            target=self.thread_event, daemon=True)
+        """Create a thread which will run self.export_event at once"""
+        return threading.Thread(target=self.thread_event, daemon=True)
 
     def start(self):
         self.thread.start()
 
     def stop(self):
         self.thread.join()
+
 
 # Task Exporter
 
@@ -1361,7 +1331,6 @@ class TaskExporter(TaskProcessor):
         return uid
 
     def _parse_event(self) -> dict:
-
         # Checking
         verify_task_exist(self.uid)
 
@@ -1369,34 +1338,40 @@ class TaskExporter(TaskProcessor):
         con, cur = connect_db()
 
         # Task Table
-        task_table = parse_task_data(db_to_list(cur.execute(
-            """SELECT * FROM task WHERE uid=\"{}\"""".format(self.uid)
-        ))[0])
+        task_table = parse_task_data(
+            db_to_list(cur.execute(f"""SELECT * FROM task WHERE uid=\"{self.uid}\""""))[
+                0
+            ]
+        )
 
         # Parse Data
-        task_name = task_table['name'].replace(' ', '-')
-        task_uid = task_table['uid']
+        task_name = task_table["name"].replace(" ", "-")
+        task_uid = task_table["uid"]
         app_uid = task_uid
-        source_uid = task_table['source_uid']
-        model_uid = task_table['model_uid']
+        source_uid = task_table["source_uid"]
+        model_uid = task_table["model_uid"]
 
         # Reset Status
         task_table["status"] = "stop"
 
         # Model Table
-        model_table = parse_model_data(db_to_list(cur.execute(
-            """SELECT * FROM model WHERE uid=\"{}\"""".format(model_uid)
-        ))[0])
+        model_table = parse_model_data(
+            db_to_list(
+                cur.execute(f"""SELECT * FROM model WHERE uid=\"{model_uid}\"""")
+            )[0]
+        )
 
         # Source Table
-        source_table = parse_source_data(db_to_list(cur.execute(
-            """SELECT * FROM source WHERE uid=\"{}\"""".format(source_uid)
-        ))[0])
+        source_table = parse_source_data(
+            db_to_list(
+                cur.execute(f"""SELECT * FROM source WHERE uid=\"{source_uid}\"""")
+            )[0]
+        )
 
         # App Table
-        app_table = parse_app_data(db_to_list(cur.execute(
-            """SELECT * FROM app WHERE uid=\"{}\"""".format(app_uid)
-        ))[0])
+        app_table = parse_app_data(
+            db_to_list(cur.execute(f"""SELECT * FROM app WHERE uid=\"{app_uid}\""""))[0]
+        )
 
         close_db(con, cur)
 
@@ -1405,7 +1380,7 @@ class TaskExporter(TaskProcessor):
             "task": task_table,
             "model": model_table,
             "source": source_table,
-            "app": app_table
+            "app": app_table,
         }
 
         return db_data
@@ -1418,7 +1393,6 @@ class TaskExporter(TaskProcessor):
         return exp_dir
 
     def _package_event(self, db_data: dict):
-
         # Parse
         model_table = db_data["model"]
         source_table = db_data["source"]
@@ -1432,12 +1406,13 @@ class TaskExporter(TaskProcessor):
 
         date_time = datetime.fromtimestamp(time.time())
         str_date_time = date_time.strftime("%Y%m%d")
-        def file_name_formatter(
-            name, ext): return f"{platform}_{task_name}_{str_date_time}.{ext}"
+
+        def file_name_formatter(name, ext):
+            return f"{platform}_{task_name}_{str_date_time}.{ext}"
 
         # --------------------------------------------------
         # Write a Configuration
-        cfg_name = file_name_formatter(task_name, 'json')
+        cfg_name = file_name_formatter(task_name, "json")
         cfg_path = os.path.join(exp_dir, cfg_name)
         with open(cfg_path, "w") as f:
             json.dump(db_data, f, indent=4)
@@ -1445,14 +1420,15 @@ class TaskExporter(TaskProcessor):
 
         # --------------------------------------------------
         # Append file to compress
-        zip_name = file_name_formatter(task_name, 'zip')
+        zip_name = file_name_formatter(task_name, "zip")
         zip_path = os.path.join(exp_dir, zip_name)
 
         # Append model data
         model_dir = os.path.dirname(model_table["model_path"])
-        [zip_files.append(
-            os.path.join(model_dir, model_file))
-         for model_file in os.listdir(model_dir)]
+        [
+            zip_files.append(os.path.join(model_dir, model_file))
+            for model_file in os.listdir(model_dir)
+        ]
 
         # Append Source data
         if source_table["type"] in ["IMAGE", "VIDEO", "DIR"]:
@@ -1460,7 +1436,8 @@ class TaskExporter(TaskProcessor):
 
         # Compress
         first_zip_flag = file_helper.compress_files(
-            zip_path=zip_path, zip_files=zip_files)
+            zip_path=zip_path, zip_files=zip_files
+        )
         assert first_zip_flag, "Fail to zip with all files!"
 
         # Remove temperate file
@@ -1479,7 +1456,8 @@ class TaskExporter(TaskProcessor):
         zip_files = [zip_path, checksum_path]
         temp_zip_path = "temperate.zip"
         second_zip_flag = file_helper.compress_files(
-            zip_path=temp_zip_path, zip_files=zip_files, keep_dir=False)
+            zip_path=temp_zip_path, zip_files=zip_files, keep_dir=False
+        )
         assert second_zip_flag, "Fail to zip with checksum! "
 
         os.rename(temp_zip_path, zip_path)
@@ -1499,34 +1477,36 @@ class TaskExporter(TaskProcessor):
         SERV_CONF["PROC"][self.uid].update(package_data)
 
     def main_event(self):
-        log.info('Waiting')
+        log.info("Waiting")
         self.update_status(self.S_INIT)
 
         t_parse = time.time()
-        log.info('Packaging')
+        log.info("Packaging")
         self.update_status(self.S_PARS)
         db_data = self._parse_event()
-        self.performance['parse'] = time.time() - t_parse
+        self.performance["parse"] = time.time() - t_parse
 
         t_package = time.time()
-        log.info('Packaging')
+        log.info("Packaging")
         self.update_status(self.S_CONV)
         packaged_data = self._package_event(db_data)
-        self.performance['package'] = time.time() - t_parse
+        self.performance["package"] = time.time() - t_parse
 
         self.update_status(self.S_FINISH)
-        log.info('Finished !!!')
+        log.info("Finished !!!")
+
 
 # Task Importer
 
 
 class TaskImporterWrapper(TaskProcessor):
-    """ Model Helper 
+    """Model Helper
     1. Download ZIP
     2. Extract ZIP
     3. Convert Model if need
     4. Initailize AI Task into Database
     """
+
     S_DOWN = "Downloading (25%)"
     S_PARS = "Verifying (50%)"
     S_IMPO = "Importing (75%)"
@@ -1567,16 +1547,13 @@ class TaskImporterWrapper(TaskProcessor):
         os.mkdir(tmp_dir)
 
     def _update_uid_into_share_env(self):
-        """ Updae Environment Object """
+        """Updae Environment Object"""
         if SERV_CONF.get("PROC") is None:
             SERV_CONF.update({"PROC": defaultdict()})
         if SERV_CONF["PROC"].get(self.uid) is None:
-            SERV_CONF["PROC"].update({
-                self.uid: {
-                    "status": self.status,
-                    "name": self.file_name
-                }
-            })
+            SERV_CONF["PROC"].update(
+                {self.uid: {"status": self.status, "name": self.file_name}}
+            )
 
     def _download_event(self):
         pass
@@ -1586,7 +1563,7 @@ class TaskImporterWrapper(TaskProcessor):
 
         - Structure
             <task_name>/
-                data/   
+                data/
                 model/
                 export/     # db
 
@@ -1602,29 +1579,28 @@ class TaskImporterWrapper(TaskProcessor):
                     shutil.rmtree(trg_path)
                 else:
                     os.remove(trg_path)
-                log.warning(
-                    '\t- Import file exists, auto remove it. ({})'.format(trg_path))
+                log.warning(f"\t- Import file exists, auto remove it. ({trg_path})")
 
             shutil.move(org_path, trg_path)
-            log.info('\t- Move file from {} to {}'.format(file_path, trg_path))
+            log.info(f"\t- Move file from {file_path} to {trg_path}")
 
         # Parse ZIP Name
-        self.task_platform, self.task_name, self.export_time \
-            = self._parse_zip_name(self.file_name)
+        self.task_platform, self.task_name, self.export_time = self._parse_zip_name(
+            self.file_name
+        )
 
         # Concate data
         self.file_folder = os.path.join(SERV_CONF["TEMP_DIR"], self.task_name)
 
-        log.debug('Parsing File:')
-        log.debug(f'\t- Platform: {self.task_platform}')
-        log.debug(f'\t- Name: {self.task_name}')
-        log.debug(f'\t- Export Time: {self.export_time}')
-        log.debug(f'\t- Save Path: {self.file_path}')
+        log.debug("Parsing File:")
+        log.debug(f"\t- Platform: {self.task_platform}")
+        log.debug(f"\t- Name: {self.task_name}")
+        log.debug(f"\t- Export Time: {self.export_time}")
+        log.debug(f"\t- Save Path: {self.file_path}")
 
         # Extract
-        file_helper.extract_files(
-            zip_path=self.file_path, trg_folder=self.file_folder)
-        log.debug(f'Extract to {self.file_folder}')
+        file_helper.extract_files(zip_path=self.file_path, trg_folder=self.file_folder)
+        log.debug(f"Extract to {self.file_folder}")
 
         # Verify
         files = os.listdir(self.file_folder)
@@ -1641,36 +1617,34 @@ class TaskImporterWrapper(TaskProcessor):
         real_zip_path = os.path.join(self.file_folder, self.file_name)
 
         if checksum != encode.md5(real_zip_path):
-            raise RuntimeError('File is broken...')
+            raise RuntimeError("File is broken...")
         flag = file_helper.extract_files(
-            zip_path=real_zip_path,
-            trg_folder=self.file_folder
+            zip_path=real_zip_path, trg_folder=self.file_folder
         )
         if not flag:
-            raise FileNotFoundError('Extract second file failed')
+            raise FileNotFoundError("Extract second file failed")
 
         # Remove Zip File
         os.remove(self.file_path)
         os.remove(real_zip_path)
 
         # Get Configuration
-        _cfg_path = glob.glob(os.path.join(self.file_folder, 'export/*'))
+        _cfg_path = glob.glob(os.path.join(self.file_folder, "export/*"))
         if len(_cfg_path) != 1:
-            raise FileNotFoundError('Configuration only have one, but got {}'.format(
-                ', '.join(_cfg_path)))
+            raise FileNotFoundError(
+                "Configuration only have one, but got {}".format(", ".join(_cfg_path))
+            )
         self.cfg_path = _cfg_path[0]
 
         # Get All Path: [ temp/<task_name>/<file_type>/<files> ... ]
-        for file_path in glob.glob(os.path.join(self.file_folder, "*/*"), recursive=True):
-
-            tmp_dir, task_name, file_type, file_name = file_path.split('/')
+        for file_path in glob.glob(
+            os.path.join(self.file_folder, "*/*"), recursive=True
+        ):
+            tmp_dir, task_name, file_type, file_name = file_path.split("/")
 
             if file_type in ["data", "model"]:
                 trg_path = os.path.join(file_type, file_name)
-                move_data(
-                    org_path=file_path,
-                    trg_path=trg_path
-                )
+                move_data(org_path=file_path, trg_path=trg_path)
 
     def _get_valid_task_name(self, task_name: str):
         # Check duplicate name
@@ -1679,7 +1653,7 @@ class TaskImporterWrapper(TaskProcessor):
 
         new_task_name = task_name
         idx = 1
-        while (True):
+        while True:
             new_task_name = f"{task_name} ({idx})"
             if not has_duplicate_task(new_task_name, duplicate_limit=1):
                 break
@@ -1689,9 +1663,8 @@ class TaskImporterWrapper(TaskProcessor):
         return new_task_name
 
     def _add_into_db(self):
-
         # Get Config Data
-        with open(self.cfg_path, 'r') as f:
+        with open(self.cfg_path) as f:
             cfg_data = json.load(f)
 
         task_table = cfg_data["task"]
@@ -1714,7 +1687,8 @@ class TaskImporterWrapper(TaskProcessor):
                 "height": source_table["height"],
                 "width": source_table["width"],
             },
-            replace=True)
+            replace=True,
+        )
 
         # APP
         db_handler.insert_data(
@@ -1723,9 +1697,9 @@ class TaskImporterWrapper(TaskProcessor):
                 "uid": self.uid,
                 "name": app_table["name"],
                 "type": app_table["type"],
-                "app_setting": app_table["app_setting"]
+                "app_setting": app_table["app_setting"],
             },
-            replace=True
+            replace=True,
         )
 
         # Task
@@ -1739,35 +1713,32 @@ class TaskImporterWrapper(TaskProcessor):
                 "model_setting": task_table["model_setting"],
                 "status": task_table["status"],
                 "device": task_table["device"],
-                "created_time": time.time()
+                "created_time": time.time(),
             },
-            replace=True
+            replace=True,
         )
 
         # Model
         model_handler.init_db_model()
 
-        log.info(
-            'Get the config of the import task , trying to add into database ...')
+        log.info("Get the config of the import task , trying to add into database ...")
 
         # Updated
-        SERV_CONF["PROC"][self.uid].update(
-            task_handler.get_task_info(self.uid)[0])
+        SERV_CONF["PROC"][self.uid].update(task_handler.get_task_info(self.uid)[0])
 
         # Delete file
         file_need_to_clean = [self.file_path, self.file_folder]
         for file in file_need_to_clean:
-
             if not os.path.exists(file):
                 continue
 
             try:
                 if os.path.isfile(file):
                     os.remove(file)
-                    print(f'Clear file: {file}')
+                    print(f"Clear file: {file}")
                 elif os.path.isdir(file):
                     shutil.rmtree(file)
-                    print(f'Clear folder: {len(os.listdir(file))}')
+                    print(f"Clear folder: {len(os.listdir(file))}")
 
             except Exception as e:
                 print(e)
@@ -1777,13 +1748,13 @@ class TaskImporterWrapper(TaskProcessor):
         log.info(self.S_DOWN)
         self.update_status(self.S_DOWN)
         self._download_event()
-        self.performance['download'] = time.time() - t_down
+        self.performance["download"] = time.time() - t_down
 
         t_parse = time.time()
         log.info(self.S_PARS)
         self.update_status(self.S_PARS)
         self._parse_event()
-        self.performance['parse'] = time.time() - t_parse
+        self.performance["parse"] = time.time() - t_parse
 
         log.info(self.S_IMPO)
         self.update_status(self.S_IMPO)
@@ -1792,48 +1763,49 @@ class TaskImporterWrapper(TaskProcessor):
 
         # Wait a second to ensure the success message is arrived.
         time.sleep(1)
-        log.info('Finished !!!')
+        log.info("Finished !!!")
 
     def fail_event(self):
         log.warning("Fail Event ..")
         # Clear files
         file_need_to_clean = [self.file_path, self.file_folder]
         for file in file_need_to_clean:
-
             if not os.path.exists(file):
                 continue
 
             try:
                 if os.path.isfile(file):
                     os.remove(file)
-                    print(f'Clear file: {file}')
+                    print(f"Clear file: {file}")
                 elif os.path.isdir(file):
                     shutil.rmtree(file)
-                    print(f'Clear folder: {len(os.listdir(file))}')
+                    print(f"Clear folder: {len(os.listdir(file))}")
 
             except Exception as e:
                 print(e)
 
     def _parse_zip_name(self, file_name: str) -> tuple:
         file_name = os.path.basename(file_name)
-        name_formats = os.path.splitext(file_name)[0].split('_')
+        name_formats = os.path.splitext(file_name)[0].split("_")
         task_platform = name_formats[0]
-        task_name = ''.join(name_formats[1:-1])
+        task_name = "".join(name_formats[1:-1])
         export_time = name_formats[-1]
 
         support_platforms = ["intel", "nv", "nvidia", "hailo", "xilinx"]
         if task_platform not in support_platforms:
             raise NameError(
-                "Got unexpected platform, expect platform is {}".format(support_platforms))
+                f"Got unexpected platform, expect platform is {support_platforms}"
+            )
         if not export_time.isdigit():
             raise NameError(
-                f'Go invalidate export time, it should be as <year><month><day>')
+                "Go invalidate export time, it should be as <year><month><day>"
+            )
 
         return (task_platform, task_name, export_time)
 
 
 class TASK_ZIP_IMPORTER(TaskImporterWrapper):
-    """ IMPORTER for ZIP Model """
+    """IMPORTER for ZIP Model"""
 
     def __init__(self, file: File) -> None:
         super().__init__()
@@ -1850,7 +1822,7 @@ class TASK_ZIP_IMPORTER(TaskImporterWrapper):
 
         - Structure
             <task_name>/
-                data/   
+                data/
                 model/
                 export/     # db
 
@@ -1866,17 +1838,16 @@ class TASK_ZIP_IMPORTER(TaskImporterWrapper):
                     shutil.rmtree(trg_path)
                 else:
                     os.remove(trg_path)
-                log.warning(
-                    '\t- Import file exists, auto remove it. ({})'.format(trg_path))
+                log.warning(f"\t- Import file exists, auto remove it. ({trg_path})")
 
             shutil.move(org_path, trg_path)
-            log.debug('\t- Move file from {} to {}'.format(org_path, trg_path))
+            log.debug(f"\t- Move file from {org_path} to {trg_path}")
 
         # Extract
         self.zip_folder = os.path.join(
-            SERV_CONF["TEMP_DIR"], os.path.splitext(self.zip_name)[0])
-        file_helper.extract_files(
-            zip_path=self.zip_path, trg_folder=self.zip_folder)
+            SERV_CONF["TEMP_DIR"], os.path.splitext(self.zip_name)[0]
+        )
+        file_helper.extract_files(zip_path=self.zip_path, trg_folder=self.zip_folder)
 
         # Parse the task zip ( file_name, file_path means the task zip name and path )
         task_zips = glob.glob(f"{self.zip_folder}/*.zip")
@@ -1885,8 +1856,9 @@ class TASK_ZIP_IMPORTER(TaskImporterWrapper):
         self.file_name = os.path.basename(self.file_path)
 
         # Get platform, name and timestamp
-        self.task_platform, self.task_name, self.export_time \
-            = self._parse_zip_name(self.file_path)
+        self.task_platform, self.task_name, self.export_time = self._parse_zip_name(
+            self.file_path
+        )
 
         # Update PROC information
         SERV_CONF["PROC"][self.uid]["name"] = self.task_name
@@ -1896,44 +1868,47 @@ class TASK_ZIP_IMPORTER(TaskImporterWrapper):
 
         # Rename and update file_path
         os.rename(self.zip_folder, self.file_folder)
-        self.file_path = self.file_path.replace(
-            self.zip_folder, self.file_folder)
+        self.file_path = self.file_path.replace(self.zip_folder, self.file_folder)
 
-        log.debug('Parsing File:')
-        log.debug(f'\t- Platform: {self.task_platform}')
-        log.debug(f'\t- Name: {self.task_name}')
-        log.debug(f'\t- Export Time: {self.export_time}')
-        log.debug(f'\t- Save Path: {self.zip_path}')
-        log.debug(f'\t- Target Task Path: {self.file_path}')
+        log.debug("Parsing File:")
+        log.debug(f"\t- Platform: {self.task_platform}")
+        log.debug(f"\t- Name: {self.task_name}")
+        log.debug(f"\t- Export Time: {self.export_time}")
+        log.debug(f"\t- Save Path: {self.zip_path}")
+        log.debug(f"\t- Target Task Path: {self.file_path}")
 
         # Verify with MD5
         md5_path = glob.glob(f"{self.file_folder}/MD5SUMS")[0]
         if encode.load_txt(md5_path)[0] != encode.md5(self.file_path):
-            raise RuntimeError('File is broken...')
+            raise RuntimeError("File is broken...")
 
         # Extract task zip
         try:
             file_helper.extract_files(
-                zip_path=self.file_path,
-                trg_folder=self.file_folder)
-        except Exception as e:
-            raise FileNotFoundError('Extract second file failed')
+                zip_path=self.file_path, trg_folder=self.file_folder
+            )
+        except Exception:
+            raise FileNotFoundError("Extract second file failed")
 
         # Remove Zip File
         os.remove(self.zip_path)
         os.remove(self.file_path)
 
         # Get Configuration
-        export_files = glob.glob(os.path.join(self.file_folder, 'export/*'))
+        export_files = glob.glob(os.path.join(self.file_folder, "export/*"))
         if len(export_files) != 1:
-            raise FileNotFoundError('Configuration only have one, but got {}'.format(
-                ', '.join(export_files)))
+            raise FileNotFoundError(
+                "Configuration only have one, but got {}".format(
+                    ", ".join(export_files)
+                )
+            )
         self.cfg_path = export_files[0]
 
         # Get All Path: [ temp/<task_name>/<file_type>/<files> ... ]
-        for file_path in glob.glob(os.path.join(self.file_folder, "*/*"), recursive=True):
-
-            tmp_dir, task_name, file_type, file_name = file_path.split('/')
+        for file_path in glob.glob(
+            os.path.join(self.file_folder, "*/*"), recursive=True
+        ):
+            tmp_dir, task_name, file_type, file_name = file_path.split("/")
             if file_type not in ["data", "model"]:
                 continue
 
@@ -1941,7 +1916,7 @@ class TASK_ZIP_IMPORTER(TaskImporterWrapper):
             move_data(org_path=file_path, trg_path=trg_path)
 
     def _download_event(self):
-        """ Download file via FastAPI """
+        """Download file via FastAPI"""
 
         with open(self.zip_name, "wb") as buffer:
             shutil.copyfileobj(self.file.file, buffer)
