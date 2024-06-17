@@ -1,12 +1,12 @@
 # Copyright (c) 2023 Innodisk Corporation
-# 
+#
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
 
 # Basic
-import time
 import logging as log
+
 from fastapi import APIRouter
 
 try:
@@ -19,9 +19,11 @@ except:
 # Router
 device_router = APIRouter(tags=["device"])
 
+
 @device_router.get("/platform")
 async def get_platform():
-    return http_msg( content=SERV_CONF["PLATFORM"], status_code=200) 
+    return http_msg(content=SERV_CONF["PLATFORM"], status_code=200)
+
 
 @device_router.get("/devices")
 async def get_device():
@@ -35,13 +37,13 @@ async def get_device():
                 log.exception(e)
 
         if data is None:
-            raise RuntimeError('Could not get device information.')
+            raise RuntimeError("Could not get device information.")
 
         # Old Version
         # data = SERV_CONF["IDEV"].get_device_info()
-        return http_msg( content=data, status_code=200)
+        return http_msg(content=data, status_code=200)
 
     except Exception as e:
         log.exception(e)
         eee = RuntimeError("Could not get device information.")
-        return http_msg( content=eee, status_code=500)
+        return http_msg(content=eee, status_code=500)
