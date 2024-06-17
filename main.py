@@ -16,36 +16,30 @@ The iVIT-I Service Entry
 """
 
 # Basic
-import logging as log
 import json
-import time
-from websockets.exceptions import ConnectionClosed
-from starlette.websockets import WebSocketDisconnect
+import logging as log
 
-
+# About ICAP
 # About FastAPI
 import uvicorn
 from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.websockets import WebSocketDisconnect
 
-from utils import check_json, get_pure_jsonify
-from common import SERV_CONF, WS_CONF, ICAP_CONF, manager
-from samples import init_samples
+from common import ICAP_CONF, SERV_CONF, WS_CONF, manager
 from handlers import (
-    task_handler,
-    model_handler,
-    icap_handler,
     app_handler,
     db_handler,
     dev_handler,
-    mesg_handler
+    icap_handler,
+    mesg_handler,
+    model_handler,
 )
-
-# About ICAP
-import paho
 
 # Routers
 from routers import routers
+from samples import init_samples
+from utils import get_pure_jsonify
 
 UID = "UID"
 ERR = "ERROR"
@@ -57,11 +51,11 @@ IDEV = "IDEV"
 SUP_KEYS = [K_DATA, K_TYPE]
 
 # Start up
-app = FastAPI(root_path=SERV_CONF['ROOT'])
+app = FastAPI(root_path=SERV_CONF["ROOT"])
 
 
 # Resigter Router
-API_VERSION = '/v1'
+API_VERSION = "/v1"
 for router in routers:
     app.include_router(router, prefix=API_VERSION)
 
@@ -85,66 +79,65 @@ async def print_finish(request, call_next):
 
 
 def box_web_url():
-    web_url = '|    WEBSITE --> http://{}:{}    |'.format(
-        SERV_CONF["HOST"], int(SERV_CONF["WEB_PORT"]))
+    web_url = "|    WEBSITE --> http://{}:{}    |".format(
+        SERV_CONF["HOST"], int(SERV_CONF["WEB_PORT"])
+    )
     leng = len(web_url)
-    log.info('-'*leng)
-    log.info('|'+' '*(leng-2)+'|')
+    log.info("-" * leng)
+    log.info("|" + " " * (leng - 2) + "|")
     log.info(web_url)
-    log.info('|'+' '*(leng-2)+'|')
-    log.info('-'*leng)
+    log.info("|" + " " * (leng - 2) + "|")
+    log.info("-" * leng)
 
 
 @app.on_event("startup")
 def startup_event():
+    try:
+        model_handler.init_db_model()  # Models
+    except Exception as e:
+        log.warning(f"Init model error ... ({e})")
 
     try:
-        model_handler.init_db_model()    # Models
+        app_handler.init_db_app()  # AppHandler
     except Exception as e:
-        log.warning(f'Init model error ... ({e})')
+        log.warning(f"Init application error ... ({e})")
 
-    try:
-        app_handler.init_db_app()      # AppHandler
-    except Exception as e:
-        log.warning(f'Init application error ... ({e})')
-    
     # Update iDev
     try:
         SERV_CONF["IDEV"] = dev_handler.iDeviceAsync()
     except Exception as e:
-        log.warning(f'Init iDevice error ... ({e})')
-    
+        log.warning(f"Init iDevice error ... ({e})")
+
     try:
         SERV_CONF["MQTT"] = mesg_handler.ServerMqttMessenger(
-            "127.0.0.1",
-            SERV_CONF["MQTT_PORT"]
+            "127.0.0.1", SERV_CONF["MQTT_PORT"]
         )
 
         icap_handler.init_icap(
             tb_url=ICAP_CONF["HOST"],
             tb_port=ICAP_CONF["PORT"],
-            device_name=ICAP_CONF["DEVICE_NAME"]
-        )        # iCAP
+            device_name=ICAP_CONF["DEVICE_NAME"],
+        )  # iCAP
     except Exception as e:
-        log.warning(f'Init MQTT error ... ({e})')
+        log.warning(f"Init MQTT error ... ({e})")
 
     db_handler.reset_db()
-    log.info('iVIT-I Web Service Initialized !!!')
+    log.info("iVIT-I Web Service Initialized !!!")
     box_web_url()
 
 
 @app.on_event("shutdown")
 def shutdown_event():
     db_handler.reset_db()
-    log.warning('Stop service ...')
+    log.warning("Stop service ...")
 
 
 def parse_ws_req(req):
-
     # Check keys
     if sum([1 for sup in SUP_KEYS if sup in req.keys()]) < 2:
-        raise KeyError('Unexpect request key, support key is {}'.format(
-            ', '.join(SUP_KEYS)))
+        raise KeyError(
+            "Unexpect request key, support key is {}".format(", ".join(SUP_KEYS))
+        )
 
     # Parse keys
     return req[K_DATA], req[K_TYPE]
@@ -152,7 +145,6 @@ def parse_ws_req(req):
 
 @app.websocket("/{ver}/ws/temp")
 async def websocket_temp(ws: WebSocket):
-
     await ws.accept()
     try:
         while True:
@@ -160,8 +152,11 @@ async def websocket_temp(ws: WebSocket):
 
             # Check keys
             if sum([1 for sup in SUP_KEYS if sup in req.keys()]) < 2:
-                raise KeyError('Unexpect request key, support key is {}'.format(
-                    ', '.join(SUP_KEYS)))
+                raise KeyError(
+                    "Unexpect request key, support key is {}".format(
+                        ", ".join(SUP_KEYS)
+                    )
+                )
 
             # Parse keys
             req_data = req[K_DATA]
@@ -169,13 +164,12 @@ async def websocket_temp(ws: WebSocket):
             if isinstance(req_data, str):
                 req_data = req_data.replace("'", '"')
                 req_data = json.loads(req_data)
-            data = SERV_CONF[IDEV].get_device_info(req_data) \
-                if req_data != "" else \
-                SERV_CONF[IDEV].get_device_info()
-            await ws.send_json({
-                K_TYPE: req_type,
-                K_DATA: get_pure_jsonify(data)
-            })
+            data = (
+                SERV_CONF[IDEV].get_device_info(req_data)
+                if req_data != ""
+                else SERV_CONF[IDEV].get_device_info()
+            )
+            await ws.send_json({K_TYPE: req_type, K_DATA: get_pure_jsonify(data)})
 
     # Disconnect
     except WebSocketDisconnect as e:
@@ -184,13 +178,11 @@ async def websocket_temp(ws: WebSocket):
     # Capture Error ( Exception )
     except Exception as e:
         print(e)
-        await ws.send_json(
-            mesg_handler.ws_msg(type=ERR, content=e))
+        await ws.send_json(mesg_handler.ws_msg(type=ERR, content=e))
 
 
 @app.websocket("/{ver}/ws/{task_uid}")
 async def websocket_each_task(ws: WebSocket, ver: str, task_uid: str):
-
     # Connect WebSocket with Manager
     await manager.connect(ws=ws, uid=task_uid)
 
@@ -202,16 +194,20 @@ async def websocket_each_task(ws: WebSocket, ver: str, task_uid: str):
 
             # Get Data
             req_data = req_data.upper()
-            await manager.send(task_uid, get_pure_jsonify(WS_CONF.get(task_uid.upper())))
+            await manager.send(
+                task_uid, get_pure_jsonify(WS_CONF.get(task_uid.upper()))
+            )
 
             # Clear Data
             if req_type == UID:
                 WS_CONF.update({req_data: None})
 
     # Disconnect
-    except WebSocketDisconnect as e:
+    except WebSocketDisconnect:
         manager.disconnect(ws=ws, uid=task_uid)
-        await manager.broadcast(mesg_handler.ws_msg(type=UID, content=f"Task ({task_uid}:{id(ws)}) leave"))
+        await manager.broadcast(
+            mesg_handler.ws_msg(type=UID, content=f"Task ({task_uid}:{id(ws)}) leave")
+        )
     # Capture Error ( Exception )
     except Exception as e:
         await manager.broadcast(mesg_handler.ws_msg(type=ERR, content=e))
@@ -240,13 +236,11 @@ async def websocket_endpoint_task(ws: WebSocket):
         }
 
     """
-    uid=  str(id(ws))
+    uid = str(id(ws))
     await manager.connect(ws, uid)
 
     while True:
-
         try:
-
             # Check keys
             req = await ws.receive_json()
             req_data, req_type = parse_ws_req(req)
@@ -259,46 +253,46 @@ async def websocket_endpoint_task(ws: WebSocket):
                 data = WS_CONF.get(uid)
                 if data:
                     # Send JSON Data
-                    await manager.send(uid=uid, message={
-                        K_TYPE: req_type,
-                        K_DATA: get_pure_jsonify(data)
-                    })
+                    await manager.send(
+                        uid=uid,
+                        message={K_TYPE: req_type, K_DATA: get_pure_jsonify(data)},
+                    )
                     # Clear Data
                     WS_CONF.update({uid: None})
 
                 continue
 
             if req_type == TEM:
-
                 if isinstance(req_data, str):
                     req_data = req_data.replace("'", '"')
                     req_data = json.loads(req_data)
-                data = SERV_CONF[IDEV].get_device_info(req_data) \
-                    if req_data != "" else \
-                    SERV_CONF[IDEV].get_device_info()
+                data = (
+                    SERV_CONF[IDEV].get_device_info(req_data)
+                    if req_data != ""
+                    else SERV_CONF[IDEV].get_device_info()
+                )
                 if data:
                     # await manager.broadcast(message=)
-                    await manager.send(uid=uid, message={
-                        K_TYPE: req_type,
-                        K_DATA: get_pure_jsonify(data)
-                    })
+                    await manager.send(
+                        uid=uid,
+                        message={K_TYPE: req_type, K_DATA: get_pure_jsonify(data)},
+                    )
                 continue
 
         # Disconnect
         except WebSocketDisconnect as e:
             print("Disconnected: ", e)
             break
-        
+
         except RuntimeError as e:
-            print('Might disconnected', e)
+            print("Might disconnected", e)
 
         # Capture Error ( Exception )
         except Exception as e:
-            await manager.broadcast(
-                mesg_handler.ws_msg(type=ERR, content=e))
+            await manager.broadcast(mesg_handler.ws_msg(type=ERR, content=e))
+
 
 if __name__ == "__main__":
-
     # Initialize Database
     dp_path = SERV_CONF["DB_PATH"]
     framework = SERV_CONF["FRAMEWORK"]
@@ -309,7 +303,7 @@ if __name__ == "__main__":
         try:
             init_samples(framework=framework)
         except Exception as e:
-            log.warning(f'Init sample error ... ({e})')
+            log.warning(f"Init sample error ... ({e})")
 
     # Fast API
 
@@ -321,7 +315,5 @@ if __name__ == "__main__":
     #     reload=True )
 
     uvicorn.run(
-        "main:app",
-        host=SERV_CONF["HOST"],
-        port=int(SERV_CONF["PORT"]),
-        workers=1)
+        "main:app", host=SERV_CONF["HOST"], port=int(SERV_CONF["PORT"]), workers=1
+    )
