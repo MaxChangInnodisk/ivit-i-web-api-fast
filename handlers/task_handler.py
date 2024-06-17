@@ -1373,6 +1373,9 @@ class TaskExporter(TaskProcessor):
         source_uid = task_table["source_uid"]
         model_uid = task_table["model_uid"]
 
+        # Reset Status
+        task_table["status"] = "stop"
+
         # Model Table
         model_table = parse_model_data(
             db_to_list(
