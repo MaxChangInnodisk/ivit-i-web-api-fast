@@ -82,12 +82,12 @@ def box_web_url():
     web_url = "|    WEBSITE --> http://{}:{}    |".format(
         SERV_CONF["HOST"], int(SERV_CONF["WEB_PORT"])
     )
-    leng = len(web_url)
-    log.info("-" * leng)
-    log.info("|" + " " * (leng - 2) + "|")
+    length = len(web_url)
+    log.info("-" * length)
+    log.info("|" + " " * (length - 2) + "|")
     log.info(web_url)
-    log.info("|" + " " * (leng - 2) + "|")
-    log.info("-" * leng)
+    log.info("|" + " " * (length - 2) + "|")
+    log.info("-" * length)
 
 
 @app.on_event("startup")
@@ -136,81 +136,11 @@ def parse_ws_req(req):
     # Check keys
     if sum([1 for sup in SUP_KEYS if sup in req.keys()]) < 2:
         raise KeyError(
-            "Unexpect request key, support key is {}".format(", ".join(SUP_KEYS))
+            "Unexpected request key, support key is {}".format(", ".join(SUP_KEYS))
         )
 
     # Parse keys
     return req[K_DATA], req[K_TYPE]
-
-
-@app.websocket("/{ver}/ws/temp")
-async def websocket_temp(ws: WebSocket):
-    await ws.accept()
-    try:
-        while True:
-            req = await ws.receive_json()
-
-            # Check keys
-            if sum([1 for sup in SUP_KEYS if sup in req.keys()]) < 2:
-                raise KeyError(
-                    "Unexpect request key, support key is {}".format(
-                        ", ".join(SUP_KEYS)
-                    )
-                )
-
-            # Parse keys
-            req_data = req[K_DATA]
-            req_type = req[K_TYPE]
-            if isinstance(req_data, str):
-                req_data = req_data.replace("'", '"')
-                req_data = json.loads(req_data)
-            data = (
-                SERV_CONF[IDEV].get_device_info(req_data)
-                if req_data != ""
-                else SERV_CONF[IDEV].get_device_info()
-            )
-            await ws.send_json({K_TYPE: req_type, K_DATA: get_pure_jsonify(data)})
-
-    # Disconnect
-    except WebSocketDisconnect as e:
-        print("Disconnected: ", e)
-
-    # Capture Error ( Exception )
-    except Exception as e:
-        print(e)
-        await ws.send_json(mesg_handler.ws_msg(type=ERR, content=e))
-
-
-@app.websocket("/{ver}/ws/{task_uid}")
-async def websocket_each_task(ws: WebSocket, ver: str, task_uid: str):
-    # Connect WebSocket with Manager
-    await manager.connect(ws=ws, uid=task_uid)
-
-    try:
-        while True:
-            # Check keys
-            req = await ws.receive_json()
-            req_data, req_type = parse_ws_req(req)
-
-            # Get Data
-            req_data = req_data.upper()
-            await manager.send(
-                task_uid, get_pure_jsonify(WS_CONF.get(task_uid.upper()))
-            )
-
-            # Clear Data
-            if req_type == UID:
-                WS_CONF.update({req_data: None})
-
-    # Disconnect
-    except WebSocketDisconnect:
-        manager.disconnect(ws=ws, uid=task_uid)
-        await manager.broadcast(
-            mesg_handler.ws_msg(type=UID, content=f"Task ({task_uid}:{id(ws)}) leave")
-        )
-    # Capture Error ( Exception )
-    except Exception as e:
-        await manager.broadcast(mesg_handler.ws_msg(type=ERR, content=e))
 
 
 @app.websocket(f"{API_VERSION}/ws")
@@ -219,13 +149,13 @@ async def websocket_endpoint_task(ws: WebSocket):
     WebSocket Router
 
     Support:
-        1. Device Temparature
+        1. Device Temperature
         2. Task Inference Result
 
     Request:
         {
             "type": < UID | TEMP | ERR | PROC >,
-            "data": < task_uid | target_device_name: Uinon[] >
+            "data": < task_uid | target_device_name: Union[] >
         }
 
     Response:
@@ -236,30 +166,35 @@ async def websocket_endpoint_task(ws: WebSocket):
         }
 
     """
-    uid = str(id(ws))
-    await manager.connect(ws, uid)
 
-    while True:
-        try:
+    try:
+        await manager.connect(ws)
+
+        while True:
             # Check keys
             req = await ws.receive_json()
             req_data, req_type = parse_ws_req(req)
 
             # Get Data
-            data = None
             if req_type == UID:
-                uid = req_data.upper()
-                manager.register(ws, uid=uid)
-                data = WS_CONF.get(uid)
-                if data:
-                    # Send JSON Data
+                task_uid = req_data.upper()
+                if task_uid not in WS_CONF:
                     await manager.send(
-                        uid=uid,
-                        message={K_TYPE: req_type, K_DATA: get_pure_jsonify(data)},
+                        ws=ws,
+                        message={
+                            K_TYPE: ERR,
+                            K_DATA: f"task uuid {task_uid} not in WS_CONF",
+                        },
                     )
-                    # Clear Data
-                    WS_CONF.update({uid: None})
+                    continue
 
+                await manager.send(
+                    ws=ws,
+                    message={
+                        K_TYPE: req_type,
+                        K_DATA: get_pure_jsonify(WS_CONF.get(task_uid)),
+                    },
+                )
                 continue
 
             if req_type == TEM:
@@ -271,41 +206,39 @@ async def websocket_endpoint_task(ws: WebSocket):
                     if req_data != ""
                     else SERV_CONF[IDEV].get_device_info()
                 )
-                if data:
-                    # await manager.broadcast(message=)
-                    await manager.send(
-                        uid=uid,
-                        message={K_TYPE: req_type, K_DATA: get_pure_jsonify(data)},
-                    )
+                await manager.send(
+                    ws=ws,
+                    message={K_TYPE: req_type, K_DATA: get_pure_jsonify(data)},
+                )
                 continue
 
             if req_type == PRO:
-                uid = req_data.upper()
-                try:
-                    manager.register(ws, uid=uid)
-                except BaseException:
-                    pass
-                data = WS_CONF.get(uid)
-                if data:
-                    # Send JSON Data
+                proc_uid = req_data.upper()
+                if proc_uid not in WS_CONF:
                     await manager.send(
-                        uid=uid,
-                        message={K_TYPE: req_type, K_DATA: get_pure_jsonify(data)},
+                        ws=ws,
+                        message={K_TYPE: ERR, K_DATA: "process uuid not in WS_CONF"},
                     )
-                    # Clear Data
-                    WS_CONF.update({uid: None})
+                    continue
+                # Send JSON Data
+                await manager.send(
+                    ws=ws,
+                    message={
+                        K_TYPE: req_type,
+                        K_DATA: get_pure_jsonify(WS_CONF.get(proc_uid)),
+                    },
+                )
 
-        # Disconnect
-        except WebSocketDisconnect as e:
-            print("Disconnected: ", e)
-            break
+    # Disconnect
+    except WebSocketDisconnect as e:
+        log.warning(f"Disconnected: {e}")
 
-        except RuntimeError as e:
-            print("Might disconnected", e)
+    # Capture Error ( Exception )
+    except Exception as e:
+        await manager.broadcast(mesg_handler.ws_msg(type=ERR, content=e))
 
-        # Capture Error ( Exception )
-        except Exception as e:
-            await manager.broadcast(mesg_handler.ws_msg(type=ERR, content=e))
+    finally:
+        manager.disconnect(websocket=ws)
 
 
 if __name__ == "__main__":
@@ -322,13 +255,6 @@ if __name__ == "__main__":
             log.warning(f"Init sample error ... ({e})")
 
     # Fast API
-
-    # uvicorn.run(
-    #     "service.main:app",
-    #     host = SERV_CONF["HOST"],
-    #     port = int(SERV_CONF["PORT"]),
-    #     workers = 1,
-    #     reload=True )
 
     uvicorn.run(
         "main:app", host=SERV_CONF["HOST"], port=int(SERV_CONF["PORT"]), workers=1
