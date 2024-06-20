@@ -17,5 +17,9 @@ RUN pip3 install --no-cache-dir \
 RUN pip3 install \
     filterpy==1.4.5 \
     lap==0.4.0
-    
+
+RUN pip3 install --no-cache-dir \
+    aiofiles \
+    streaming-form-data 
+
 CMD [ "bash" ]
