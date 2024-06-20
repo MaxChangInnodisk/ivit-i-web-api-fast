@@ -11,16 +11,12 @@ from typing import Literal, Union
 import paho.mqtt.client as mqtt
 from fastapi.responses import Response
 
-try:
-    from ..common import SERV_CONF, manager
-    from .ivit_handler import simple_exception
+from common import SERV_CONF, manager
+from handlers import ivit_handler
 
-except:
-    from common import SERV_CONF, manager
-    from handlers.ivit_handler import simple_exception
-
-# from common import init_ivit_env, SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
-# from handlers.ivit_handler import simple_exception, handle_exception
+# Wrapper for message handler
+handle_exception = ivit_handler.handle_exception
+simple_exception = ivit_handler.simple_exception
 
 
 K_MESG = "message"
@@ -37,9 +33,6 @@ def json_exception(content) -> dict:
     """Return a iVIT Exception with JSON format"""
 
     err_type, err_detail = simple_exception(error=content)
-
-    # if not err_type in [ "ImageOpenError", "VideoOpenError", "RtspOpenError", "UsbCamOpenError" ]:
-    #     err_type = "RuntimeError"
 
     return {
         K_MESG: err_detail if isinstance(err_detail, str) else json.dumps(err_detail),

@@ -24,15 +24,10 @@ from typing import Optional
 import wget
 from fastapi import File
 
-try:
-    from ..common import MODEL_CONF, SERV_CONF, manager
-    from ..utils import gen_uid
-except BaseException:
-    from common import MODEL_CONF, SERV_CONF, manager
-    from utils import gen_uid
-
-from .db_handler import delete_data, insert_data, select_data
-from .mesg_handler import handle_exception, ws_msg
+from common import MODEL_CONF, SERV_CONF, manager
+from handlers.db_handler import delete_data, insert_data, select_data
+from handlers.mesg_handler import handle_exception, ws_msg
+from utils import gen_uid
 
 # Model Deployer
 
