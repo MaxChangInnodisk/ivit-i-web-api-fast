@@ -25,7 +25,10 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.websockets import WebSocketDisconnect
 
-from common import ICAP_CONF, SERV_CONF, WS_CONF, manager
+from common import ICAP_CONF, SERV_CONF, WS_CONF, init_ivit_env, manager
+
+init_ivit_env()
+
 from handlers import (
     app_handler,
     db_handler,
@@ -254,8 +257,10 @@ if __name__ == "__main__":
         except Exception as e:
             log.warning(f"Init sample error ... ({e})")
 
-    # Fast API
-
     uvicorn.run(
-        "main:app", host=SERV_CONF["HOST"], port=int(SERV_CONF["PORT"]), workers=1
+        "main:app",
+        host=SERV_CONF["HOST"],
+        port=int(SERV_CONF["PORT"]),
+        workers=1,
+        log_config="./uvicorn_logger.json",
     )
