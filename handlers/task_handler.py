@@ -20,15 +20,8 @@ from typing import Union
 import numpy as np
 from fastapi import File
 
-# Custom
-try:
-    from ..common import EVENT_CONF, RT_CONF, SERV_CONF, WS_CONF, manager
-    from ..utils import encode, file_helper, gen_uid, json_to_str
-except:
-    from common import EVENT_CONF, RT_CONF, SERV_CONF, WS_CONF, manager
-    from utils import encode, file_helper, gen_uid, json_to_str
-
-from . import (
+from common import EVENT_CONF, RT_CONF, SERV_CONF, WS_CONF, manager
+from handlers import (
     db_handler,
     event_handler,
     icap_handler,
@@ -36,9 +29,9 @@ from . import (
     model_handler,
     task_handler,
 )
-from .ai_handler import get_ivit_api, iModel
-from .app_handler import create_app
-from .db_handler import (
+from handlers.ai_handler import get_ivit_api, iModel
+from handlers.app_handler import create_app
+from handlers.db_handler import (
     close_db,
     connect_db,
     db_to_list,
@@ -54,16 +47,22 @@ from .db_handler import (
     select_data,
     update_data,
 )
-from .err_handler import InvalidUidError
-from .io_handler import (
+from handlers.err_handler import InvalidUidError
+from handlers.io_handler import (
     create_displayer,
     create_source,
     start_source,
     stop_source,
     update_src_status,
 )
-from .ivit_handler import Metric
-from .mesg_handler import handle_exception, json_exception, simple_exception, ws_msg
+from handlers.ivit_handler import Metric
+from handlers.mesg_handler import (
+    handle_exception,
+    json_exception,
+    simple_exception,
+    ws_msg,
+)
+from utils import encode, file_helper, gen_uid, json_to_str
 
 # --------------------------------------------------------
 
@@ -119,7 +118,7 @@ def get_task_info(uid: str = None):
         raise InvalidUidError("Got invalid task uid: {}".format(uid))
 
     # Get Data
-    print([(task[1], task[8]) for task in results])
+    # print([(task[1], task[8]) for task in results])
     for info in map(parse_task_data, results):
         task_uid = app_uid = info["uid"]
         task_name = info["name"]
@@ -680,7 +679,7 @@ def edit_ai_task(edit_data):
         close_db(con, cur)
 
     # Find Error and return errors
-    print(errors)
+    # print(errors)
     if len(errors.keys()) > 0:
         return {"uid": task_uid, "status": "failed", "data": errors}
 
@@ -1091,15 +1090,13 @@ class InferenceLoop:
             data["start_time"] = str(data["start_time"])
             data["end_time"] = str(data["end_time"])
 
-            # Send data to front end
+            # Send to front end via WebSocket
             event_message = ws_msg(type="EVENT", content=data)
             EVENT_CONF.update(data)
-
-            # Send to front end via WebSocket
             try:
-                asyncio.run(manager.send(self.uid, event_message))
-            except Exception:
-                log.warning("Send websocket failed!!!!")
+                asyncio.run(manager.broadcast(event_message))
+            except Exception as e:
+                log.warning(f"Send websocket failed!!!! ({e})")
 
             if "MQTT" in SERV_CONF:
                 main_topic = SERV_CONF["MQTT"].get_event_topic()

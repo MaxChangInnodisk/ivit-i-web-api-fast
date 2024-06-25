@@ -3,24 +3,20 @@
 # This software is released under the MIT License.
 # https://opensource.org/licenses/MIT
 
-from typing import Union, Literal, Optional
+import asyncio
 import json
 import logging as log
-from fastapi.responses import Response
+from typing import Literal, Union
+
 import paho.mqtt.client as mqtt
-from functools import wraps
-import asyncio
+from fastapi.responses import Response
 
-try:
-    from ..common import init_ivit_env, SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF, manager
-    from .ivit_handler import simple_exception, handle_exception
+from common import SERV_CONF, manager
+from handlers import ivit_handler
 
-except:
-    from common import init_ivit_env, SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF, manager
-    from handlers.ivit_handler import simple_exception, handle_exception
-
-# from common import init_ivit_env, SERV_CONF, RT_CONF, WS_CONF, EVENT_CONF
-# from handlers.ivit_handler import simple_exception, handle_exception
+# Wrapper for message handler
+handle_exception = ivit_handler.handle_exception
+simple_exception = ivit_handler.simple_exception
 
 
 K_MESG = "message"
@@ -34,20 +30,19 @@ K_ERR = "ERROR"
 
 
 def json_exception(content) -> dict:
-    """ Return a iVIT Exception with JSON format """
+    """Return a iVIT Exception with JSON format"""
 
     err_type, err_detail = simple_exception(error=content)
 
-    # if not err_type in [ "ImageOpenError", "VideoOpenError", "RtspOpenError", "UsbCamOpenError" ]:
-    #     err_type = "RuntimeError"
-
     return {
         K_MESG: err_detail if isinstance(err_detail, str) else json.dumps(err_detail),
-        K_TYPE: err_type
+        K_TYPE: err_type,
     }
 
 
-def http_msg_formatter(content: Union[dict, str, Exception], status_code: int = 200) -> dict:
+def http_msg_formatter(
+    content: Union[dict, str, Exception], status_code: int = 200
+) -> dict:
     """HTTP response handler
 
     Args:
@@ -72,16 +67,10 @@ def http_msg_formatter(content: Union[dict, str, Exception], status_code: int = 
     """
     # Checking Input Type
     if not isinstance(status_code, int):
-        raise TypeError(
-            f"Status Code should be integer, but got {type(status_code)}")
+        raise TypeError(f"Status Code should be integer, but got {type(status_code)}")
 
     # Define Basic Format
-    ret = {
-        K_CODE: status_code,
-        K_DATA: {},
-        K_MESG: "",
-        K_TYPE: ""
-    }
+    ret = {K_CODE: status_code, K_DATA: {}, K_MESG: "", K_TYPE: ""}
 
     # If is Exception
     if isinstance(content, Exception):
@@ -99,7 +88,9 @@ def http_msg_formatter(content: Union[dict, str, Exception], status_code: int = 
     return ret
 
 
-def ws_msg(content: Union[dict, str, Exception], type: Literal["UID", "ERROR", "TEMP", "PROC"]) -> dict:
+def ws_msg(
+    content: Union[dict, str, Exception], type: Literal["UID", "ERROR", "TEMP", "PROC"]
+) -> dict:
     """Return a WebSocket Message
 
     Args:
@@ -132,7 +123,11 @@ def ws_msg(content: Union[dict, str, Exception], type: Literal["UID", "ERROR", "
     return ret
 
 
-def http_msg(content: Union[dict, str, Exception], status_code: int = 200, media_type: str = "application/json") -> Response:
+def http_msg(
+    content: Union[dict, str, Exception],
+    status_code: int = 200,
+    media_type: str = "application/json",
+) -> Response:
     """Return a HTTP Message
 
     Args:
@@ -156,10 +151,9 @@ def http_msg(content: Union[dict, str, Exception], status_code: int = 200, media
     ret = http_msg_formatter(content=content, status_code=status_code)
 
     return Response(
-        content=json.dumps(ret),
-        status_code=status_code, media_type=media_type)
+        content=json.dumps(ret), status_code=status_code, media_type=media_type
+    )
 
-# ---------------------------------------------------------------
 
 # ---------------------------------------------------------------
 
@@ -177,7 +171,6 @@ class Messenger:
 
 
 class MqttMessenger(Messenger):
-
     STOP = "stop"
     RUN = "run"
     ERR = "error"
@@ -196,12 +189,12 @@ class MqttMessenger(Messenger):
         # self.client.on_publish = self.on_publish
 
     def _check_status(func):
-
         def wrap(self, *args, **kwargs):
             if self.status == self.STOP:
-                print('is stop')
+                print("is stop")
                 return None
             return func(*args, **kwargs)
+
         return wrap
 
     def on_connect(self, client, userdata, flags, rc):
@@ -212,8 +205,8 @@ class MqttMessenger(Messenger):
             log.info(f"Connection failed with code {rc}")
             self.status = self.ERR
 
-    def on_disconnect(self, client, userdata,  rc):
-        log.warning('Disconnected')
+    def on_disconnect(self, client, userdata, rc):
+        log.warning("Disconnected")
 
     def on_message(self, client, userdata, message):
         print(message.payload.decode("utf-8"))
@@ -221,15 +214,15 @@ class MqttMessenger(Messenger):
     def connect(self):
         self.client.connect(self.broker_address, self.broker_port)
         self.client.loop_start()
-        log.info('Connected MQTT Broker {}:{}'.format(
-            self.broker_address, self.broker_port))
+        log.info(
+            "Connected MQTT Broker {}:{}".format(self.broker_address, self.broker_port)
+        )
 
     def subscribe(self, topic):
         self.client.subscribe(topic)
-        print('Subscribed Topic: {}'.format(topic))
+        print("Subscribed Topic: {}".format(topic))
 
     def publish(self, topic, message):
-
         if not isinstance(message, str):
             message = json.dumps(message)
 
@@ -247,7 +240,6 @@ class MqttMessenger(Messenger):
 
 
 class ServerMqttMessenger(MqttMessenger):
-
     EVENT = "events"
     RESULT = "results"
 
@@ -257,10 +249,10 @@ class ServerMqttMessenger(MqttMessenger):
         self.connect()
         for topic in [self.EVENT]:
             self.subscribe(topic)
-            self.publish(self.EVENT, 'iVIT Registered !')
+            self.publish(self.EVENT, "iVIT Registered !")
 
     def subscribe_event(self, uid: str) -> None:
-        assert uid != "", f"Subscribe event have to give it a uid."
+        assert uid != "", "Subscribe event have to give it a uid."
         self.subscribe(self.get_event_topic(uid))
 
     def get_event_topic(self, uid: str = "") -> str:
@@ -270,46 +262,38 @@ class ServerMqttMessenger(MqttMessenger):
 
 
 class WebSocketMessenger(Messenger):
-
-    def write(self, content, type, uid: Optional[str] = None):
-        """ Push message """
+    def write(self, content, type):
+        """Push message"""
         data = ws_msg(type=type, content=content)
+        asyncio.run(manager.broadcast(data))
+        asyncio.sleep(0)
 
-        if uid:
-            asyncio.run(manager.send(uid=uid.upper(), message=data))
-
-        else:
-            asyncio.run(manager.broadcast(data))
-            asyncio.sleep(0)
-            
 
 class TaskMessenger(WebSocketMessenger):
-
     def push_mesg(self):
-        """ Push message
+        """Push message
 
         - Workflow
             1. Print Status
             2. If WebSocket exists then push message via `WS_CONF["WS"].send_json()`
         """
         try:
-            self.write(
-                type=self.PRO,
-                content=SERV_CONF[self.PRO])
+            self.write(type=self.PRO, content=SERV_CONF[self.PRO])
 
         except Exception as e:
-            log.warning('WebSocket send error ... ', e)
+            log.warning("WebSocket send error ... ", e)
 
 
 if __name__ == "__main__":
     import time
-    mc = ServerMqttMessenger(broker_address='127.0.0.1', broker_port='6683')
-    TOPIC = 'test/topic'
+
+    mc = ServerMqttMessenger(broker_address="127.0.0.1", broker_port="6683")
+    TOPIC = "test/topic"
     mc.subscribe(TOPIC)
 
-    while (True):
+    while True:
         time.sleep(1)
-        mc.publish(TOPIC, 'test')
-        print('test')
+        mc.publish(TOPIC, "test")
+        print("test")
 
     pass

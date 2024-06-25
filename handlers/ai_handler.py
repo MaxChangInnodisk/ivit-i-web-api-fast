@@ -4,19 +4,10 @@
 # https://opensource.org/licenses/MIT
 
 import logging as log
-import sys
+from typing import Literal
 
-if sys.version_info < (3, 8):
-    from typing_extensions import Literal
-else:
-    from typing import Literal
-
-from .ivit_handler import iModel
-
-try:
-    from ..common import SERV_CONF
-except BaseException:
-    from common import SERV_CONF
+from common import SERV_CONF
+from handlers.ivit_handler import iModel
 
 CLS = "CLS"
 OBJ = "OBJ"

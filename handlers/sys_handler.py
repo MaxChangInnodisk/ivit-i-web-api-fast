@@ -8,7 +8,7 @@ from typing import Tuple
 
 import cv2
 
-from .db_handler import is_list_empty, parse_source_data, select_data
+from handlers.db_handler import is_list_empty, parse_source_data, select_data
 
 
 def get_v4l2() -> Tuple[bool, list]:

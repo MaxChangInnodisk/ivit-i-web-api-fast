@@ -1,11 +1,15 @@
 [Unit]
 Description=Start iVIT-I Web Service
+Requires=docker.service
+After=docker.service
 
 [Service]
 Type=simple
 User=root
-ExecStart=/home/max/inno/IVIT-I/ivit-i-web-api-fast/docker/run.sh intel -q
-ExecStop=/home/max/inno/IVIT-I/ivit-i-web-api-fast/docker/stop.sh
+Environment="DISPLAY=:0"
+Environment="XAUTHORITY=$XAUTHORITY"
+ExecStart=/home/max/inno/IVIT-I/dev/ivit-i-web-api-fast/docker/run.sh intel -q
+ExecStop=/home/max/inno/IVIT-I/dev/ivit-i-web-api-fast/docker/stop.sh
 
 [Install]
 WantedBy=graphical.target

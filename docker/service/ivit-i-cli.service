@@ -1,5 +1,7 @@
 [Unit]
 Description=Stop iVIT-I Web Service
+Requires=docker.service
+After=docker.service
 
 [Service]
 Type=simple

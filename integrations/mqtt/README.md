@@ -1,4 +1,4 @@
-# Intergrate with MQTT
+# Integrate with MQTT
 
 
 1. Use `Mosquitto` client
