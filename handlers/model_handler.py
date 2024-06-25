@@ -111,7 +111,6 @@ class ModelDeployerWrapper(abc.ABC):
         print(" " * 80, end="\r")  # Clear console
         print(SERV_CONF["PROC"][self.uid]["status"], end="\r")
 
-        # if WS_CONF.get("WS") is None: return
         try:
             asyncio.run(
                 manager.broadcast(ws_msg(type="PROC", content=SERV_CONF["PROC"]))
@@ -132,15 +131,17 @@ class ModelDeployerWrapper(abc.ABC):
             self.push_mesg()
 
     def clear_event(self):
-        log.warning(f"Deploy fail, clear folder ({self.file_folder}).")
-        shutil.rmtree(self.file_folder)
+        if os.path.exists():
+            shutil.rmtree(self.file_folder)
+            log.warning(f"[ModelDeploy] Clear Event ({self.file_folder}).")
 
     def download_event(self):
+        log.debug("[ModelDeploy] Download Event")
         pass
 
     def convert_event(self):
         """Convert Model Event"""
-        # Update SERV_CONF
+        log.debug("[ModelDeploy] Convert Event")
         self.update_status(self.S_CONV)
 
         t_convert_start = time.time()
@@ -150,6 +151,7 @@ class ModelDeployerWrapper(abc.ABC):
         json_path = info.get("json_path", "")
         if json_path == "":
             raise FileNotFoundError("Could not find configuration.")
+        log.debug(f"[ModelDeploy] Preparing data: {info}")
 
         # Check Platform
         if not (
@@ -163,7 +165,9 @@ class ModelDeployerWrapper(abc.ABC):
         json_path = info.get("json_path", "")
         model_name = get_onnx_and_darknet_path(info.get("meta_data"))
         model_path = os.path.join(self.file_folder, model_name)
-
+        log.debug(
+            f"[ModelDeploy] type: {model_type}, name: {model_name}, path: {model_path}"
+        )
         # Check data
         if model_path == "":
             raise FileNotFoundError("Could not find model.")
@@ -189,12 +193,13 @@ class ModelDeployerWrapper(abc.ABC):
         }
 
         # Start convert
+        log.debug("Start convert via trtexec ...")
         process = converting_process(model_path, model_type)
 
         # Capture process
         for line in iter(process.stdout.readline, b""):
             # Finish
-            if process.poll() != None:
+            if process.poll() is not None:
                 break
 
             # Decode and record
@@ -219,7 +224,9 @@ class ModelDeployerWrapper(abc.ABC):
             1. Extract ZIP.
             2. Remove ZIP.
         """
-
+        log.debug(
+            f"[ModelDeploy] Parse Event ({self.file_path} -> {self.file_folder})."
+        )
         # Extract
         with zipfile.ZipFile(self.file_path, "r") as zip_ref:
             zip_ref.extractall(self.file_folder)
@@ -238,32 +245,30 @@ class ModelDeployerWrapper(abc.ABC):
 
         model_info = parse_model_folder(model_dir=self.file_folder)
         model_data = add_model_into_db(model_info=model_info)
+        log.debug("[ModelDeploy] Update database via parsing model's folder")
 
         SERV_CONF["PROC"][self.uid].update({"data": model_data})
+        log.debug("[ModelDeploy] Finished !")
 
     def deploy_event(self):
         try:
             t_down = time.time()
-            log.info("Downloading")
             self.update_status(self.S_DOWN)
             self.download_event()
             self.performance["download"] = time.time() - t_down
 
             t_parse = time.time()
-            log.info("Parsing")
             self.update_status(self.S_PARS)
             self.parse_event()
             self.performance["parse"] = time.time() - t_parse
 
             t_convert = time.time()
-            log.info("Converting")
             self.update_status(self.S_CONV)
             self.convert_event()
             self.performance["convert"] = time.time() - t_convert
 
             self.finished_event()
             self.update_status(self.S_FINISH)
-            log.info("Finished !!!")
 
         except Exception as e:
             self.clear_event()
@@ -273,7 +278,6 @@ class ModelDeployerWrapper(abc.ABC):
     def _create_thread(self):
         """Create a thread which will run self.deploy_event at once"""
         self.deploy_thread = threading.Thread(target=self.deploy_event, daemon=True)
-        log.warning("Created deploy thread")
 
     def start_deploy(self):
         self.deploy_thread.start()
