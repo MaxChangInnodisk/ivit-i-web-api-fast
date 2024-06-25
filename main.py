@@ -115,14 +115,17 @@ def startup_event():
         SERV_CONF["MQTT"] = mesg_handler.ServerMqttMessenger(
             "127.0.0.1", SERV_CONF["MQTT_PORT"]
         )
+    except BaseException as e:
+        log.error(f"Init MQTT Failed ({e})")
 
+    try:
         icap_handler.init_icap(
             tb_url=ICAP_CONF["HOST"],
             tb_port=ICAP_CONF["PORT"],
             device_name=ICAP_CONF["DEVICE_NAME"],
         )  # iCAP
-    except Exception as e:
-        log.warning(f"Init MQTT error ... ({e})")
+    except BaseException as e:
+        log.warning(f"Init iCAP error ... ({e})")
 
     db_handler.reset_db()
     log.info("iVIT-I Web Service Initialized !!!")
