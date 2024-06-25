@@ -8,10 +8,10 @@ import logging as log
 import os
 import time
 from typing import List, Union
+from urllib.request import urlretrieve
 
 import paho.mqtt.client as mqtt
 import requests
-import wget
 
 from common import ICAP_CONF, SERV_CONF
 from handlers import task_handler
@@ -114,7 +114,7 @@ class ICAP_HANDLER:
     def _attr_event(self, data):
         """Attribute Event"""
         if not data.get("ota_trigger", 0):
-            log.warning("OTA Not Trigger !")
+            # log.warning("OTA Not Trigger !")
             return
 
         if "sw_description" in data:
@@ -342,12 +342,15 @@ class ICAP_DEPLOYER(MODEL_URL_DEPLOYER):
 
     def download_event(self):
         """Download file via URL from iVIT-T"""
+        log.debug("[ModelDeploy] Download Event")
         self.update_status(self.S_DOWN)
-        self.file_name = wget.download(
-            self.url, self.file_path, bar=self._download_progress_event
-        )
+
+        log.debug(f"[ModelDeploy] Start download model ({self.url})")
+        urlretrieve(self.url, self.file_path, self._download_progress_event)
         self.file_folder = os.path.splitext(self.file_path)[0]
-        SERV_CONF["PROC"][self.uid]["name"] = os.path.basename(self.file_folder)
+        model_name = os.path.basename(self.file_folder)
+        SERV_CONF["PROC"][self.uid]["name"] = model_name
+        log.debug(f"[ModelDeploy] Downloaded, update model name ({model_name})")
 
     def finished_event(self):
         super().finished_event()
@@ -356,22 +359,17 @@ class ICAP_DEPLOYER(MODEL_URL_DEPLOYER):
     def push_mesg(self):
         """Not only push websocket but also push to mqtt for iCAP ( Thingboard )"""
 
-        # =============================
         # WebSocket
         super().push_mesg()
 
-        # =============================
         # MQTT
-
         # Check status
         stats = SERV_CONF["PROC"][self.uid]["status"]
-
         # Check message
         run_mesg, err_mesg = SERV_CONF["PROC"][self.uid]["message"], ""
         if stats == self.S_FAIL:
             err_mesg = run_mesg
             run_mesg = ""
-
         # Conbine data
         icap_data = {
             "sw_state": stats,
@@ -379,7 +377,6 @@ class ICAP_DEPLOYER(MODEL_URL_DEPLOYER):
             "sw_message": run_mesg,  # Not a standard key
             "sw_package_id": self.package_id,
         }
-
         # Finish
         if self.is_finish:
             icap_data.update(
