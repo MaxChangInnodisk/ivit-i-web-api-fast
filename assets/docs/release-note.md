@@ -1,5 +1,17 @@
 # Release Note
 
+## v1.3.2
+* Web API
+  * Add Styler: Ruff
+  * Improve the WebSocket usage
+  * Add `Uvicorn` logger
+  * Add `jq` binary file
+  * Improve the stability of iCAP deployment
+  * Add online Web API documentation with `APIDog`.
+* Website
+  * Add websocket unmount action to prevent abnormal behavior.
+  * The set inference event tab will match the task event and enable the status
+
 ## v1.3.1
 * Web API
   * FIX: Capture WebSocket disconnected error.
@@ -108,8 +120,6 @@
 5. Fixing the error of executing AI task failed after re-plugging USB camera.
 6. Add an error message when unplugging USB camera.
 7. Change the format of the log file from `File` to `RotatedFile` and add the `logs` folder and timestamp on the log file ( e.g.`ivit-i-230818.log` )
-
----
 
 ## v1.1.0
 1. Launch / Stop AI Tasks
