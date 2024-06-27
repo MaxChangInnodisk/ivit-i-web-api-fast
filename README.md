@@ -1,7 +1,7 @@
 ![COVER](./assets/images/ivit-i-logo.jpg)
 
 # iVIT-I-WebAPI-Fast
-the faster web api for `iVIT-I`
+the faster Web API for `iVIT-I`
 
 # iVIT-I
 iVIT (Vision Intelligence Toolkit) is an AI suite software. You can use iVIT-T to train a custom AI model and deploy it to `iVIT-I`. It provides a more straightforward usage and integrates with iCAP, `iVIT-I` is easy to integrate with your program using our `Web API (ivit-i-web-api-fast)` or `Python Library (ivit-i-{platform})`. 
@@ -72,8 +72,8 @@ The specification below shows the recommended requirements. In case of the use o
   * [Docker 20.10 + ](https://docs.docker.com/engine/install/ubuntu/)
     * `Docker Compose` > `v2.15.X`
       * **[ VERIFY ]** Use this command ( `docker compose version` ).
-      * **[ INSTALL ]** Install docker compose by following this [document](https://docs.docker.com/compose/install/linux/#install-using-the-repository) if you don't have docker compose.
-* For NVIDIA dGPU
+      * **[ INSTALL ]** Install the docker-compose by following this [document](https://docs.docker.com/compose/install/linux/#install-using-the-repository) if you don't have docker compose.
+* For NVIDIA `dGPU`
   * [NVIDIA GPU Driver](https://docs.nvidia.com/datacenter/tesla/tesla-installation-notes/index.html)
   * [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html#step-1-install-nvidia-container-toolkit)
 * For Jetson Platform
@@ -81,7 +81,7 @@ The specification below shows the recommended requirements. In case of the use o
   * [Jetson-Stats](https://github.com/rbonghi/jetson_stats)
 
 # Quick Start
-*** Notice: If you don't have network, you can follow the [tutorial](./assets//docs/import-docker-image.md) to import the docker image from tarball file. ***
+*** Notice: If you don't have network, you can follow the [tutorial](./assets//docs/import-docker-image.md) to import the docker image from the tarball file. ***
 
 * Prepare Repository
   ```bash
@@ -90,7 +90,7 @@ The specification below shows the recommended requirements. In case of the use o
   git clone -b ${VER} https://github.com/InnoIPA/ivit-i-web-api-fast.git && cd ivit-i-web-api-fast
   ```
 
-* Run `service` with target platform.
+* Run `service` with the target platform.
 
   ```bash
   # Usage: sudo ./docker/run.sh <framework>
@@ -101,7 +101,7 @@ The specification below shows the recommended requirements. In case of the use o
   | `framework` | support `intel`, `nvidia`, `jetson` now.
   
 * Visit Web Site
-  * Open Browser and enter the url: [http://127.0.0.1:8001](http://127.0.0.1:8001)
+  * Open Browser and enter the URL: [http://127.0.0.1:8001](http://127.0.0.1:8001)
     
     ![ivit-i-hint](assets/images/ivit-i-hint.png)
 
@@ -110,9 +110,9 @@ The specification below shows the recommended requirements. In case of the use o
     ![ivit-i-entrance](assets/images/ivit-i-entrance.png)
 
 # Install Service
-We also support `systemctl` to launch iVIT-I when booting. you can select `cli` mode if your system doesn't have GUI and the default value is `gui` if you not set up the mode option.
+We also support `systemctl` to launch iVIT-I when booting. you can select `cli` mode if your system doesn't have GUI and the default value is `gui` if you have not set up the mode option.
 
-* Install iVIT-I-Intel service into system, it will auto launch at background
+* Install the `iVIT-I` (`Intel`) service into the system, it will auto-launch in the background
   ```bash
   sudo ./docker/install.sh intel
   ```
@@ -123,11 +123,11 @@ We also support `systemctl` to launch iVIT-I when booting. you can select `cli` 
           - PLATFORM: support intel, nvidia, jetson.
           - MODE: support cli, gui. default is gui.
       ```
-* Start iVIT-I service
+* Start the iVIT-I service
   ```bash
   sudo systemctl start ivit-i
   ```
-* Stop iVIT-I service
+* Stop the iVIT-I service
   ```bash
   sudo systemctl stop ivit-i
   ```
@@ -135,7 +135,7 @@ We also support `systemctl` to launch iVIT-I when booting. you can select `cli` 
   ```bash
   sudo systemctl status ivit-i
   ```
-* Uninstall iVIT-I service
+* Uninstall the iVIT-I service
   ```bash
   sudo ./docker/uninstall.sh
   ```
@@ -150,13 +150,12 @@ You can modify the configuration file ( [`ivit-i.json`](ivit-i.json) ) to change
 
 
 # About Running Scripts
-
-* Enter docker container with interative mode.
+Enter the docker container with interactive mode.
     ```bash
     # Enter with command line mode
     sudo ./docker/run.sh intel -c
 
-    # Run fastapi
+    # Run the FastAPI
     python3 main.py
     ```
 * Run in background
@@ -190,9 +189,12 @@ You can modify the configuration file ( [`ivit-i.json`](ivit-i.json) ) to change
         ```
 
 # Web API Documentation
-*** *Make sure the web API service has already been launched.* ***
-* The documentation will be mounted at `<ip>:<nginx_port>/ivit/docs`
-* [FastAPI Swagger ( http://127.0.0.1:6632/ivit/docs )](http://127.0.0.1:6632/ivit/docs)
+1. Online Web API Document
+   1. [Build with APIDog]( https://apidog.com/apidoc/shared-68ab5de6-bf92-4dc3-ade2-4c4c30d74aa5 )
+2. Local Web API Document ( Execute Supported )
+   1. Make sure the web API service has already been launched.
+   2. The documentation will be mounted at `<ip>:<nginx_port>/ivit/docs`
+   3. [FastAPI Swagger ( http://127.0.0.1:6632/ivit/docs )](http://127.0.0.1:6632/ivit/docs)
 
 # About Integrations
 1. Message Output

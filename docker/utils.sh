@@ -69,8 +69,16 @@ function print_magic(){
 function check_jq(){
 	# Install pre-requirement
 	if [[ -z $(which jq) ]];then
-		printd "Installing requirements .... " Cy
-		sudo apt-get install jq -yqq
+		printd "Installing jq for parsing JSON configuration .... " Cy
+		# sudo apt-get install jq -yqq
+		BASEDIR=$(dirname $0)
+		chmod u+x ${BASEDIR}/tools/install-jq.sh
+		${BASEDIR}/tools/install-jq.sh
+
+		if [[ -z $(which jq) ]];then
+			printd "Install jq failed" R
+			exit 1
+		fi
 	fi
 }
 

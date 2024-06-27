@@ -2,11 +2,12 @@
 
 # Determine the system architecture
 ARCH=$(uname -m)
+BASEDIR=$(dirname $0)
 
 if [ "$ARCH" == "x86_64" ]; then
-    JQ_BINARY="jq-linux-amd64"
+    JQ_BINARY="${BASEDIR}/jq-linux-amd64"
 elif [ "$ARCH" == "aarch64" ]; then
-    JQ_BINARY="jq-linux-arm64"
+    JQ_BINARY="${BASEDIR}/jq-linux-arm64"
 else
     echo "Unsupported architecture: $ARCH"
     exit 1
